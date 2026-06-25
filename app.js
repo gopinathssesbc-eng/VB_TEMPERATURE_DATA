@@ -345,6 +345,36 @@ if (togglePasswordBtn) {
     });
 }
 
+// Validation Colors
+function updateInputAlert(input, val, diffExceeded) {
+    input.classList.remove('alert-red', 'alert-orange');
+    if (!isNaN(val)) {
+        if (val > 60 || diffExceeded) {
+            input.classList.add('alert-red');
+        } else if (val > 50) {
+            input.classList.add('alert-orange');
+        }
+    }
+}
+
+function evaluateAxlePair(coach, axleNum) {
+    const leftInput = document.querySelector(`input[name="${coach}_L${axleNum}"]`);
+    const rightInput = document.querySelector(`input[name="${coach}_R${axleNum}"]`);
+    
+    if (!leftInput || !rightInput) return;
+
+    const lVal = parseFloat(leftInput.value);
+    const rVal = parseFloat(rightInput.value);
+
+    let diffExceeded = false;
+    if (!isNaN(lVal) && !isNaN(rVal)) {
+        diffExceeded = Math.abs(lVal - rVal) > 10;
+    }
+
+    updateInputAlert(leftInput, lVal, diffExceeded);
+    updateInputAlert(rightInput, rVal, diffExceeded);
+}
+
 // Generate Coach Accordions
 function buildCoachInputs(train) {
     coachesContainer.innerHTML = '';
@@ -377,6 +407,11 @@ function buildCoachInputs(train) {
             input.step = '0.1';
             input.name = `${coach}_${axle}`;
             input.placeholder = 'Temp';
+            
+            input.addEventListener('input', () => {
+                const axleNum = axle.substring(1); // extracts 1, 2, 3, or 4
+                evaluateAxlePair(coach, axleNum);
+            });
             
             group.appendChild(label);
             group.appendChild(input);
@@ -500,6 +535,8 @@ function populateFormIfExists(dateStr, stationStr, train) {
                 const input = document.querySelector(`input[name="${key}"]`);
                 if (input) input.value = record[key] !== undefined ? record[key] : "";
             });
+            // Evaluate colors for existing populated data
+            [1, 2, 3, 4].forEach(axleNum => evaluateAxlePair(coach, axleNum));
         });
         Swal.fire({
             icon: 'success',

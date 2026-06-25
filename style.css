@@ -359,6 +359,7 @@ button:disabled {
 
 .accordion-icon {
     transition: transform 0.3s ease;
+    font-size: 0.8rem;
 }
 
 .accordion-item.active .accordion-icon {
@@ -489,4 +490,17 @@ div:where(.swal2-container) h2:where(.swal2-title) {
 }
 div:where(.swal2-container) div:where(.swal2-html-container) {
     color: var(--text-muted);
+}
+
+/* Alert Colors for Inputs */
+input.alert-red {
+    background-color: rgba(239, 68, 68, 0.25) !important;
+    border-color: #ef4444 !important;
+    color: #fca5a5 !important;
+}
+
+input.alert-orange {
+    background-color: rgba(249, 115, 22, 0.25) !important;
+    border-color: #f97316 !important;
+    color: #fdba74 !important;
 }
