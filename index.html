@@ -42,12 +42,12 @@
             <p style="color: var(--text-muted); margin-bottom: 2rem;">Select an option to continue</p>
         </header>
         <main class="menu-grid">
-            <button class="menu-btn" onclick="openDashboard('20661')">
-                <span class="menu-title">20661 Dashboard</span>
+            <button class="menu-btn" onclick="openDashboard('IC2021')">
+                <span class="menu-title">IC2021 Dashboard</span>
                 <span class="menu-subtitle">View recent temperature trends</span>
             </button>
-            <button class="menu-btn" onclick="openDashboard('26651')">
-                <span class="menu-title">26651 Dashboard</span>
+            <button class="menu-btn" onclick="openDashboard('IC2058')">
+                <span class="menu-title">IC2058 Dashboard</span>
                 <span class="menu-subtitle">View recent temperature trends</span>
             </button>
             <button class="menu-btn primary-menu-btn" onclick="openDataEntry()">
@@ -74,8 +74,8 @@
                         <label for="trainSelect">Train Number</label>
                         <select id="trainSelect" name="Train" required>
                             <option value="">-- Select Train --</option>
-                            <option value="20661">20661/2</option>
-                            <option value="26651">26651/2</option>
+                            <option value="IC2021">IC2021</option>
+                            <option value="IC2058">IC2058</option>
                         </select>
                     </div>
 
@@ -98,10 +98,8 @@
 
                     <div class="form-group">
                         <label for="dateInput">Date</label>
-                        <input type="date" id="dateInput" name="Date" required>
+                        <input type="text" id="dateInput" name="Date" placeholder="Select Date" required>
                     </div>
-
-                    <button type="button" id="loadDataBtn" class="secondary-btn">Load Existing Data</button>
                 </section>
 
                 <section class="coaches-section">
