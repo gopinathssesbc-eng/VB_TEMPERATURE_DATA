@@ -51,6 +51,7 @@ const datePicker = flatpickr("#dateInput", {
     dateFormat: "Y-m-d",
     disableMobile: "true",
     theme: "dark",
+    maxDate: "today",
     onChange: function(selectedDates, dateStr, instance) {
         if (!dateStr) return;
         const train = trainSelect.value;
