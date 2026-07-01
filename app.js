@@ -1,17 +1,24 @@
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxT-6WdCNh-cRtN8g8K7CR28oC1R6YAqAw6bsbkU4FRHNG9BBblHrey3Ia47rmxlYc5yA/exec"; 
+const OLD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxT-6WdCNh-cRtN8g8K7CR28oC1R6YAqAw6bsbkU4FRHNG9BBblHrey3Ia47rmxlYc5yA/exec";
+const NEW_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzJmNFmQddCZpDBEWWJB2f4oorGghmZ4hEifcGwqUpMR0lrRjGvx1QlMy2mFnEEF-scYQ/exec";
+
+function getWebAppUrl(train) {
+    return train === "IC2059" ? NEW_WEB_APP_URL : OLD_WEB_APP_URL;
+}
 
 // Constants
 const TRAIN_COACHES = {
     "IC2021": ['c1 235363', 'c2 235381', 'e1 235394', 'c3 235382', 'c4 235383', 'c5 235393', 'c6 235384', 'c7 235364'],
-    "IC2058": ['c1 241554', 'c2 241574', 'e1 241608', 'c3 241576', 'c4 241575', 'c5 241609', 'c6 241577', 'c7 241555']
+    "IC2058": ['c1 241554', 'c2 241574', 'e1 241608', 'c3 241576', 'c4 241575', 'c5 241609', 'c6 241577', 'c7 241555'],
+    "IC2059": ['C1 241556', 'C2 241578', 'E1 241610', 'C3 241580', 'C4 241579', 'C5 241611', 'C6 241581', 'C7 241557']
 };
 const AXLES = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4'];
 const STATIONS = {
     "IC2021": ["SBC", "DWR"],
-    "IC2058": ["SBC", "ERS"]
+    "IC2058": ["SBC", "ERS"],
+    "IC2059": ["MYS", "MAS"]
 };
 const COLORS = [
     '#ef4444', '#f97316', '#f59e0b', '#84cc16', 
@@ -120,7 +127,7 @@ async function openDashboard(train) {
     chartInstances = [];
     
     try {
-        const url = `${WEB_APP_URL}?password=${encodeURIComponent(currentPassword)}&train=${train}`;
+        const url = `${getWebAppUrl(train)}?password=${encodeURIComponent(currentPassword)}&train=${train}`;
         const response = await fetch(url);
         const result = await response.json();
         
@@ -454,7 +461,7 @@ passwordForm.addEventListener('submit', async (e) => {
     passwordError.classList.add('hidden');
     
     try {
-        const urlWithParams = `${WEB_APP_URL}?password=${encodeURIComponent(enteredPassword)}&train=IC2021`;
+        const urlWithParams = `${getWebAppUrl('IC2021')}?password=${encodeURIComponent(enteredPassword)}&train=IC2021`;
         const response = await fetch(urlWithParams);
         const result = await response.json();
         
@@ -492,7 +499,7 @@ async function fetchAndPopulateData(train, station, date) {
     updateStatus("Fetching...", "loading");
     
     try {
-        const url = `${WEB_APP_URL}?password=${encodeURIComponent(currentPassword)}&train=${train}`;
+        const url = `${getWebAppUrl(train)}?password=${encodeURIComponent(currentPassword)}&train=${train}`;
         const response = await fetch(url);
         const result = await response.json();
         
@@ -658,7 +665,7 @@ form.addEventListener('submit', async (e) => {
     };
     
     try {
-        const response = await fetch(WEB_APP_URL, {
+        const response = await fetch(getWebAppUrl(train), {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify(payload)

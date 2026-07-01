@@ -50,6 +50,10 @@
                 <span class="menu-title">IC2058 Dashboard</span>
                 <span class="menu-subtitle">View recent temperature trends</span>
             </button>
+            <button class="menu-btn" onclick="openDashboard('IC2059')">
+                <span class="menu-title">IC2059 Dashboard</span>
+                <span class="menu-subtitle">View recent temperature trends</span>
+            </button>
             <button class="menu-btn primary-menu-btn" onclick="openDataEntry()">
                 <span class="menu-title">Enter Temperature Data</span>
                 <span class="menu-subtitle">Log new station readings</span>
@@ -79,6 +83,7 @@
                             <option value="">-- Select Train --</option>
                             <option value="IC2021">IC2021</option>
                             <option value="IC2058">IC2058</option>
+                            <option value="IC2059">IC2059</option>
                         </select>
                     </div>
 
@@ -93,6 +98,7 @@
                         <label for="technicianSelect">Staff Token Number</label>
                         <select id="technicianSelect" name="Technician" required>
                             <option value="">-- Select Token --</option>
+                            <option value="MYS">MYS</option>
                             <option value="261">261</option>
                             <option value="269">269</option>
                             <option value="270">270</option>
