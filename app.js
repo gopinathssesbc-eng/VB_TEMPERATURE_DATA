@@ -20,6 +20,11 @@ const STATIONS = {
     "IC2058": ["SBC", "ERS"],
     "IC2059": ["MYS", "MAS"]
 };
+const TOKENS = {
+    "IC2021": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
+    "IC2058": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
+    "IC2059": ["MYS"]
+};
 const COLORS = [
     '#ef4444', '#f97316', '#f59e0b', '#84cc16', 
     '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'
@@ -40,6 +45,7 @@ const passwordError = document.getElementById('passwordError');
 const form = document.getElementById('dataForm');
 const trainSelect = document.getElementById('trainSelect');
 const stationSelect = document.getElementById('stationSelect');
+const technicianSelect = document.getElementById('technicianSelect');
 const dateInput = document.getElementById('dateInput');
 const coachesContainer = document.getElementById('coachesContainer');
 const submitBtn = document.getElementById('submitBtn');
@@ -105,6 +111,8 @@ function clearForm() {
     coachesContainer.innerHTML = '';
     stationSelect.innerHTML = '<option value="">-- Select Station --</option>';
     stationSelect.disabled = true;
+    technicianSelect.innerHTML = '<option value="">-- Select Token --</option>';
+    technicianSelect.disabled = true;
     updateStatus("", "");
 }
 
@@ -320,10 +328,11 @@ function renderCharts(allData, train) {
 }
 
 
-// Set up the dynamic station dropdown based on train selection
+// Set up the dynamic station and token dropdown based on train selection
 trainSelect.addEventListener('change', (e) => {
     const train = e.target.value;
     stationSelect.innerHTML = '<option value="">-- Select Station --</option>';
+    technicianSelect.innerHTML = '<option value="">-- Select Token --</option>';
     
     if (train && STATIONS[train]) {
         STATIONS[train].forEach(station => {
@@ -333,9 +342,23 @@ trainSelect.addEventListener('change', (e) => {
             stationSelect.appendChild(option);
         });
         stationSelect.disabled = false;
+        
+        if (TOKENS[train]) {
+            TOKENS[train].forEach(token => {
+                const option = document.createElement('option');
+                option.value = token;
+                option.textContent = token;
+                technicianSelect.appendChild(option);
+            });
+            technicianSelect.disabled = false;
+        } else {
+            technicianSelect.disabled = true;
+        }
+        
         buildCoachInputs(train); // Rebuild coaches based on selected train
     } else {
         stationSelect.disabled = true;
+        technicianSelect.disabled = true;
         coachesContainer.innerHTML = '';
     }
 });
