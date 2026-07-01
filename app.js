@@ -191,7 +191,7 @@ function renderCharts(allData, train) {
         
         const tempTitle = document.createElement('h3');
         tempTitle.className = 'chart-title';
-        tempTitle.textContent = `${coach} - Axle Temperatures`;
+        tempTitle.textContent = `${coach.toUpperCase()} - Axle Temperatures`;
         tempContainer.appendChild(tempTitle);
 
         const tempCanvas = document.createElement('canvas');
@@ -260,7 +260,7 @@ function renderCharts(allData, train) {
         
         const diffTitle = document.createElement('h3');
         diffTitle.className = 'chart-title';
-        diffTitle.textContent = `${coach} - Axle Differences`;
+        diffTitle.textContent = `${coach.toUpperCase()} - Axle Differences`;
         diffContainer.appendChild(diffTitle);
 
         const diffCanvas = document.createElement('canvas');
@@ -418,7 +418,7 @@ function buildCoachInputs(train) {
         const header = document.createElement('button');
         header.type = 'button';
         header.className = 'accordion-header';
-        header.innerHTML = `<span>${coach}</span><span class="accordion-icon">▼</span>`;
+        header.innerHTML = `<span>${coach.toUpperCase()}</span><span class="accordion-icon">▼</span>`;
         
         const content = document.createElement('div');
         content.className = 'accordion-content';
@@ -635,7 +635,7 @@ form.addEventListener('submit', async (e) => {
         
         // If they started filling out a coach, they MUST complete all 8 axles
         if (filledCount > 0 && filledCount < 8) {
-            validationError = `${coach} is incomplete. You entered ${filledCount} out of 8 axle temperatures. Please complete all 8 readings.`;
+            validationError = `${coach.toUpperCase()} is incomplete. You entered ${filledCount} out of 8 axle temperatures. Please complete all 8 readings.`;
             break;
         }
         
