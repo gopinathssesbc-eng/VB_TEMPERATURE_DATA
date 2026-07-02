@@ -10,8 +10,8 @@ function getWebAppUrl(train) {
 
 // Constants
 const TRAIN_COACHES = {
-    "IC2021": ['c1 235363', 'c2 235381', 'e1 235394', 'c3 235382', 'c4 235383', 'c5 235393', 'c6 235384', 'c7 235364'],
-    "IC2058": ['c1 241554', 'c2 241574', 'e1 241608', 'c3 241576', 'c4 241575', 'c5 241609', 'c6 241577', 'c7 241555'],
+    "IC2021": ['C1 235363', 'C2 235381', 'e1 235394', 'c3 235382', 'c4 235383', 'c5 235393', 'c6 235384', 'c7 235364'],
+    "IC2058": ['C1 241554', 'C2 241574', 'e1 241608', 'c3 241576', 'c4 241575', 'c5 241609', 'c6 241577', 'c7 241555'],
     "IC2059": ['C1 241556', 'C2 241578', 'E1 241610', 'C3 241580', 'C4 241579', 'C5 241611', 'C6 241581', 'C7 241557']
 };
 const AXLES = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4'];
@@ -22,11 +22,11 @@ const STATIONS = {
 };
 const TOKENS = {
     "IC2021": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
-    "IC2058": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
+    "IC2058": ["T59", "K69", "K65", "T26", "T30", "T40", "T38", "T87", "T140", "T123", "T118", "T131", "K356", "T171", "T166", "K439", "K447", "K398"],
     "IC2059": ["MYS"]
 };
 const COLORS = [
-    '#ef4444', '#f97316', '#f59e0b', '#84cc16', 
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16',
     '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'
 ];
 
@@ -65,11 +65,11 @@ const datePicker = flatpickr("#dateInput", {
     disableMobile: "true",
     theme: "dark",
     maxDate: "today",
-    onChange: function(selectedDates, dateStr, instance) {
+    onChange: function (selectedDates, dateStr, instance) {
         if (!dateStr) return;
         const train = trainSelect.value;
         const station = stationSelect.value;
-        
+
         if (!train || !station) {
             Swal.fire({
                 icon: 'warning',
@@ -85,7 +85,7 @@ const datePicker = flatpickr("#dateInput", {
             document.getElementById('dateInput').blur();
             return;
         }
-        
+
         instance.close();
         document.getElementById('dateInput').blur();
         fetchAndPopulateData(train, station, dateStr);
@@ -129,16 +129,16 @@ async function openDashboard(train) {
     dashboardLoading.style.display = 'block';
     dashboardCharts.style.display = 'none';
     dashboardCharts.innerHTML = '';
-    
+
     // Destroy previous charts
     chartInstances.forEach(chart => chart.destroy());
     chartInstances = [];
-    
+
     try {
         const url = `${getWebAppUrl(train)}?password=${encodeURIComponent(currentPassword)}&train=${train}`;
         const response = await fetch(url);
         const result = await response.json();
-        
+
         if (result.status === "success") {
             renderCharts(result.data, train);
             dashboardLoading.style.display = 'none';
@@ -163,7 +163,7 @@ function renderCharts(allData, train) {
     // Filter last 7 days and sort chronologically
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     let filteredData = allData.filter(row => {
         if (!row.Date) return false;
         const rowDate = new Date(row.Date);
@@ -174,8 +174,8 @@ function renderCharts(allData, train) {
     filteredData.sort((a, b) => new Date(a.Date) - new Date(b.Date));
 
     if (filteredData.length === 0) {
-         dashboardCharts.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No data recorded in the last 7 days.</p>';
-         return;
+        dashboardCharts.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No data recorded in the last 7 days.</p>';
+        return;
     }
 
     // X-axis labels: e.g., "2026-06-25" (Multiple entries on the same date will appear as sequential points)
@@ -188,7 +188,7 @@ function renderCharts(allData, train) {
         // --- 1. Axle Temperatures Chart ---
         const tempContainer = document.createElement('div');
         tempContainer.className = 'chart-container';
-        
+
         const tempTitle = document.createElement('h3');
         tempTitle.className = 'chart-title';
         tempTitle.textContent = `${coach.toUpperCase()} - Axle Temperatures`;
@@ -251,13 +251,13 @@ function renderCharts(allData, train) {
                 }
             }
         });
-        
+
         chartInstances.push(tempChart);
 
         // --- 2. Axle Differences Chart ---
         const diffContainer = document.createElement('div');
         diffContainer.className = 'chart-container';
-        
+
         const diffTitle = document.createElement('h3');
         diffTitle.className = 'chart-title';
         diffTitle.textContent = `${coach.toUpperCase()} - Axle Differences`;
@@ -322,7 +322,7 @@ function renderCharts(allData, train) {
                 }
             }
         });
-        
+
         chartInstances.push(diffChart);
     });
 }
@@ -333,7 +333,7 @@ trainSelect.addEventListener('change', (e) => {
     const train = e.target.value;
     stationSelect.innerHTML = '<option value="">-- Select Station --</option>';
     technicianSelect.innerHTML = '<option value="">-- Select Token --</option>';
-    
+
     if (train && STATIONS[train]) {
         STATIONS[train].forEach(station => {
             const option = document.createElement('option');
@@ -342,7 +342,7 @@ trainSelect.addEventListener('change', (e) => {
             stationSelect.appendChild(option);
         });
         stationSelect.disabled = false;
-        
+
         if (TOKENS[train]) {
             TOKENS[train].forEach(token => {
                 const option = document.createElement('option');
@@ -354,7 +354,7 @@ trainSelect.addEventListener('change', (e) => {
         } else {
             technicianSelect.disabled = true;
         }
-        
+
         buildCoachInputs(train); // Rebuild coaches based on selected train
     } else {
         stationSelect.disabled = true;
@@ -391,7 +391,7 @@ function updateInputAlert(input, val, diffExceeded) {
 function evaluateAxlePair(coach, axleNum) {
     const leftInput = document.querySelector(`input[name="${coach}_L${axleNum}"]`);
     const rightInput = document.querySelector(`input[name="${coach}_R${axleNum}"]`);
-    
+
     if (!leftInput || !rightInput) return;
 
     const lVal = parseFloat(leftInput.value);
@@ -410,50 +410,50 @@ function evaluateAxlePair(coach, axleNum) {
 function buildCoachInputs(train) {
     coachesContainer.innerHTML = '';
     const currentCoaches = TRAIN_COACHES[train] || [];
-    
+
     currentCoaches.forEach((coach, coachIndex) => {
         const item = document.createElement('div');
         item.className = 'accordion-item';
-        
+
         const header = document.createElement('button');
         header.type = 'button';
         header.className = 'accordion-header';
         header.innerHTML = `<span>${coach.toUpperCase()}</span><span class="accordion-icon">▼</span>`;
-        
+
         const content = document.createElement('div');
         content.className = 'accordion-content';
-        
+
         const inner = document.createElement('div');
         inner.className = 'accordion-content-inner';
-        
+
         AXLES.forEach(axle => {
             const group = document.createElement('div');
             group.className = 'form-group';
-            
+
             const label = document.createElement('label');
             label.textContent = `${axle}`;
-            
+
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '0.1';
             input.name = `${coach}_${axle}`;
             input.placeholder = 'Temp';
-            
+
             input.addEventListener('input', () => {
                 const axleNum = axle.substring(1); // extracts 1, 2, 3, or 4
                 evaluateAxlePair(coach, axleNum);
             });
-            
+
             group.appendChild(label);
             group.appendChild(input);
             inner.appendChild(group);
         });
-        
+
         content.appendChild(inner);
         item.appendChild(header);
         item.appendChild(content);
         coachesContainer.appendChild(item);
-        
+
         header.addEventListener('click', () => {
             const isActive = item.classList.contains('active');
             document.querySelectorAll('.accordion-item').forEach(el => {
@@ -475,19 +475,19 @@ function buildCoachInputs(train) {
 passwordForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const enteredPassword = passwordInput.value;
-    
+
     const btnText = passwordSubmitBtn.querySelector('span');
     const spinner = passwordSubmitBtn.querySelector('.spinner');
     passwordSubmitBtn.disabled = true;
     btnText.textContent = 'Verifying...';
     spinner.classList.remove('hidden');
     passwordError.classList.add('hidden');
-    
+
     try {
         const urlWithParams = `${getWebAppUrl('IC2021')}?password=${encodeURIComponent(enteredPassword)}&train=IC2021`;
         const response = await fetch(urlWithParams);
         const result = await response.json();
-        
+
         if (result.status === "success") {
             currentPassword = enteredPassword;
             hideAllScreens();
@@ -518,14 +518,14 @@ async function fetchAndPopulateData(train, station, date) {
             Swal.showLoading();
         }
     });
-    
+
     updateStatus("Fetching...", "loading");
-    
+
     try {
         const url = `${getWebAppUrl(train)}?password=${encodeURIComponent(currentPassword)}&train=${train}`;
         const response = await fetch(url);
         const result = await response.json();
-        
+
         if (result.status === "success") {
             currentCachedData = result.data;
             populateFormIfExists(date, station, train);
@@ -551,13 +551,13 @@ async function fetchAndPopulateData(train, station, date) {
 }
 
 function populateFormIfExists(dateStr, stationStr, train) {
-    const record = currentCachedData.find(r => 
-        String(r.Date).trim() === String(dateStr).trim() && 
+    const record = currentCachedData.find(r =>
+        String(r.Date).trim() === String(dateStr).trim() &&
         String(r.Station).trim() === String(stationStr).trim()
     );
-    
+
     const currentCoaches = TRAIN_COACHES[train] || [];
-    
+
     if (record) {
         document.getElementById('technicianSelect').value = record.Technician || "";
         currentCoaches.forEach(coach => {
@@ -608,7 +608,7 @@ form.addEventListener('submit', async (e) => {
     submitBtn.disabled = true;
     btnText.textContent = 'Saving...';
     spinner.classList.remove('hidden');
-    
+
     const formData = new FormData(form);
     const rowData = {};
     formData.forEach((value, key) => {
@@ -620,10 +620,10 @@ form.addEventListener('submit', async (e) => {
     // ----------------------------------------------------
     let validationError = null;
     let totalFilledCoaches = 0;
-    
+
     const train = trainSelect.value;
     const currentCoaches = TRAIN_COACHES[train] || [];
-    
+
     for (const coach of currentCoaches) {
         let filledCount = 0;
         AXLES.forEach(axle => {
@@ -632,18 +632,18 @@ form.addEventListener('submit', async (e) => {
                 filledCount++;
             }
         });
-        
+
         // If they started filling out a coach, they MUST complete all 8 axles
         if (filledCount > 0 && filledCount < 8) {
             validationError = `${coach.toUpperCase()} is incomplete. You entered ${filledCount} out of 8 axle temperatures. Please complete all 8 readings.`;
             break;
         }
-        
+
         if (filledCount === 8) {
             totalFilledCoaches++;
         }
     }
-    
+
     if (!validationError && totalFilledCoaches === 0) {
         validationError = "Please enter temperature data for at least one coach before saving.";
     }
@@ -652,7 +652,7 @@ form.addEventListener('submit', async (e) => {
         submitBtn.disabled = false;
         btnText.textContent = 'Save Records';
         spinner.classList.add('hidden');
-        
+
         Swal.fire({
             icon: 'warning',
             title: 'Incomplete Data',
@@ -664,14 +664,14 @@ form.addEventListener('submit', async (e) => {
         return; // Stop form submission
     }
     // ----------------------------------------------------
-    
+
     // Calculate Absolute Temperature Differences
     currentCoaches.forEach(coach => {
         [1, 2, 3, 4].forEach(axleNum => {
             const leftVal = rowData[`${coach}_L${axleNum}`];
             const rightVal = rowData[`${coach}_R${axleNum}`];
             const diffKey = `Diff_${coach}_axle${axleNum}`;
-            
+
             if (leftVal !== "" && rightVal !== "" && leftVal !== undefined && rightVal !== undefined) {
                 const diff = Math.abs(parseFloat(leftVal) - parseFloat(rightVal));
                 rowData[diffKey] = diff.toFixed(1); // Keep one decimal place
@@ -680,20 +680,20 @@ form.addEventListener('submit', async (e) => {
             }
         });
     });
-    
+
     const payload = {
         password: currentPassword,
         train: trainSelect.value,
         rowData: rowData
     };
-    
+
     try {
         const response = await fetch(getWebAppUrl(train), {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify(payload)
         });
-        
+
         const result = await response.json();
         if (result.status === "success") {
             updateStatus("Saved successfully", "online");
