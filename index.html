@@ -42,6 +42,10 @@
             <p style="color: var(--text-muted); margin-bottom: 2rem;">Select an option to continue</p>
         </header>
         <main class="menu-grid">
+            <button class="menu-btn primary-menu-btn" onclick="openDataEntry()">
+                <span class="menu-title">Enter Temperature Data</span>
+                <span class="menu-subtitle">Log new station readings</span>
+            </button>
             <button class="menu-btn" onclick="openDashboard('IC2021')">
                 <span class="menu-title">IC2021 Dashboard</span>
                 <span class="menu-subtitle">View recent temperature trends</span>
@@ -54,9 +58,9 @@
                 <span class="menu-title">IC2059 Dashboard</span>
                 <span class="menu-subtitle">View recent temperature trends</span>
             </button>
-            <button class="menu-btn primary-menu-btn" onclick="openDataEntry()">
-                <span class="menu-title">Enter Temperature Data</span>
-                <span class="menu-subtitle">Log new station readings</span>
+            <button class="menu-btn" onclick="openDashboard('IC2029')">
+                <span class="menu-title">IC2029 Dashboard</span>
+                <span class="menu-subtitle">View recent temperature trends</span>
             </button>
         </main>
         <div style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
@@ -84,6 +88,7 @@
                             <option value="IC2021">IC2021</option>
                             <option value="IC2058">IC2058</option>
                             <option value="IC2059">IC2059</option>
+                            <option value="IC2029">IC2029</option>
                         </select>
                     </div>
 
@@ -157,6 +162,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=1.5"></script>
+    <script src="app.js?v=1.6"></script>
 </body>
 </html>
