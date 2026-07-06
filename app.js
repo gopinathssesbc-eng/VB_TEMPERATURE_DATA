@@ -163,8 +163,22 @@ function renderCharts(allData, train) {
         return;
     }
 
-    // Filter last 7 days and sort chronologically
-    const sevenDaysAgo = new Date();
+    // Filter last 7 days from the latest entry and sort chronologically
+    let latestDate = null;
+    allData.forEach(row => {
+        if (row.Date) {
+            const rowDate = new Date(row.Date);
+            if (!latestDate || rowDate > latestDate) {
+                latestDate = rowDate;
+            }
+        }
+    });
+
+    if (!latestDate) {
+        latestDate = new Date();
+    }
+
+    const sevenDaysAgo = new Date(latestDate);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     let filteredData = allData.filter(row => {
