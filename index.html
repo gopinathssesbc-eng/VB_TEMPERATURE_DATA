@@ -6,8 +6,8 @@
     <meta name="google-site-verification" content="m_4Uo8QBLi-SFkqr7PEeZdEP1VRCFnWUsln1CBbwLfE" />
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Train Axle Temperature Log and Dashboard by SBC Coaching Depot. Enter and monitor temperature data for trains IC2021, IC2058, IC2059, and IC2029.">
-    <meta name="keywords" content="Train Axle Temperature, SBC Coaching Depot, Train Maintenance, Indian Railways, IC2021, IC2058, IC2059, IC2029, Temperature Data Logger">
+    <meta name="description" content="Train Axle Temperature Log and Dashboard by SBC Coaching Depot. Enter and monitor temperature data for trains IC2021, IC2058, IC2059, IC2029, IC2008, and IC2006.">
+    <meta name="keywords" content="Train Axle Temperature, SBC Coaching Depot, Train Maintenance, Indian Railways, IC2021, IC2058, IC2059, IC2029, IC2008, IC2006, Temperature Data Logger">
     <meta name="author" content="SBC Coaching Depot">
     <meta name="robots" content="index, follow">
     
@@ -18,7 +18,7 @@
     <meta property="og:url" content="https://gopinathssesbc-eng.github.io/VB_TEMPERATURE_DATA/">
     
     <title>Train Axle Temperature</title>
-    <link rel="stylesheet" href="style.css?v=1.4">
+    <link rel="stylesheet" href="style.css?v=2.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Flatpickr Calendar Library -->
@@ -47,7 +47,8 @@
             </form>
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v1.9
+                v2.0 <br>
+                <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
             </div>
         </div>
     </div>
@@ -83,9 +84,14 @@
                 <span class="menu-title">IC2008 Dashboard</span>
                 <span class="menu-subtitle">View recent temperature trends</span>
             </button>
+            <button class="menu-btn" onclick="openDashboard('IC2006')">
+                <span class="menu-title">IC2006 Dashboard</span>
+                <span class="menu-subtitle">View recent temperature trends</span>
+            </button>
         </main>
         <div style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
-            v1.9
+            v2.0 <br>
+            <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
         </div>
     </div>
 
@@ -111,6 +117,7 @@
                             <option value="IC2059">IC2059</option>
                             <option value="IC2029">IC2029</option>
                             <option value="IC2008">IC2008</option>
+                            <option value="IC2006">IC2006</option>
                         </select>
                     </div>
 
@@ -184,6 +191,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=1.9"></script>
+    <script src="app.js?v=2.0"></script>
 </body>
 </html>

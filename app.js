@@ -3,8 +3,10 @@
 // ============================================================================
 const OLD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxT-6WdCNh-cRtN8g8K7CR28oC1R6YAqAw6bsbkU4FRHNG9BBblHrey3Ia47rmxlYc5yA/exec";
 const NEW_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzJmNFmQddCZpDBEWWJB2f4oorGghmZ4hEifcGwqUpMR0lrRjGvx1QlMy2mFnEEF-scYQ/exec";
+const IC2006_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxUacggoRnVVnpsQik52XBaMv9Aj9X1Fdw5f7rbK-bjsqrcmZR7vDsMnZIwfJU_zsPbuQ/exec"; // Update this with the IC2006 script deployed Web App URL
 
 function getWebAppUrl(train) {
+    if (train === "IC2006") return IC2006_WEB_APP_URL;
     return train === "IC2059" ? NEW_WEB_APP_URL : OLD_WEB_APP_URL;
 }
 
@@ -14,7 +16,8 @@ const TRAIN_COACHES = {
     "IC2058": ['c1 241554', 'c2 241574', 'e1 241608', 'c3 241576', 'c4 241575', 'c5 241609', 'c6 241577', 'c7 241555'],
     "IC2059": ['C1 241556', 'C2 241578', 'E1 241610', 'C3 241580', 'C4 241579', 'C5 241611', 'C6 241581', 'C7 241557'],
     "IC2029": ['c1 235565', 'c2 235567', 'e1 235571', 'c3 235569', 'c4 235568', 'c5 235572', 'c6 235570', 'c7 235566'],
-    "IC2008": ['c1 235049', 'c2 235057', 'c3 235061', 'c4 235056', 'c5 235055', 'c6 235060', 'c7 235054', 'e1 231078', 'e2 231077', 'c8 235053', 'c9 235059', 'c10 235052', 'c11 235051', 'c12 235058', 'c13 235050', 'c14 235048']
+    "IC2008": ['c1 235049', 'c2 235057', 'c3 235061', 'c4 235056', 'c5 235055', 'c6 235060', 'c7 235054', 'e1 231078', 'e2 231077', 'c8 235053', 'c9 235059', 'c10 235052', 'c11 235051', 'c12 235058', 'c13 235050', 'c14 235048'],
+    "IC2006": ['c14 235002', 'c13 235010', 'c12 235014', 'c11 235009', 'c10 235008', 'c9 235013', 'c8 235007', 'e2 231003', 'e1 231002', 'c7 235006', 'c6 235012', 'c5 235005', 'c4 235004', 'c3 235011', 'c2 235003', 'c1 235001']
 };
 const AXLES = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4'];
 const STATIONS = {
@@ -22,14 +25,16 @@ const STATIONS = {
     "IC2058": ["SBC", "ERS"],
     "IC2059": ["MYS", "MAS"],
     "IC2029": ["SBC", "DWR"],
-    "IC2008": ["SBC", "ERS"]
+    "IC2008": ["SBC", "ERS"],
+    "IC2006": ["KCG", "YPR"]
 };
 const TOKENS = {
     "IC2021": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
     "IC2058": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
     "IC2059": ["T59", "K69", "K65", "T26", "T30", "T40", "T38", "T87", "T140", "T123", "T118", "T131", "K356", "T171", "T166", "K439", "K447", "K398"],
     "IC2029": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
-    "IC2008": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"]
+    "IC2008": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
+    "IC2006": ["KCG staff"]
 };
 const COLORS = [
     '#ef4444', '#f97316', '#f59e0b', '#84cc16',
@@ -761,4 +766,29 @@ function handleSessionExpired() {
 function updateStatus(text, type) {
     statusIndicator.textContent = text;
     statusIndicator.className = `status-indicator ${type}`;
+}
+
+// Changelog Modal
+function showChangelog() {
+    Swal.fire({
+        title: 'Changelog',
+        html: `
+            <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; color: var(--text-main);">
+                <strong>v2.0</strong><br>
+                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
+                    <li>IC2006 added date - 24/09/2026</li>
+                </ul>
+                <strong>Older Versions</strong><br>
+                <ul style="margin-top: 0.5rem; margin-bottom: 0; padding-left: 1.5rem;">
+                    <li>Initial releases and UI updates.</li>
+                    <li>Added dashboard charts and security layers.</li>
+                </ul>
+            </div>
+        `,
+        background: 'var(--surface)',
+        color: 'var(--text-main)',
+        confirmButtonColor: 'var(--primary)',
+        confirmButtonText: 'Close',
+        width: '400px'
+    });
 }
