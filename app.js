@@ -774,6 +774,13 @@ function showChangelog() {
         title: 'Changelog',
         html: `
             <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; color: var(--text-main);">
+                <strong>v2.1 (PWA Update)</strong><br>
+                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
+                    <li>Progressive Web App (PWA) support added.</li>
+                    <li>Installable on Android, iOS, Windows, and macOS.</li>
+                    <li>Offline app shell caching via Service Worker.</li>
+                    <li>Fast instant load and custom app icons.</li>
+                </ul>
                 <strong>v2.0</strong><br>
                 <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
                     <li>IC2006 added date - 24/09/2026</li>
@@ -792,3 +799,80 @@ function showChangelog() {
         width: '400px'
     });
 }
+
+// ============================================================================
+// PWA & SERVICE WORKER REGISTRATION
+// ============================================================================
+let deferredInstallPrompt = null;
+const installAppBtn = document.getElementById('installAppBtn');
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+                console.log('[PWA] Service Worker registered successfully:', registration.scope);
+            })
+            .catch((error) => {
+                console.warn('[PWA] Service Worker registration failed:', error);
+            });
+    });
+}
+
+// Capture beforeinstallprompt for install button
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (installAppBtn) {
+        installAppBtn.style.display = 'flex';
+    }
+});
+
+if (installAppBtn) {
+    installAppBtn.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        console.log(`[PWA] Install prompt outcome: ${outcome}`);
+        deferredInstallPrompt = null;
+        installAppBtn.style.display = 'none';
+    });
+}
+
+window.addEventListener('appinstalled', () => {
+    console.log('[PWA] App successfully installed');
+    if (installAppBtn) {
+        installAppBtn.style.display = 'none';
+    }
+});
+
+// Network status listeners
+window.addEventListener('offline', () => {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: 'You are currently offline',
+            text: 'Cached app shell is available. Sync requires connection.',
+            showConfirmButton: false,
+            timer: 4000,
+            background: 'var(--surface)',
+            color: 'var(--text-main)'
+        });
+    }
+});
+
+window.addEventListener('online', () => {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Back online',
+            showConfirmButton: false,
+            timer: 3000,
+            background: 'var(--surface)',
+            color: 'var(--text-main)'
+        });
+    }
+});

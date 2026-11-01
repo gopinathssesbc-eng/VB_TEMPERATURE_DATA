@@ -18,7 +18,22 @@
     <meta property="og:url" content="https://gopinathssesbc-eng.github.io/VB_TEMPERATURE_DATA/">
     
     <title>Train Axle Temperature</title>
-    <link rel="stylesheet" href="style.css?v=2.0">
+    
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Train Axle">
+    
+    <!-- App Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="icons/favicon.png">
+
+    <link rel="stylesheet" href="style.css?v=2.1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Flatpickr Calendar Library -->
@@ -47,7 +62,7 @@
             </form>
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v2.0 <br>
+                v2.1 <br>
                 <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
             </div>
         </div>
@@ -60,6 +75,10 @@
             <p style="color: var(--text-muted); margin-bottom: 2rem;">Select an option to continue</p>
         </header>
         <main class="menu-grid">
+            <button id="installAppBtn" class="menu-btn install-menu-btn" style="display: none;">
+                <span class="menu-title">📲 Install App (PWA)</span>
+                <span class="menu-subtitle">Install to home screen or desktop for fast offline access</span>
+            </button>
             <button class="menu-btn primary-menu-btn" onclick="openDataEntry()">
                 <span class="menu-title">Enter Temperature Data</span>
                 <span class="menu-subtitle">Log new station readings</span>
@@ -90,7 +109,7 @@
             </button>
         </main>
         <div style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
-            v2.0 <br>
+            v2.1 <br>
             <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
         </div>
     </div>
@@ -191,6 +210,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.0"></script>
+    <script src="app.js?v=2.1"></script>
 </body>
 </html>
