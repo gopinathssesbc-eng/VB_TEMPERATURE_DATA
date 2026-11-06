@@ -82,6 +82,17 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName(trainName);
     
+    // Case-insensitive fallback lookup (e.g., "Arrival Report" vs "arrival report")
+    if (!sheet) {
+        const allSheets = ss.getSheets();
+        for (let i = 0; i < allSheets.length; i++) {
+            if (allSheets[i].getName().trim().toLowerCase() === String(trainName).trim().toLowerCase()) {
+                sheet = allSheets[i];
+                break;
+            }
+        }
+    }
+
     if (!sheet) {
         // Auto-create the sheet if it doesn't exist
         sheet = ss.insertSheet(trainName);
@@ -90,12 +101,13 @@ function doPost(e) {
     const allData = sheet.getDataRange().getValues();
     const headers = allData.length > 0 ? allData[0] : [];
     
+    const isArrivalReport = String(trainName).trim().toLowerCase().includes("arrival") || request.action === "arrival_report";
     let dateIndex = headers.indexOf("Date");
     let stationIndex = headers.indexOf("Station");
     let rowIndexToUpdate = -1;
 
-    // Check if a record already exists for this Date and Station
-    if (dateIndex !== -1 && stationIndex !== -1 && allData.length > 1) {
+    // Check if a record already exists for this Date and Station (Only for temperature data, NOT arrival reports)
+    if (!isArrivalReport && dateIndex !== -1 && stationIndex !== -1 && allData.length > 1) {
         for (let i = 1; i < allData.length; i++) {
             let sheetDateStr = "";
             if (allData[i][dateIndex] instanceof Date) {

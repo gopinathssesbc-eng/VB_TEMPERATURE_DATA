@@ -4,6 +4,7 @@
 const OLD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxT-6WdCNh-cRtN8g8K7CR28oC1R6YAqAw6bsbkU4FRHNG9BBblHrey3Ia47rmxlYc5yA/exec";
 const NEW_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzJmNFmQddCZpDBEWWJB2f4oorGghmZ4hEifcGwqUpMR0lrRjGvx1QlMy2mFnEEF-scYQ/exec";
 const IC2006_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxUacggoRnVVnpsQik52XBaMv9Aj9X1Fdw5f7rbK-bjsqrcmZR7vDsMnZIwfJU_zsPbuQ/exec"; // Update this with the IC2006 script deployed Web App URL
+const ARRIVAL_REPORT_WEB_APP_URL = OLD_WEB_APP_URL; // Google Apps Script Web App URL for Arrival Report
 
 function getWebAppUrl(train) {
     if (train === "IC2006") return IC2006_WEB_APP_URL;
@@ -46,6 +47,7 @@ const passwordModal = document.getElementById('passwordModal');
 const menuScreen = document.getElementById('menuScreen');
 const dataEntryScreen = document.getElementById('dataEntryScreen');
 const dashboardScreen = document.getElementById('dashboardScreen');
+const arrivalReportScreen = document.getElementById('arrivalReportScreen');
 
 const passwordForm = document.getElementById('passwordForm');
 const passwordInput = document.getElementById('passwordInput');
@@ -61,6 +63,25 @@ const dateInput = document.getElementById('dateInput');
 const coachesContainer = document.getElementById('coachesContainer');
 const submitBtn = document.getElementById('submitBtn');
 const statusIndicator = document.getElementById('status');
+
+// Arrival Report Elements
+const arrivalForm = document.getElementById('arrivalForm');
+const arrivalSubmitBtn = document.getElementById('arrivalSubmitBtn');
+const arrivalStatus = document.getElementById('arrivalStatus');
+const arrivalReportedBy = document.getElementById('arrivalReportedBy');
+const arrivalRakeSelect = document.getElementById('arrivalRakeSelect');
+const arrivalDateInput = document.getElementById('arrivalDateInput');
+const arrivalTrainSelect = document.getElementById('arrivalTrainSelect');
+const arrivalOtherTrainGroup = document.getElementById('arrivalOtherTrainGroup');
+const arrivalOtherTrainInput = document.getElementById('arrivalOtherTrainInput');
+const arrivalCoachSelect = document.getElementById('arrivalCoachSelect');
+const arrivalCategorySelect = document.getElementById('arrivalCategorySelect');
+const arrivalIssueDesc = document.getElementById('arrivalIssueDesc');
+const detentionDetailsContainer = document.getElementById('detentionDetailsContainer');
+const arrivalStationName = document.getElementById('arrivalStationName');
+const arrivalDetentionFrom = document.getElementById('arrivalDetentionFrom');
+const arrivalDetentionUpto = document.getElementById('arrivalDetentionUpto');
+const arrivalActionTaken = document.getElementById('arrivalActionTaken');
 
 const dashboardTitle = document.getElementById('dashboardTitle');
 const dashboardLoading = document.getElementById('dashboardLoading');
@@ -103,12 +124,22 @@ const datePicker = flatpickr("#dateInput", {
     }
 });
 
+// Initialize Calendar for Arrival Report
+const arrivalDatePicker = flatpickr("#arrivalDateInput", {
+    dateFormat: "Y-m-d",
+    defaultDate: "today",
+    disableMobile: "true",
+    theme: "dark",
+    maxDate: "today"
+});
+
 // Navigation Functions
 function hideAllScreens() {
     passwordModal.style.display = 'none';
     menuScreen.style.display = 'none';
     dataEntryScreen.style.display = 'none';
     dashboardScreen.style.display = 'none';
+    if (arrivalReportScreen) arrivalReportScreen.style.display = 'none';
 }
 
 function backToMenu() {
@@ -127,10 +158,37 @@ function clearForm() {
     updateStatus("", "");
 }
 
+function clearArrivalForm() {
+    if (arrivalForm) arrivalForm.reset();
+    if (arrivalDatePicker) arrivalDatePicker.setDate(new Date());
+    if (arrivalCoachSelect) {
+        arrivalCoachSelect.innerHTML = '<option value="">-- Select Rake First --</option>';
+        arrivalCoachSelect.disabled = true;
+    }
+    if (detentionDetailsContainer) detentionDetailsContainer.style.display = 'none';
+    if (arrivalOtherTrainGroup) arrivalOtherTrainGroup.style.display = 'none';
+    const noRadio = document.querySelector('input[name="TrainDetained"][value="No"]');
+    if (noRadio) noRadio.checked = true;
+    updateArrivalStatus("Ready to submit", "");
+}
+
 function openDataEntry() {
     hideAllScreens();
     clearForm();
     dataEntryScreen.style.display = 'flex';
+}
+
+function openArrivalReport() {
+    hideAllScreens();
+    clearArrivalForm();
+    if (arrivalReportScreen) arrivalReportScreen.style.display = 'flex';
+    window.scrollTo(0, 0);
+}
+
+function updateArrivalStatus(text, type) {
+    if (!arrivalStatus) return;
+    arrivalStatus.textContent = text;
+    arrivalStatus.className = `status-indicator ${type}`;
 }
 
 async function openDashboard(train) {
@@ -768,18 +826,216 @@ function updateStatus(text, type) {
     statusIndicator.className = `status-indicator ${type}`;
 }
 
+// ============================================================================
+// ARRIVAL REPORT EVENT LISTENERS
+// ============================================================================
+
+// Populate dependent Coach dropdown based on selected Rake
+if (arrivalRakeSelect) {
+    arrivalRakeSelect.addEventListener('change', () => {
+        const selectedRake = arrivalRakeSelect.value;
+        arrivalCoachSelect.innerHTML = '<option value="">-- Select Coach --</option>';
+
+        if (selectedRake && TRAIN_COACHES[selectedRake]) {
+            arrivalCoachSelect.disabled = false;
+            TRAIN_COACHES[selectedRake].forEach(coach => {
+                const opt = document.createElement('option');
+                opt.value = coach;
+                opt.textContent = coach.toUpperCase();
+                arrivalCoachSelect.appendChild(opt);
+            });
+
+            // Auto-suggest primary train number for convenience
+            const defaultTrains = {
+                "IC2021": "20661",
+                "IC2058": "26651",
+                "IC2059": "20607",
+                "IC2029": "20661",
+                "IC2008": "26651",
+                "IC2006": "20703"
+            };
+            if (defaultTrains[selectedRake] && !arrivalTrainSelect.value) {
+                arrivalTrainSelect.value = defaultTrains[selectedRake];
+            }
+        } else {
+            arrivalCoachSelect.disabled = true;
+            arrivalCoachSelect.innerHTML = '<option value="">-- Select Rake First --</option>';
+        }
+    });
+}
+
+// Toggle "Other" custom train number field
+if (arrivalTrainSelect) {
+    arrivalTrainSelect.addEventListener('change', () => {
+        if (arrivalTrainSelect.value === 'Other') {
+            arrivalOtherTrainGroup.style.display = 'block';
+            arrivalOtherTrainInput.setAttribute('required', 'required');
+            arrivalOtherTrainInput.focus();
+        } else {
+            arrivalOtherTrainGroup.style.display = 'none';
+            arrivalOtherTrainInput.removeAttribute('required');
+            arrivalOtherTrainInput.value = '';
+        }
+    });
+}
+
+// Train Detained conditional display
+document.querySelectorAll('input[name="TrainDetained"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+        const isDetained = document.querySelector('input[name="TrainDetained"]:checked')?.value === 'Yes';
+        if (isDetained) {
+            detentionDetailsContainer.style.display = 'block';
+            arrivalStationName.setAttribute('required', 'required');
+            arrivalDetentionFrom.setAttribute('required', 'required');
+            arrivalDetentionUpto.setAttribute('required', 'required');
+            arrivalActionTaken.setAttribute('required', 'required');
+        } else {
+            detentionDetailsContainer.style.display = 'none';
+            arrivalStationName.removeAttribute('required');
+            arrivalDetentionFrom.removeAttribute('required');
+            arrivalDetentionUpto.removeAttribute('required');
+            arrivalActionTaken.removeAttribute('required');
+            arrivalStationName.value = '';
+            arrivalDetentionFrom.value = '';
+            arrivalDetentionUpto.value = '';
+            arrivalActionTaken.value = '';
+        }
+    });
+});
+
+// Handle Arrival Report Submission
+if (arrivalForm) {
+    arrivalForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!currentPassword) {
+            handleSessionExpired();
+            return;
+        }
+
+        const reportedBy = arrivalReportedBy.value.trim();
+        const rakeNo = arrivalRakeSelect.value;
+        const date = arrivalDateInput.value.trim();
+        let trainNo = arrivalTrainSelect.value;
+        if (trainNo === 'Other') {
+            trainNo = arrivalOtherTrainInput.value.trim();
+        }
+        const coachNo = arrivalCoachSelect.value;
+        const issueCategory = arrivalCategorySelect.value;
+        const issueDesc = arrivalIssueDesc.value.trim();
+        const isDetained = document.querySelector('input[name="TrainDetained"]:checked')?.value || 'No';
+
+        let stationName = 'N/A';
+        let detentionFrom = 'N/A';
+        let detentionUpto = 'N/A';
+        let actionTaken = 'N/A';
+
+        if (isDetained === 'Yes') {
+            stationName = arrivalStationName.value.trim() || 'N/A';
+            detentionFrom = arrivalDetentionFrom.value.trim() || 'N/A';
+            detentionUpto = arrivalDetentionUpto.value.trim() || 'N/A';
+            actionTaken = arrivalActionTaken.value.trim() || 'N/A';
+        }
+
+        // Format current timestamp
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+        const rowData = {
+            "Timestamp": timestamp,
+            "Date": date,
+            "Reported By": reportedBy,
+            "Rake No": rakeNo,
+            "Train No": trainNo,
+            "Coach No": coachNo,
+            "Issue Category": issueCategory,
+            "Issue Description": issueDesc,
+            "Train Detained": isDetained,
+            "Station Name": stationName,
+            "Detention From": detentionFrom,
+            "Detention Upto": detentionUpto,
+            "Action Taken": actionTaken
+        };
+
+        const payload = {
+            password: currentPassword,
+            train: "Arrival Report",
+            action: "arrival_report",
+            rowData: rowData
+        };
+
+        const btnText = arrivalSubmitBtn.querySelector('span');
+        const spinner = arrivalSubmitBtn.querySelector('.spinner');
+        arrivalSubmitBtn.disabled = true;
+        btnText.textContent = 'Saving...';
+        spinner.classList.remove('hidden');
+        updateArrivalStatus("Saving arrival report...", "loading");
+
+        try {
+            const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || getWebAppUrl(rakeNo);
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (result.status === "success") {
+                updateArrivalStatus("Saved successfully", "online");
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Arrival Report Saved',
+                    text: result.message || 'Report logged successfully in Google Sheets.',
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: 'var(--success)'
+                }).then(() => {
+                    clearArrivalForm();
+                    backToMenu();
+                });
+            } else if (result.status === "unauthorized") {
+                handleSessionExpired();
+            } else {
+                throw new Error(result.message || 'Error saving report');
+            }
+        } catch (error) {
+            updateArrivalStatus("Save Failed", "error");
+            Swal.fire({
+                icon: 'error',
+                title: 'Save Failed',
+                text: error.message,
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: 'var(--error)'
+            });
+        } finally {
+            arrivalSubmitBtn.disabled = false;
+            btnText.textContent = 'Save Arrival Report';
+            spinner.classList.add('hidden');
+        }
+    });
+}
+
 // Changelog Modal
 function showChangelog() {
     Swal.fire({
         title: 'Changelog',
         html: `
             <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; color: var(--text-main);">
+                <strong>v2.2 (Arrival Report Update)</strong><br>
+                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
+                    <li>Added Arrival Report feature on Main Menu.</li>
+                    <li>Log coach defects, issue categories & train detention records.</li>
+                    <li>Dynamic coach selection mapped to selected rake.</li>
+                    <li>Direct sync to the 'Arrival Report' Google Sheet.</li>
+                </ul>
                 <strong>v2.1 (PWA Update)</strong><br>
                 <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
                     <li>Progressive Web App (PWA) support added.</li>
                     <li>Installable on Android, iOS, Windows, and macOS.</li>
                     <li>Offline app shell caching via Service Worker.</li>
-                    <li>Fast instant load and custom app icons.</li>
+                    <li>Custom train & thermometer app icons.</li>
                 </ul>
                 <strong>v2.0</strong><br>
                 <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
