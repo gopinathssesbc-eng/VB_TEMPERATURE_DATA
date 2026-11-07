@@ -480,6 +480,13 @@ input:disabled, select:disabled, textarea:disabled {
     font-weight: 600 !important;
 }
 
+.rm-sub-category-custom {
+    display: none;
+    margin-top: 0.4rem;
+    font-size: 0.9rem;
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
 @media (max-width: 650px) {
     .defect-row {
         grid-template-columns: 1fr auto;

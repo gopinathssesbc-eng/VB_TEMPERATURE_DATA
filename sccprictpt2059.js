@@ -174,7 +174,79 @@ function doGet(e) {
   }
 
   // =========================================================================
-  // 2. STANDARD TEMPERATURE DATA GET
+  // 2. GET DROPDOWN DATA: Reads columns from "drop down data" sheet
+  // =========================================================================
+  if (e.parameter.action === "get_dropdown_data") {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = getSheetCaseInsensitive(ss, "drop down data");
+
+    if (!sheet) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "error",
+        message: "Sheet 'drop down data' not found"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        trainNos: [],
+        rakeNos: [],
+        mainCategories: [],
+        subCategories: []
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const headers = data[0].map(h => String(h || "").trim().toLowerCase());
+    
+    // Find column indexes
+    let trainCol = headers.findIndex(h => h.includes("train"));
+    let rakeCol = headers.findIndex(h => h.includes("rake"));
+    let mainCatCol = headers.findIndex(h => h.includes("main") || h.includes("category"));
+    let subCatCol = headers.findIndex(h => h.includes("sub"));
+
+    if (trainCol === -1) trainCol = 0;
+    if (rakeCol === -1) rakeCol = 1;
+    if (mainCatCol === -1) mainCatCol = 2;
+    if (subCatCol === -1) subCatCol = 3;
+
+    const trainNos = [];
+    const rakeNos = [];
+    const mainCategories = [];
+    const subCategories = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (trainCol < row.length) {
+        const val = String(row[trainCol] || "").trim();
+        if (val && !trainNos.includes(val)) trainNos.push(val);
+      }
+      if (rakeCol < row.length) {
+        const val = String(row[rakeCol] || "").trim();
+        if (val && !rakeNos.includes(val)) rakeNos.push(val);
+      }
+      if (mainCatCol < row.length) {
+        const val = String(row[mainCatCol] || "").trim();
+        if (val && !mainCategories.includes(val)) mainCategories.push(val);
+      }
+      if (subCatCol < row.length) {
+        const val = String(row[subCatCol] || "").trim();
+        if (val && !subCategories.includes(val)) subCategories.push(val);
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      trainNos: trainNos,
+      rakeNos: rakeNos,
+      mainCategories: mainCategories,
+      subCategories: subCategories
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // =========================================================================
+  // 3. STANDARD TEMPERATURE DATA GET
   // =========================================================================
   const trainName = e.parameter.train;
   if (!trainName) {

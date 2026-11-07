@@ -18,7 +18,8 @@ const TRAIN_COACHES = {
     "IC2059": ['C1 241556', 'C2 241578', 'E1 241610', 'C3 241580', 'C4 241579', 'C5 241611', 'C6 241581', 'C7 241557'],
     "IC2029": ['c1 235565', 'c2 235567', 'e1 235571', 'c3 235569', 'c4 235568', 'c5 235572', 'c6 235570', 'c7 235566'],
     "IC2008": ['c1 235049', 'c2 235057', 'c3 235061', 'c4 235056', 'c5 235055', 'c6 235060', 'c7 235054', 'e1 231078', 'e2 231077', 'c8 235053', 'c9 235059', 'c10 235052', 'c11 235051', 'c12 235058', 'c13 235050', 'c14 235048'],
-    "IC2006": ['c14 235002', 'c13 235010', 'c12 235014', 'c11 235009', 'c10 235008', 'c9 235013', 'c8 235007', 'e2 231003', 'e1 231002', 'c7 235006', 'c6 235012', 'c5 235005', 'c4 235004', 'c3 235011', 'c2 235003', 'c1 235001']
+    "IC2006": ['c14 235002', 'c13 235010', 'c12 235014', 'c11 235009', 'c10 235008', 'c9 235013', 'c8 235007', 'e2 231003', 'e1 231002', 'c7 235006', 'c6 235012', 'c5 235005', 'c4 235004', 'c3 235011', 'c2 235003', 'c1 235001'],
+    "IC2015": ['C1', 'C2', 'E1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8']
 };
 const AXLES = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4'];
 const STATIONS = {
@@ -179,9 +180,221 @@ function calculateDetentionDuration(fromStr, toStr) {
     return mins > 0 ? `${hrs} hr ${mins} mins` : `${hrs} hr`;
 }
 
+// ============================================================================
+// DYNAMIC DROPDOWN DATA MANAGEMENT (READ FROM "drop down data" GOOGLE SHEET)
+// ============================================================================
+const DEFAULT_DROPDOWN_DATA = {
+    trainNos: ["26651/2", "20661/2", "20607/8", "20641/2", "20663/4", "20703/4"],
+    rakeNos: ["IC2008", "IC2015", "IC2021", "IC2058", "IC2059", "IC2029", "IC2006"],
+    mainCategories: [
+        "Coach Cleanliness & Maintenance",
+        "Water Availability",
+        "Staff Behavior",
+        "Corruption & Bribery",
+        "miscellaneous"
+    ],
+    subCategories: [
+        "Broken / Missing Toilet Fittings",
+        "Tap Leaking / Tap Not Working:",
+        "Window / Door Locking System Broken:",
+        "Window / Seat Broken:",
+        "Jerks / Abnormal Sound:",
+        "Others:",
+        "Toilets:",
+        "Washbasins:",
+        "Coach Interior",
+        "Coach Exterior",
+        "Cockroach / Rodent"
+    ]
+};
+
+let cachedDropdownData = (() => {
+    try {
+        const saved = localStorage.getItem('app_dropdown_data');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && Array.isArray(parsed.trainNos) && Array.isArray(parsed.rakeNos) &&
+                Array.isArray(parsed.mainCategories) && Array.isArray(parsed.subCategories)) {
+                return parsed;
+            }
+        }
+    } catch (e) {
+        console.warn('Could not read cached dropdown data:', e);
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_DROPDOWN_DATA));
+})();
+
+function isCustomSubCategory(val) {
+    if (!val) return false;
+    const clean = String(val).replace(/:$/, '').trim().toLowerCase();
+    const list = (cachedDropdownData.subCategories && cachedDropdownData.subCategories.length > 0)
+        ? cachedDropdownData.subCategories
+        : DEFAULT_DROPDOWN_DATA.subCategories;
+    return !list.some(s => String(s).replace(/:$/, '').trim().toLowerCase() === clean);
+}
+
+function buildMainCategoryOptions(selected = '') {
+    let html = '<option value="">-- Select Main Category --</option>';
+    let found = false;
+    const list = (cachedDropdownData.mainCategories && cachedDropdownData.mainCategories.length > 0)
+        ? cachedDropdownData.mainCategories
+        : DEFAULT_DROPDOWN_DATA.mainCategories;
+
+    list.forEach(cat => {
+        const isSel = (cat.trim().toLowerCase() === (selected || '').trim().toLowerCase());
+        if (isSel) found = true;
+        html += `<option value="${cat}" ${isSel ? 'selected' : ''}>${cat}</option>`;
+    });
+
+    if (selected && !found) {
+        html += `<option value="${selected}" selected>${selected}</option>`;
+    }
+    return html;
+}
+
+function buildSubCategoryOptions(selected = '') {
+    let html = '<option value="">-- Select Sub Category --</option>';
+    let found = false;
+    const list = (cachedDropdownData.subCategories && cachedDropdownData.subCategories.length > 0)
+        ? cachedDropdownData.subCategories
+        : DEFAULT_DROPDOWN_DATA.subCategories;
+
+    list.forEach(sub => {
+        const clean = sub.replace(/:$/, '').trim();
+        const isSel = (clean.toLowerCase() === (selected || '').trim().toLowerCase() ||
+                       sub.trim().toLowerCase() === (selected || '').trim().toLowerCase());
+        if (isSel) found = true;
+        html += `<option value="${clean}" ${isSel ? 'selected' : ''}>${clean}</option>`;
+    });
+
+    const isCustom = selected && !found && selected !== 'Other' && selected !== 'Others:';
+    if (isCustom) {
+        html += `<option value="${selected}" selected>${selected}</option>`;
+        found = true;
+    }
+    html += `<option value="Other" ${(!found && selected) || selected === 'Other' || selected === 'Others:' ? 'selected' : ''}>Other (Type custom)</option>`;
+    return html;
+}
+
+function populateArrivalDropdowns() {
+    if (arrivalRakeSelect) {
+        const currentRake = arrivalRakeSelect.value;
+        const rakes = (cachedDropdownData.rakeNos && cachedDropdownData.rakeNos.length > 0)
+            ? cachedDropdownData.rakeNos
+            : DEFAULT_DROPDOWN_DATA.rakeNos;
+
+        let html = '<option value="">-- Select Rake --</option>';
+        rakes.forEach(r => {
+            const sel = (r === currentRake) ? 'selected' : '';
+            html += `<option value="${r}" ${sel}>${r}</option>`;
+        });
+        if (currentRake && !rakes.includes(currentRake)) {
+            html += `<option value="${currentRake}" selected>${currentRake}</option>`;
+        }
+        arrivalRakeSelect.innerHTML = html;
+        if (currentRake) arrivalRakeSelect.value = currentRake;
+    }
+
+    if (arrivalTrainSelect) {
+        const currentTrain = arrivalTrainSelect.value;
+        const trains = (cachedDropdownData.trainNos && cachedDropdownData.trainNos.length > 0)
+            ? cachedDropdownData.trainNos
+            : DEFAULT_DROPDOWN_DATA.trainNos;
+
+        let html = '<option value="">-- Select Train No --</option>';
+        let found = false;
+        trains.forEach(t => {
+            const sel = (t === currentTrain) ? 'selected' : '';
+            if (sel) found = true;
+            html += `<option value="${t}" ${sel}>${t}</option>`;
+        });
+        if (currentTrain && !found && currentTrain !== 'Other') {
+            html += `<option value="${currentTrain}" selected>${currentTrain}</option>`;
+        }
+        html += `<option value="Other" ${currentTrain === 'Other' ? 'selected' : ''}>Other (Enter custom)</option>`;
+        arrivalTrainSelect.innerHTML = html;
+        if (currentTrain) arrivalTrainSelect.value = currentTrain;
+    }
+}
+
+function refreshRailMadadDropdowns() {
+    if (!railMadadContainer) return;
+    railMadadContainer.querySelectorAll('.entry-card').forEach(card => {
+        const mainSel = card.querySelector('.rm-main-category');
+        if (mainSel) {
+            const currentMain = mainSel.value;
+            mainSel.innerHTML = buildMainCategoryOptions(currentMain);
+            if (currentMain) mainSel.value = currentMain;
+        }
+        const subSel = card.querySelector('.rm-sub-category');
+        const subCustom = card.querySelector('.rm-sub-category-custom');
+        if (subSel) {
+            const currentSub = (subSel.value === 'Other' && subCustom) ? subCustom.value : subSel.value;
+            const isCustom = isCustomSubCategory(currentSub);
+            subSel.innerHTML = buildSubCategoryOptions(isCustom ? 'Other' : currentSub);
+            if (isCustom && currentSub) {
+                subSel.value = 'Other';
+                if (subCustom) {
+                    subCustom.style.display = 'block';
+                    subCustom.value = currentSub;
+                }
+            } else if (currentSub) {
+                subSel.value = currentSub;
+            }
+        }
+    });
+}
+
+async function fetchDropdownData() {
+    if (!currentPassword) return;
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const res = await fetch(`${targetUrl}?action=get_dropdown_data&password=${encodeURIComponent(currentPassword)}`);
+        const result = await res.json();
+        if (result && result.status === "success") {
+            let updated = false;
+            if (Array.isArray(result.trainNos) && result.trainNos.length > 0) {
+                cachedDropdownData.trainNos = result.trainNos;
+                updated = true;
+            }
+            if (Array.isArray(result.rakeNos) && result.rakeNos.length > 0) {
+                cachedDropdownData.rakeNos = result.rakeNos;
+                updated = true;
+            }
+            if (Array.isArray(result.mainCategories) && result.mainCategories.length > 0) {
+                cachedDropdownData.mainCategories = result.mainCategories;
+                updated = true;
+            }
+            if (Array.isArray(result.subCategories) && result.subCategories.length > 0) {
+                cachedDropdownData.subCategories = result.subCategories;
+                updated = true;
+            }
+
+            if (updated) {
+                try {
+                    localStorage.setItem('app_dropdown_data', JSON.stringify(cachedDropdownData));
+                } catch (e) {
+                    console.warn('Failed to save dropdown data to localStorage:', e);
+                }
+                populateArrivalDropdowns();
+                refreshRailMadadDropdowns();
+                refreshAllCoachDropdowns();
+            }
+        }
+    } catch (err) {
+        console.warn('Failed to fetch dropdown data from sheet:', err);
+    }
+}
+
 function getCoachesList() {
     const rake = arrivalRakeSelect ? arrivalRakeSelect.value : '';
-    return (rake && TRAIN_COACHES[rake]) ? TRAIN_COACHES[rake] : [];
+    if (rake && TRAIN_COACHES[rake]) {
+        return TRAIN_COACHES[rake];
+    }
+    if (rake) {
+        return ['C1', 'C2', 'E1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8'];
+    }
+    return [];
 }
 
 function buildCoachOptions(selectedCoach = '', includeAllOption = false) {
@@ -191,10 +404,15 @@ function buildCoachOptions(selectedCoach = '', includeAllOption = false) {
         const isAllSelected = (selectedCoach === 'Rake / Loco / All') ? 'selected' : '';
         html += `<option value="Rake / Loco / All" ${isAllSelected}>Rake / Loco / All</option>`;
     }
+    let found = false;
     coaches.forEach(c => {
         const sel = (c.toLowerCase() === (selectedCoach || '').toLowerCase()) ? 'selected' : '';
+        if (sel) found = true;
         html += `<option value="${c}" ${sel}>${c.toUpperCase()}</option>`;
     });
+    if (selectedCoach && !found && selectedCoach !== 'Rake / Loco / All') {
+        html += `<option value="${selectedCoach}" selected>${selectedCoach.toUpperCase()}</option>`;
+    }
     return html;
 }
 
@@ -262,6 +480,10 @@ function addRailMadadCard(data = {}) {
     const index = railMadadContainer.querySelectorAll('.entry-card').length + 1;
     const card = document.createElement('div');
     card.className = 'entry-card';
+
+    const rawSubCat = data.SubCategory || '';
+    const isCustomSub = isCustomSubCategory(rawSubCat);
+
     card.innerHTML = `
         <div class="entry-card-header">
             <span>Rail Madad Complaint #${index}</span>
@@ -283,20 +505,15 @@ function addRailMadadCard(data = {}) {
             <div class="form-group" style="margin-bottom: 0;">
                 <label>Complaint Main Category</label>
                 <select class="rm-main-category" required>
-                    <option value="">-- Select Main Category --</option>
-                    <option value="Electrical / AC" ${data.MainCategory === 'Electrical / AC' ? 'selected' : ''}>Electrical / AC</option>
-                    <option value="Mechanical / Coach Body" ${data.MainCategory === 'Mechanical / Coach Body' ? 'selected' : ''}>Mechanical / Coach Body</option>
-                    <option value="Cleanliness & Housekeeping" ${data.MainCategory === 'Cleanliness & Housekeeping' ? 'selected' : ''}>Cleanliness & Housekeeping</option>
-                    <option value="Water & Toilets" ${data.MainCategory === 'Water & Toilets' ? 'selected' : ''}>Water & Toilets</option>
-                    <option value="Catering" ${data.MainCategory === 'Catering' ? 'selected' : ''}>Catering</option>
-                    <option value="Security" ${data.MainCategory === 'Security' ? 'selected' : ''}>Security</option>
-                    <option value="Punctuality" ${data.MainCategory === 'Punctuality' ? 'selected' : ''}>Punctuality</option>
-                    <option value="Others" ${data.MainCategory === 'Others' ? 'selected' : ''}>Others</option>
+                    ${buildMainCategoryOptions(data.MainCategory || '')}
                 </select>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
                 <label>Complaint Sub Category</label>
-                <input type="text" class="rm-sub-category" placeholder="e.g. AC cooling, flush valve" value="${data.SubCategory || ''}" required>
+                <select class="rm-sub-category" required>
+                    ${buildSubCategoryOptions(isCustomSub ? 'Other' : rawSubCat)}
+                </select>
+                <input type="text" class="rm-sub-category-custom" placeholder="Type custom sub category" value="${isCustomSub ? rawSubCat : ''}" style="${isCustomSub ? 'display: block; margin-top: 0.4rem;' : 'display: none; margin-top: 0.4rem;'}">
             </div>
         </div>
         <div class="form-group" style="margin-bottom: 0;">
@@ -308,6 +525,21 @@ function addRailMadadCard(data = {}) {
             <textarea class="rm-action-input" rows="2" placeholder="Action taken by technician / OBHS / crew" required>${data.ActionTaken || ''}</textarea>
         </div>
     `;
+
+    const subSelect = card.querySelector('.rm-sub-category');
+    const customInput = card.querySelector('.rm-sub-category-custom');
+    subSelect.addEventListener('change', () => {
+        if (subSelect.value === 'Other' || subSelect.value === 'Others:') {
+            customInput.style.display = 'block';
+            customInput.setAttribute('required', 'required');
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+            customInput.removeAttribute('required');
+            customInput.value = '';
+        }
+    });
+
     card.querySelector('.remove-btn').addEventListener('click', () => {
         card.remove();
         renumberCards(railMadadContainer, 'Rail Madad Complaint');
@@ -430,6 +662,7 @@ function renumberCards(container, prefix) {
 
 function clearArrivalForm() {
     if (arrivalForm) arrivalForm.reset();
+    populateArrivalDropdowns();
     if (arrivalDatePicker) arrivalDatePicker.setDate(new Date());
     if (defectsContainer) defectsContainer.innerHTML = '';
     if (railMadadContainer) railMadadContainer.innerHTML = '';
@@ -453,11 +686,13 @@ function openDataEntry() {
 
 function openArrivalReport() {
     hideAllScreens();
+    populateArrivalDropdowns();
     clearArrivalForm();
     // Start with 1 empty defect row ready for entry
     addDefectRow();
     if (arrivalReportScreen) arrivalReportScreen.style.display = 'flex';
     window.scrollTo(0, 0);
+    fetchDropdownData();
 }
 
 function updateArrivalStatus(text, type) {
@@ -850,6 +1085,7 @@ passwordForm.addEventListener('submit', async (e) => {
             currentPassword = enteredPassword;
             hideAllScreens();
             menuScreen.style.display = 'flex'; // Go to menu instead of data entry
+            fetchDropdownData(); // Sync latest dropdown data from Google Sheets in background
         } else {
             passwordError.textContent = result.message || "Incorrect password. Try again.";
             passwordError.classList.remove('hidden');
@@ -1209,9 +1445,14 @@ if (arrivalLoadBtn) {
                     if (result.basic.TrainNo) {
                         arrivalTrainSelect.value = result.basic.TrainNo;
                         if (!arrivalTrainSelect.value) {
-                            arrivalTrainSelect.value = 'Other';
-                            arrivalOtherTrainGroup.style.display = 'block';
-                            arrivalOtherTrainInput.value = result.basic.TrainNo;
+                            let match = Array.from(arrivalTrainSelect.options).find(opt => opt.value && (opt.value.includes(result.basic.TrainNo) || result.basic.TrainNo.includes(opt.value)));
+                            if (match && match.value !== 'Other') {
+                                arrivalTrainSelect.value = match.value;
+                            } else {
+                                arrivalTrainSelect.value = 'Other';
+                                arrivalOtherTrainGroup.style.display = 'block';
+                                arrivalOtherTrainInput.value = result.basic.TrainNo;
+                            }
                         }
                     }
                 }
@@ -1337,11 +1578,18 @@ if (arrivalForm) {
         const rmCards = railMadadContainer.querySelectorAll('.entry-card');
         const railMadad = [];
         rmCards.forEach(card => {
+            const subSelect = card.querySelector('.rm-sub-category');
+            const customInput = card.querySelector('.rm-sub-category-custom');
+            let subCategoryValue = subSelect ? subSelect.value.trim() : '';
+            if ((subCategoryValue === 'Other' || subCategoryValue === 'Others:') && customInput) {
+                subCategoryValue = customInput.value.trim() || 'Other';
+            }
+
             railMadad.push({
                 CoachNo: card.querySelector('.rm-coach-select').value,
                 RMReferenceNo: card.querySelector('.rm-ref-input').value.trim(),
                 MainCategory: card.querySelector('.rm-main-category').value,
-                SubCategory: card.querySelector('.rm-sub-category').value.trim(),
+                SubCategory: subCategoryValue,
                 ComplaintDescription: card.querySelector('.rm-desc-input').value.trim(),
                 ActionTaken: card.querySelector('.rm-action-input').value.trim()
             });
@@ -1561,3 +1809,6 @@ window.addEventListener('online', () => {
         });
     }
 });
+
+// Initialize dynamic dropdowns from cache/defaults
+populateArrivalDropdowns();

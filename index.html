@@ -33,7 +33,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.3">
+    <link rel="stylesheet" href="style.css?v=2.4">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Flatpickr Calendar Library -->
@@ -209,11 +209,12 @@
                             <label for="arrivalRakeSelect">Rake No</label>
                             <select id="arrivalRakeSelect" name="Rake No" required>
                                 <option value="">-- Select Rake --</option>
+                                <option value="IC2008">IC2008</option>
+                                <option value="IC2015">IC2015</option>
                                 <option value="IC2021">IC2021</option>
                                 <option value="IC2058">IC2058</option>
                                 <option value="IC2059">IC2059</option>
                                 <option value="IC2029">IC2029</option>
-                                <option value="IC2008">IC2008</option>
                                 <option value="IC2006">IC2006</option>
                             </select>
                         </div>
@@ -224,6 +225,8 @@
                             <label for="arrivalTrainSelect">Train No</label>
                             <select id="arrivalTrainSelect" name="Train No" required>
                                 <option value="">-- Select Train No --</option>
+                                <option value="26651/2">26651/2</option>
+                                <option value="20661/2">20661/2</option>
                                 <option value="20607">20607 (MAS - MYS)</option>
                                 <option value="20608">20608 (MYS - MAS)</option>
                                 <option value="20641">20641 (SBC - CBE)</option>
@@ -351,6 +354,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.3"></script>
+    <script src="app.js?v=2.4"></script>
 </body>
 </html>

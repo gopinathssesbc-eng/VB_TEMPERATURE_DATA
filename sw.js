@@ -1,12 +1,12 @@
-const CACHE_NAME = 'vb-temp-v2.3';
+const CACHE_NAME = 'vb-temp-v2.4';
 
 const STATIC_ASSETS = [
     './',
     './index.html',
     './style.css',
-    './style.css?v=2.3',
+    './style.css?v=2.4',
     './app.js',
-    './app.js?v=2.3',
+    './app.js?v=2.4',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
