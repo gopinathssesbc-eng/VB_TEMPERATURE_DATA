@@ -29,7 +29,7 @@ const STATIONS = {
     "IC2029": ["SBC", "DWR"],
     "IC2008": ["SBC", "ERS"],
     "IC2006": ["KCG", "YPR"],
-    "IC2015": ["SBC", "DWR", "ERS"]
+    "IC2015": ["SBC", "ERS"]
 };
 const TOKENS = {
     "IC2021": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
@@ -196,10 +196,11 @@ function calculateDetentionDuration(fromStr, toStr) {
 // DYNAMIC DROPDOWN DATA MANAGEMENT (READ FROM "drop down data" GOOGLE SHEET)
 // ============================================================================
 const DEFAULT_DROPDOWN_DATA = {
-    trainNos: ["26651/2", "20661/2", "20607/8", "20641/2", "20663/4", "20703/4"],
-    rakeNos: ["IC2008", "IC2015", "IC2021", "IC2058", "IC2059", "IC2029", "IC2006"],
+    trainNos: ["26651/2", "20661/2"],
+    rakeNos: ["IC2008", "IC2015", "IC2021"],
     mainCategories: [
-        "Coach Cleanliness & Maintenance",
+        "Coach Cleanliness",
+        "Coach Maintenenace",
         "Water Availability",
         "Staff Behavior",
         "Corruption & Bribery",
@@ -220,9 +221,18 @@ const DEFAULT_DROPDOWN_DATA = {
     ]
 };
 
+// Clear legacy cached dropdown keys to purge stale train numbers
+try {
+    ['app_dropdown_data', 'app_dropdown_data_v2', 'app_dropdown_data_v3', 'app_dropdown_data_v4'].forEach(k => localStorage.removeItem(k));
+} catch (e) {
+    console.warn('Storage cleanup warning:', e);
+}
+
+const DROPDOWN_CACHE_KEY = 'app_dropdown_data_v5';
+
 let cachedDropdownData = (() => {
     try {
-        const saved = localStorage.getItem('app_dropdown_data');
+        const saved = localStorage.getItem(DROPDOWN_CACHE_KEY);
         if (saved) {
             const parsed = JSON.parse(saved);
             if (parsed && Array.isArray(parsed.trainNos) && Array.isArray(parsed.rakeNos) &&
@@ -300,11 +310,12 @@ function populateArrivalDropdowns() {
             const sel = (r === currentRake) ? 'selected' : '';
             html += `<option value="${r}" ${sel}>${r}</option>`;
         });
-        if (currentRake && !rakes.includes(currentRake)) {
-            html += `<option value="${currentRake}" selected>${currentRake}</option>`;
-        }
         arrivalRakeSelect.innerHTML = html;
-        if (currentRake) arrivalRakeSelect.value = currentRake;
+        if (currentRake && rakes.includes(currentRake)) {
+            arrivalRakeSelect.value = currentRake;
+        } else {
+            arrivalRakeSelect.value = '';
+        }
     }
 
     if (arrivalTrainSelect) {
@@ -320,12 +331,15 @@ function populateArrivalDropdowns() {
             if (sel) found = true;
             html += `<option value="${t}" ${sel}>${t}</option>`;
         });
-        if (currentTrain && !found && currentTrain !== 'Other') {
-            html += `<option value="${currentTrain}" selected>${currentTrain}</option>`;
-        }
         html += `<option value="Other" ${currentTrain === 'Other' ? 'selected' : ''}>Other (Enter custom)</option>`;
         arrivalTrainSelect.innerHTML = html;
-        if (currentTrain) arrivalTrainSelect.value = currentTrain;
+        if (currentTrain && found) {
+            arrivalTrainSelect.value = currentTrain;
+        } else if (currentTrain === 'Other') {
+            arrivalTrainSelect.value = 'Other';
+        } else {
+            arrivalTrainSelect.value = '';
+        }
     }
 }
 
@@ -358,10 +372,10 @@ function refreshRailMadadDropdowns() {
 }
 
 async function fetchDropdownData() {
-    if (!currentPassword) return;
     try {
         const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
-        const res = await fetch(`${targetUrl}?action=get_dropdown_data&password=${encodeURIComponent(currentPassword)}`);
+        const passwordParam = currentPassword ? `&password=${encodeURIComponent(currentPassword)}` : '';
+        const res = await fetch(`${targetUrl}?action=get_dropdown_data${passwordParam}`);
         const result = await res.json();
         if (result && result.status === "success") {
             let updated = false;
@@ -384,7 +398,7 @@ async function fetchDropdownData() {
 
             if (updated) {
                 try {
-                    localStorage.setItem('app_dropdown_data', JSON.stringify(cachedDropdownData));
+                    localStorage.setItem(DROPDOWN_CACHE_KEY, JSON.stringify(cachedDropdownData));
                 } catch (e) {
                     console.warn('Failed to save dropdown data to localStorage:', e);
                 }
@@ -1361,15 +1375,14 @@ if (arrivalRakeSelect) {
 
         const defaultTrains = {
             "IC2021": "20661/2",
-            "IC2058": "26651/2",
-            "IC2059": "20607",
-            "IC2029": "20661",
             "IC2008": "26651/2",
-            "IC2006": "20703",
-            "IC2015": "20661/2"
+            "IC2015": "26651/2"
         };
-        if (defaultTrains[selectedRake] && !arrivalTrainSelect.value) {
+        if (defaultTrains[selectedRake]) {
             arrivalTrainSelect.value = defaultTrains[selectedRake];
+            if (arrivalOtherTrainGroup) {
+                arrivalOtherTrainGroup.style.display = 'none';
+            }
         }
 
         if (arrivalSectionsWrapper && arrivalSectionsWrapper.style.display !== 'none') {
@@ -1857,5 +1870,6 @@ window.addEventListener('online', () => {
     }
 });
 
-// Initialize dynamic dropdowns from cache/defaults
+// Initialize dynamic dropdowns from cache/defaults & fetch latest from Google Sheet
 populateArrivalDropdowns();
+fetchDropdownData();
