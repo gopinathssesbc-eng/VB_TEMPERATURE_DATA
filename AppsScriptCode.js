@@ -20,6 +20,35 @@ function getSheetCaseInsensitive(ss, targetName) {
   return sheet;
 }
 
+// Convert any date value/string to DD-MM-YYYY format
+function formatDateCell(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), "dd-MM-yyyy");
+  }
+  const s = String(val).trim();
+  // YYYY-MM-DD -> DD-MM-YYYY
+  const ymd = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (ymd) {
+    return `${String(ymd[3]).padStart(2, '0')}-${String(ymd[2]).padStart(2, '0')}-${ymd[1]}`;
+  }
+  // DD-MM-YYYY
+  const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (dmy) {
+    return `${String(dmy[1]).padStart(2, '0')}-${String(dmy[2]).padStart(2, '0')}-${dmy[3]}`;
+  }
+  return s;
+}
+
+// Convert any time value/string to HH:MM format
+function formatTimeCell(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), "HH:mm");
+  }
+  return String(val || "").trim();
+}
+
 function doGet(e) {
   // =========================================================================
   // 1. GET DROPDOWN DATA: Reads columns from "drop down data" sheet (Public read)
@@ -51,18 +80,24 @@ function doGet(e) {
     // Find column indexes
     let trainCol = headers.findIndex(h => h.includes("train"));
     let rakeCol = headers.findIndex(h => h.includes("rake"));
-    let mainCatCol = headers.findIndex(h => h.includes("main") || h.includes("category"));
+    let mainCatCol = headers.findIndex(h => h.includes("rm") || h.includes("main"));
     let subCatCol = headers.findIndex(h => h.includes("sub"));
+    let defectCatCol = headers.findIndex(h => h.includes("defect"));
+    let detentionCatCol = headers.findIndex(h => h.includes("detention"));
 
     if (trainCol === -1) trainCol = 0;
     if (rakeCol === -1) rakeCol = 1;
     if (mainCatCol === -1) mainCatCol = 2;
     if (subCatCol === -1) subCatCol = 3;
+    if (defectCatCol === -1) defectCatCol = 4;
+    if (detentionCatCol === -1) detentionCatCol = 5;
 
     const trainNos = [];
     const rakeNos = [];
     const mainCategories = [];
     const subCategories = [];
+    const defectCategories = [];
+    const detentionCategories = [];
 
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
@@ -82,6 +117,14 @@ function doGet(e) {
         const val = String(row[subCatCol] || "").trim();
         if (val && !subCategories.includes(val)) subCategories.push(val);
       }
+      if (defectCatCol < row.length) {
+        const val = String(row[defectCatCol] || "").trim();
+        if (val && !defectCategories.includes(val)) defectCategories.push(val);
+      }
+      if (detentionCatCol < row.length) {
+        const val = String(row[detentionCatCol] || "").trim();
+        if (val && !detentionCategories.includes(val)) detentionCategories.push(val);
+      }
     }
 
     return ContentService.createTextOutput(JSON.stringify({
@@ -89,7 +132,9 @@ function doGet(e) {
       trainNos: trainNos,
       rakeNos: rakeNos,
       mainCategories: mainCategories,
-      subCategories: subCategories
+      subCategories: subCategories,
+      defectCategories: defectCategories,
+      detentionCategories: detentionCategories
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -105,7 +150,7 @@ function doGet(e) {
   // =========================================================================
   if (e.parameter.action === "get_arrival_report") {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const queryDate = String(e.parameter.date || "").trim();
+    const queryDate = formatDateCell(e.parameter.date);
     const queryRake = String(e.parameter.rake || "").trim();
 
     let found = false;
@@ -113,13 +158,6 @@ function doGet(e) {
     let defects = [];
     let railMadad = [];
     let detentions = [];
-
-    const formatDateCell = (val) => {
-      if (val instanceof Date) {
-        return Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd");
-      }
-      return String(val || "").trim();
-    };
 
     // 1) Arrival Report (Defects)
     const sheet1 = getSheetCaseInsensitive(ss, "Arrival Report");
@@ -132,6 +170,7 @@ function doGet(e) {
         const trainIdx = headers.indexOf("Train No");
         const userIdx = headers.indexOf("Data Entered By");
         const coachIdx = headers.indexOf("Coach No");
+        const catIdx = headers.indexOf("Category") !== -1 ? headers.indexOf("Category") : headers.indexOf("Defect Category");
         const issueIdx = headers.indexOf("Issue Description");
 
         for (let i = 1; i < data1.length; i++) {
@@ -144,9 +183,10 @@ function doGet(e) {
             if (!basic.TrainNo && trainIdx !== -1) basic.TrainNo = String(row[trainIdx] || "").trim();
             if (!basic.DataEnteredBy && userIdx !== -1) basic.DataEnteredBy = String(row[userIdx] || "").trim();
             const coachVal = coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "";
+            const catVal = catIdx !== -1 ? String(row[catIdx] || "").trim() : "";
             const issueVal = issueIdx !== -1 ? String(row[issueIdx] || "").trim() : "";
             if (coachVal && coachVal !== "NIL") {
-              defects.push({ CoachNo: coachVal, IssueDescription: issueVal });
+              defects.push({ CoachNo: coachVal, Category: catVal, IssueDescription: issueVal });
             }
           }
         }
@@ -208,6 +248,7 @@ function doGet(e) {
         const fromIdx = headers.indexOf("Time From");
         const toIdx = headers.indexOf("Time To");
         const totalIdx = headers.indexOf("Total Detention");
+        const catIdx = headers.indexOf("Category") !== -1 ? headers.indexOf("Category") : headers.indexOf("Detention Category");
         const descIdx = headers.indexOf("Issue Description");
         const actIdx = headers.indexOf("Action Taken");
 
@@ -224,9 +265,10 @@ function doGet(e) {
             detentions.push({
               CoachNo: coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "",
               Station: stnIdx !== -1 ? String(row[stnIdx] || "").trim() : "",
-              TimeFrom: fromIdx !== -1 ? String(row[fromIdx] || "").trim() : "",
-              TimeTo: toIdx !== -1 ? String(row[toIdx] || "").trim() : "",
+              TimeFrom: fromIdx !== -1 ? formatTimeCell(row[fromIdx]) : "",
+              TimeTo: toIdx !== -1 ? formatTimeCell(row[toIdx]) : "",
               TotalDetention: totalIdx !== -1 ? String(row[totalIdx] || "").trim() : "",
+              Category: catIdx !== -1 ? String(row[catIdx] || "").trim() : "",
               IssueDescription: descIdx !== -1 ? String(row[descIdx] || "").trim() : "",
               ActionTaken: actIdx !== -1 ? String(row[actIdx] || "").trim() : ""
             });
@@ -304,19 +346,12 @@ function doPost(e) {
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    const formatDateCell = (val) => {
-      if (val instanceof Date) {
-        return Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd");
-      }
-      return String(val || "").trim();
-    };
-
     // =========================================================================
     // 1. SAVE ARRIVAL REPORT: Sync 3 sheets ("Arrival Report", "Rail Madad", "Detentions")
     // =========================================================================
     if (request.action === "save_arrival_report") {
       const basic = request.basic || {};
-      const dateStr = String(basic.Date || "").trim();
+      const dateStr = formatDateCell(basic.Date);
       const rakeStr = String(basic.RakeNo || "").trim();
       const trainStr = String(basic.TrainNo || "").trim();
       const enteredBy = String(basic.DataEnteredBy || "").trim();
@@ -345,22 +380,64 @@ function doPost(e) {
       };
 
       // 1) Sheet: "Arrival Report" (Defects)
-      const headers1 = ["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Issue Description"];
       let sheet1 = getSheetCaseInsensitive(ss, "Arrival Report");
       if (!sheet1) {
         sheet1 = ss.insertSheet("Arrival Report");
+        sheet1.appendRow(["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Category", "Issue Description"]);
+      }
+      let headers1 = (sheet1.getLastColumn() > 0) ? sheet1.getRange(1, 1, 1, sheet1.getLastColumn()).getValues()[0] : [];
+      if (headers1.length === 0) {
+        headers1 = ["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Category", "Issue Description"];
         sheet1.appendRow(headers1);
-      } else if (sheet1.getDataRange().getValues().length === 0) {
-        sheet1.appendRow(headers1);
+      } else {
+        let catCol1 = headers1.indexOf("Category") !== -1 ? headers1.indexOf("Category") : headers1.indexOf("Defect Category");
+        if (catCol1 === -1) {
+          const issueColIdx = headers1.indexOf("Issue Description");
+          if (issueColIdx !== -1) {
+            // Insert column at position 7 so Category sits between Coach No and Issue Description
+            sheet1.insertColumnBefore(issueColIdx + 1);
+            sheet1.getRange(1, issueColIdx + 1).setValue("Category");
+          } else {
+            sheet1.getRange(1, headers1.length + 1).setValue("Category");
+          }
+          SpreadsheetApp.flush();
+          headers1 = sheet1.getRange(1, 1, 1, sheet1.getLastColumn()).getValues()[0];
+        }
       }
       clearExistingRows(sheet1);
 
+      const dTsIdx = headers1.indexOf("Timestamp");
+      const dDateIdx = headers1.indexOf("Date");
+      const dRakeIdx = headers1.indexOf("Rake No");
+      const dTrainIdx = headers1.indexOf("Train No");
+      const dUserIdx = headers1.indexOf("Data Entered By");
+      const dCoachIdx = headers1.indexOf("Coach No");
+      const dCatIdx = headers1.indexOf("Category") !== -1 ? headers1.indexOf("Category") : headers1.indexOf("Defect Category");
+      const dIssueIdx = headers1.indexOf("Issue Description");
+
       if (defects.length > 0) {
         defects.forEach(d => {
-          sheet1.appendRow([timestamp, dateStr, rakeStr, trainStr, enteredBy, d.CoachNo || "", d.IssueDescription || ""]);
+          let row = new Array(headers1.length).fill("");
+          if (dTsIdx !== -1) row[dTsIdx] = timestamp;
+          if (dDateIdx !== -1) row[dDateIdx] = dateStr;
+          if (dRakeIdx !== -1) row[dRakeIdx] = rakeStr;
+          if (dTrainIdx !== -1) row[dTrainIdx] = trainStr;
+          if (dUserIdx !== -1) row[dUserIdx] = enteredBy;
+          if (dCoachIdx !== -1) row[dCoachIdx] = d.CoachNo || "";
+          if (dCatIdx !== -1) row[dCatIdx] = d.Category || "";
+          if (dIssueIdx !== -1) row[dIssueIdx] = d.IssueDescription || "";
+          sheet1.appendRow(row);
         });
       } else {
-        sheet1.appendRow([timestamp, dateStr, rakeStr, trainStr, enteredBy, "NIL", "No Defects Reported"]);
+        let row = new Array(headers1.length).fill("");
+        if (dTsIdx !== -1) row[dTsIdx] = timestamp;
+        if (dDateIdx !== -1) row[dDateIdx] = dateStr;
+        if (dRakeIdx !== -1) row[dRakeIdx] = rakeStr;
+        if (dTrainIdx !== -1) row[dTrainIdx] = trainStr;
+        if (dUserIdx !== -1) row[dUserIdx] = enteredBy;
+        if (dCoachIdx !== -1) row[dCoachIdx] = "NIL";
+        if (dIssueIdx !== -1) row[dIssueIdx] = "No Defects Reported";
+        sheet1.appendRow(row);
       }
 
       // 2) Sheet: "Rail Madad"
@@ -381,19 +458,62 @@ function doPost(e) {
       }
 
       // 3) Sheet: "Detentions"
-      const headers3 = ["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Station", "Time From", "Time To", "Total Detention", "Issue Description", "Action Taken"];
       let sheet3 = getSheetCaseInsensitive(ss, "Detentions");
       if (!sheet3) {
         sheet3 = ss.insertSheet("Detentions");
+        sheet3.appendRow(["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Station", "Time From", "Time To", "Total Detention", "Category", "Issue Description", "Action Taken"]);
+      }
+      let headers3 = (sheet3.getLastColumn() > 0) ? sheet3.getRange(1, 1, 1, sheet3.getLastColumn()).getValues()[0] : [];
+      if (headers3.length === 0) {
+        headers3 = ["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Station", "Time From", "Time To", "Total Detention", "Category", "Issue Description", "Action Taken"];
         sheet3.appendRow(headers3);
-      } else if (sheet3.getDataRange().getValues().length === 0) {
-        sheet3.appendRow(headers3);
+      } else {
+        let dtCatCol = headers3.indexOf("Category") !== -1 ? headers3.indexOf("Category") : headers3.indexOf("Detention Category");
+        if (dtCatCol === -1) {
+          const issueColIdx = headers3.indexOf("Issue Description");
+          if (issueColIdx !== -1) {
+            sheet3.insertColumnBefore(issueColIdx + 1);
+            sheet3.getRange(1, issueColIdx + 1).setValue("Category");
+          } else {
+            sheet3.getRange(1, headers3.length + 1).setValue("Category");
+          }
+          SpreadsheetApp.flush();
+          headers3 = sheet3.getRange(1, 1, 1, sheet3.getLastColumn()).getValues()[0];
+        }
       }
       clearExistingRows(sheet3);
 
+      const dtTsIdx = headers3.indexOf("Timestamp");
+      const dtDateIdx = headers3.indexOf("Date");
+      const dtRakeIdx = headers3.indexOf("Rake No");
+      const dtTrainIdx = headers3.indexOf("Train No");
+      const dtUserIdx = headers3.indexOf("Data Entered By");
+      const dtCoachIdx = headers3.indexOf("Coach No");
+      const dtStnIdx = headers3.indexOf("Station");
+      const dtFromIdx = headers3.indexOf("Time From");
+      const dtToIdx = headers3.indexOf("Time To");
+      const dtTotalIdx = headers3.indexOf("Total Detention");
+      const dtCatIdx = headers3.indexOf("Category") !== -1 ? headers3.indexOf("Category") : headers3.indexOf("Detention Category");
+      const dtDescIdx = headers3.indexOf("Issue Description");
+      const dtActIdx = headers3.indexOf("Action Taken");
+
       if (detentions.length > 0) {
         detentions.forEach(dt => {
-          sheet3.appendRow([timestamp, dateStr, rakeStr, trainStr, enteredBy, dt.CoachNo || "", dt.Station || "", dt.TimeFrom || "", dt.TimeTo || "", dt.TotalDetention || "", dt.IssueDescription || "", dt.ActionTaken || ""]);
+          let row = new Array(headers3.length).fill("");
+          if (dtTsIdx !== -1) row[dtTsIdx] = timestamp;
+          if (dtDateIdx !== -1) row[dtDateIdx] = dateStr;
+          if (dtRakeIdx !== -1) row[dtRakeIdx] = rakeStr;
+          if (dtTrainIdx !== -1) row[dtTrainIdx] = trainStr;
+          if (dtUserIdx !== -1) row[dtUserIdx] = enteredBy;
+          if (dtCoachIdx !== -1) row[dtCoachIdx] = dt.CoachNo || "";
+          if (dtStnIdx !== -1) row[dtStnIdx] = dt.Station || "";
+          if (dtFromIdx !== -1) row[dtFromIdx] = dt.TimeFrom || "";
+          if (dtToIdx !== -1) row[dtToIdx] = dt.TimeTo || "";
+          if (dtTotalIdx !== -1) row[dtTotalIdx] = dt.TotalDetention || "";
+          if (dtCatIdx !== -1) row[dtCatIdx] = dt.Category || "";
+          if (dtDescIdx !== -1) row[dtDescIdx] = dt.IssueDescription || "";
+          if (dtActIdx !== -1) row[dtActIdx] = dt.ActionTaken || "";
+          sheet3.appendRow(row);
         });
       }
 

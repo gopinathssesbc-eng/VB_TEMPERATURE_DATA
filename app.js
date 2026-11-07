@@ -129,9 +129,9 @@ const datePicker = flatpickr("#dateInput", {
     }
 });
 
-// Initialize Calendar for Arrival Report
+// Initialize Calendar for Arrival Report (DD-MM-YYYY format)
 const arrivalDatePicker = flatpickr("#arrivalDateInput", {
-    dateFormat: "Y-m-d",
+    dateFormat: "d-m-Y",
     defaultDate: "today",
     disableMobile: "true",
     theme: "dark",
@@ -172,14 +172,69 @@ function clearForm() {
     updateStatus("", "");
 }
 
+// Convert any date value/string to DD-MM-YYYY format
+function formatToDDMMYYYY(val) {
+    if (!val) return '';
+    if (val instanceof Date) {
+        const d = String(val.getDate()).padStart(2, '0');
+        const m = String(val.getMonth() + 1).padStart(2, '0');
+        const y = val.getFullYear();
+        return `${d}-${m}-${y}`;
+    }
+    const s = String(val).trim();
+    // Match YYYY-MM-DD
+    const ymd = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (ymd) {
+        return `${String(ymd[3]).padStart(2, '0')}-${String(ymd[2]).padStart(2, '0')}-${ymd[1]}`;
+    }
+    // Match DD-MM-YYYY
+    const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if (dmy) {
+        return `${String(dmy[1]).padStart(2, '0')}-${String(dmy[2]).padStart(2, '0')}-${dmy[3]}`;
+    }
+    return s;
+}
+
+// Parse time string in HH:MM, HH;MM, HH.MM, or 4-digit HHMM formats
+function parseTimeComponents(str) {
+    if (!str) return null;
+    const clean = String(str).trim();
+    // Match HH:MM or HH;MM or HH.MM or HH-MM
+    let m = clean.match(/^(\d{1,2})[:;\.\-\s](\d{1,2})$/);
+    if (m) {
+        let h = parseInt(m[1], 10);
+        let min = parseInt(m[2], 10);
+        if (h >= 0 && h < 24 && min >= 0 && min < 60) {
+            return {
+                h,
+                min,
+                formatted: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+            };
+        }
+    }
+    // Match 3 or 4 digits like 930 or 1430
+    m = clean.match(/^(\d{1,2})(\d{2})$/);
+    if (m) {
+        let h = parseInt(m[1], 10);
+        let min = parseInt(m[2], 10);
+        if (h >= 0 && h < 24 && min >= 0 && min < 60) {
+            return {
+                h,
+                min,
+                formatted: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+            };
+        }
+    }
+    return null;
+}
+
 // Calculation of detention duration
 function calculateDetentionDuration(fromStr, toStr) {
-    if (!fromStr || !toStr) return '';
-    const [h1, m1] = fromStr.split(':').map(Number);
-    const [h2, m2] = toStr.split(':').map(Number);
-    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return '';
+    const t1 = parseTimeComponents(fromStr);
+    const t2 = parseTimeComponents(toStr);
+    if (!t1 || !t2) return '';
 
-    let diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+    let diffMinutes = (t2.h * 60 + t2.min) - (t1.h * 60 + t1.min);
     if (diffMinutes < 0) {
         diffMinutes += 24 * 60; // Crosses midnight
     }
@@ -218,17 +273,40 @@ const DEFAULT_DROPDOWN_DATA = {
         "Coach Interior",
         "Coach Exterior",
         "Cockroach / Rodent"
+    ],
+    defectCategories: [
+        "IC door",
+        "Plug door",
+        "Vaccum Toilet",
+        "Seat and accessory",
+        "Gangway",
+        "CCTV",
+        "Driver cab",
+        "Undergear",
+        "Air",
+        "Propulsion",
+        "Window glass",
+        "Roller Blinder",
+        "Others"
+    ],
+    detentionCategories: [
+        "Plug door",
+        "CRO",
+        "Propulsion",
+        "Air Brake",
+        "Undergear",
+        "Others"
     ]
 };
 
 // Clear legacy cached dropdown keys to purge stale train numbers
 try {
-    ['app_dropdown_data', 'app_dropdown_data_v2', 'app_dropdown_data_v3', 'app_dropdown_data_v4'].forEach(k => localStorage.removeItem(k));
+    ['app_dropdown_data', 'app_dropdown_data_v2', 'app_dropdown_data_v3', 'app_dropdown_data_v4', 'app_dropdown_data_v5'].forEach(k => localStorage.removeItem(k));
 } catch (e) {
     console.warn('Storage cleanup warning:', e);
 }
 
-const DROPDOWN_CACHE_KEY = 'app_dropdown_data_v5';
+const DROPDOWN_CACHE_KEY = 'app_dropdown_data_v6';
 
 let cachedDropdownData = (() => {
     try {
@@ -295,6 +373,44 @@ function buildSubCategoryOptions(selected = '') {
         found = true;
     }
     html += `<option value="Other" ${(!found && selected) || selected === 'Other' || selected === 'Others:' ? 'selected' : ''}>Other (Type custom)</option>`;
+    return html;
+}
+
+function buildDefectCategoryOptions(selected = '') {
+    let html = '<option value="">-- Select Defect Category --</option>';
+    let found = false;
+    const list = (cachedDropdownData.defectCategories && cachedDropdownData.defectCategories.length > 0)
+        ? cachedDropdownData.defectCategories
+        : DEFAULT_DROPDOWN_DATA.defectCategories;
+
+    list.forEach(cat => {
+        const isSel = (cat.trim().toLowerCase() === (selected || '').trim().toLowerCase());
+        if (isSel) found = true;
+        html += `<option value="${cat}" ${isSel ? 'selected' : ''}>${cat}</option>`;
+    });
+
+    if (selected && !found) {
+        html += `<option value="${selected}" selected>${selected}</option>`;
+    }
+    return html;
+}
+
+function buildDetentionCategoryOptions(selected = '') {
+    let html = '<option value="">-- Select Detention Category --</option>';
+    let found = false;
+    const list = (cachedDropdownData.detentionCategories && cachedDropdownData.detentionCategories.length > 0)
+        ? cachedDropdownData.detentionCategories
+        : DEFAULT_DROPDOWN_DATA.detentionCategories;
+
+    list.forEach(cat => {
+        const isSel = (cat.trim().toLowerCase() === (selected || '').trim().toLowerCase());
+        if (isSel) found = true;
+        html += `<option value="${cat}" ${isSel ? 'selected' : ''}>${cat}</option>`;
+    });
+
+    if (selected && !found) {
+        html += `<option value="${selected}" selected>${selected}</option>`;
+    }
     return html;
 }
 
@@ -371,6 +487,30 @@ function refreshRailMadadDropdowns() {
     });
 }
 
+function refreshDefectDropdowns() {
+    if (!defectsContainer) return;
+    defectsContainer.querySelectorAll('.defect-row').forEach(row => {
+        const catSel = row.querySelector('.defect-cat-select');
+        if (catSel) {
+            const current = catSel.value;
+            catSel.innerHTML = buildDefectCategoryOptions(current);
+            if (current) catSel.value = current;
+        }
+    });
+}
+
+function refreshDetentionDropdowns() {
+    if (!detentionsContainer) return;
+    detentionsContainer.querySelectorAll('.entry-card').forEach(card => {
+        const catSel = card.querySelector('.detention-category-select');
+        if (catSel) {
+            const current = catSel.value;
+            catSel.innerHTML = buildDetentionCategoryOptions(current);
+            if (current) catSel.value = current;
+        }
+    });
+}
+
 async function fetchDropdownData() {
     try {
         const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
@@ -395,6 +535,14 @@ async function fetchDropdownData() {
                 cachedDropdownData.subCategories = result.subCategories;
                 updated = true;
             }
+            if (Array.isArray(result.defectCategories) && result.defectCategories.length > 0) {
+                cachedDropdownData.defectCategories = result.defectCategories;
+                updated = true;
+            }
+            if (Array.isArray(result.detentionCategories) && result.detentionCategories.length > 0) {
+                cachedDropdownData.detentionCategories = result.detentionCategories;
+                updated = true;
+            }
 
             if (updated) {
                 try {
@@ -404,6 +552,8 @@ async function fetchDropdownData() {
                 }
                 populateArrivalDropdowns();
                 refreshRailMadadDropdowns();
+                refreshDefectDropdowns();
+                refreshDetentionDropdowns();
                 refreshAllCoachDropdowns();
             }
         }
@@ -459,23 +609,31 @@ function refreshAllCoachDropdowns() {
 }
 
 // Section 1: Defects
-function addDefectRow(coach = '', desc = '') {
+function addDefectRow(coach = '', category = '', desc = '') {
     if (!defectsContainer) return;
     const row = document.createElement('div');
     row.className = 'defect-row';
     row.innerHTML = `
-        <div>
+        <div class="defect-coach-wrap">
             <select class="defect-coach-select" required>
                 ${buildCoachOptions(coach)}
             </select>
         </div>
-        <div>
-            <input type="text" class="defect-desc-input" placeholder="Enter defect / issue description" value="${desc || ''}" required>
+        <div class="defect-cat-wrap">
+            <select class="defect-cat-select" required>
+                ${buildDefectCategoryOptions(category)}
+            </select>
         </div>
-        <div>
+        <div class="defect-action-wrap">
             <button type="button" class="remove-btn" title="Remove Defect">✕</button>
         </div>
+        <div class="defect-desc-wrap">
+            <textarea class="defect-desc-input" rows="3" placeholder="Enter defect / issue description" required></textarea>
+        </div>
     `;
+    if (desc) {
+        row.querySelector('.defect-desc-input').value = desc;
+    }
     row.querySelector('.remove-btn').addEventListener('click', () => {
         row.remove();
         checkDefectsEmpty();
@@ -487,16 +645,8 @@ function addDefectRow(coach = '', desc = '') {
 function checkDefectsEmpty() {
     if (!defectsContainer) return;
     const rows = defectsContainer.querySelectorAll('.defect-row');
-    const existingPlaceholder = defectsContainer.querySelector('.empty-placeholder');
     if (rows.length === 0) {
-        if (!existingPlaceholder) {
-            const ph = document.createElement('div');
-            ph.className = 'empty-placeholder';
-            ph.textContent = 'No defects added yet. Click "+ Add Defect" below to add.';
-            defectsContainer.appendChild(ph);
-        }
-    } else if (existingPlaceholder) {
-        existingPlaceholder.remove();
+        defectsContainer.innerHTML = '';
     }
 }
 
@@ -544,11 +694,11 @@ function addRailMadadCard(data = {}) {
         </div>
         <div class="form-group" style="margin-bottom: 0;">
             <label>Complaint Description</label>
-            <textarea class="rm-desc-input" rows="2" placeholder="Details of passenger complaint" required>${data.ComplaintDescription || ''}</textarea>
+            <textarea class="rm-desc-input" rows="3" placeholder="Details of passenger complaint" required>${data.ComplaintDescription || ''}</textarea>
         </div>
         <div class="form-group" style="margin-bottom: 0;">
             <label>Action Taken Enroute</label>
-            <textarea class="rm-action-input" rows="2" placeholder="Action taken by technician / OBHS / crew" required>${data.ActionTaken || ''}</textarea>
+            <textarea class="rm-action-input" rows="3" placeholder="Action taken by technician / OBHS / crew" required>${data.ActionTaken || ''}</textarea>
         </div>
     `;
 
@@ -614,14 +764,20 @@ function addDetentionCard(data = {}) {
                 <input type="text" class="detention-station" placeholder="e.g. SBC, KPN" value="${data.Station || ''}" required>
             </div>
         </div>
-        <div class="form-row-3" style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 0.75rem;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Detention Category</label>
+            <select class="detention-category-select" required>
+                ${buildDetentionCategoryOptions(data.Category || '')}
+            </select>
+        </div>
+        <div class="form-row-3 detention-times-row">
             <div class="form-group" style="margin-bottom: 0;">
-                <label>Time From</label>
-                <input type="time" class="detention-from" value="${data.TimeFrom || ''}" required>
+                <label>Time From <span class="input-hint">(HH:MM)</span></label>
+                <input type="text" class="detention-from" placeholder="HH:MM" maxlength="5" value="${data.TimeFrom || ''}" required>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
-                <label>Time To</label>
-                <input type="time" class="detention-to" value="${data.TimeTo || ''}" required>
+                <label>Time To <span class="input-hint">(HH:MM)</span></label>
+                <input type="text" class="detention-to" placeholder="HH:MM" maxlength="5" value="${data.TimeTo || ''}" required>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
                 <label>Total Detention</label>
@@ -630,11 +786,11 @@ function addDetentionCard(data = {}) {
         </div>
         <div class="form-group" style="margin-bottom: 0;">
             <label>Issue Description</label>
-            <textarea class="detention-desc" rows="2" placeholder="Reason for train detention" required>${data.IssueDescription || ''}</textarea>
+            <textarea class="detention-desc" rows="3" placeholder="Reason for train detention" required>${data.IssueDescription || ''}</textarea>
         </div>
         <div class="form-group" style="margin-bottom: 0;">
             <label>Action Taken</label>
-            <textarea class="detention-action" rows="2" placeholder="Action taken to rectify and dispatch" required>${data.ActionTaken || ''}</textarea>
+            <textarea class="detention-action" rows="3" placeholder="Action taken to rectify and dispatch" required>${data.ActionTaken || ''}</textarea>
         </div>
     `;
 
@@ -642,11 +798,35 @@ function addDetentionCard(data = {}) {
     const toInput = card.querySelector('.detention-to');
     const totalInput = card.querySelector('.detention-total');
 
+    const formatTimeInput = (input) => {
+        let val = input.value;
+        if (val.includes(';') || val.includes('.')) {
+            val = val.replace(/[;\.]/g, ':');
+            input.value = val;
+        }
+        if (/^\d{4}$/.test(val)) {
+            input.value = val.slice(0, 2) + ':' + val.slice(2);
+        }
+    };
+
     const updateCalc = () => {
         totalInput.value = calculateDetentionDuration(fromInput.value, toInput.value);
     };
-    fromInput.addEventListener('input', updateCalc);
-    toInput.addEventListener('input', updateCalc);
+
+    [fromInput, toInput].forEach(inp => {
+        inp.addEventListener('input', () => {
+            formatTimeInput(inp);
+            updateCalc();
+        });
+        inp.addEventListener('blur', () => {
+            const parsed = parseTimeComponents(inp.value);
+            if (parsed) {
+                inp.value = parsed.formatted;
+            }
+            updateCalc();
+        });
+    });
+
     if (fromInput.value && toInput.value && !totalInput.value) {
         updateCalc();
     }
@@ -1437,7 +1617,7 @@ if (arrivalLoadBtn) {
             return;
         }
 
-        const date = arrivalDateInput.value.trim();
+        const date = formatToDDMMYYYY(arrivalDateInput.value);
         const rake = arrivalRakeSelect.value;
         const train = arrivalTrainSelect.value;
 
@@ -1496,7 +1676,7 @@ if (arrivalLoadBtn) {
                 if (result.defects && result.defects.length > 0) {
                     result.defects.forEach(d => {
                         if (d.CoachNo !== 'NIL' || result.defects.length > 1) {
-                            addDefectRow(d.CoachNo, d.IssueDescription);
+                            addDefectRow(d.CoachNo, d.Category || '', d.IssueDescription);
                         }
                     });
                 }
@@ -1545,10 +1725,9 @@ if (arrivalLoadBtn) {
                 arrivalLoadStatus.style.color = 'var(--text-muted)';
                 updateArrivalStatus('Ready to submit new report', '');
 
-                // Ensure at least 1 defect row is open
-                if (defectsContainer.querySelectorAll('.defect-row').length === 0) {
-                    addDefectRow();
-                }
+                // Keep defects empty: only "+ Add More Defects" button is visible
+                defectsContainer.innerHTML = '';
+                checkDefectsEmpty();
 
                 if (arrivalSectionsWrapper) {
                     arrivalSectionsWrapper.style.display = 'block';
@@ -1572,9 +1751,8 @@ if (arrivalLoadBtn) {
             arrivalLoadStatus.style.color = 'var(--error)';
             if (arrivalSectionsWrapper) {
                 arrivalSectionsWrapper.style.display = 'block';
-                if (defectsContainer.querySelectorAll('.defect-row').length === 0) {
-                    addDefectRow();
-                }
+                defectsContainer.innerHTML = '';
+                checkDefectsEmpty();
             }
         } finally {
             arrivalLoadBtn.disabled = false;
@@ -1594,7 +1772,7 @@ if (arrivalForm) {
             return;
         }
 
-        const date = arrivalDateInput.value.trim();
+        const date = formatToDDMMYYYY(arrivalDateInput.value);
         const rakeNo = arrivalRakeSelect.value;
         let trainNo = arrivalTrainSelect.value;
         if (trainNo === 'Other') {
@@ -1619,10 +1797,12 @@ if (arrivalForm) {
         const defects = [];
         defectRows.forEach(row => {
             const coach = row.querySelector('.defect-coach-select').value;
+            const cat = row.querySelector('.defect-cat-select') ? row.querySelector('.defect-cat-select').value : '';
             const desc = row.querySelector('.defect-desc-input').value.trim();
-            if (coach || desc) {
+            if (coach || desc || cat) {
                 defects.push({
                     CoachNo: coach,
+                    Category: cat,
                     IssueDescription: desc
                 });
             }
@@ -1653,9 +1833,14 @@ if (arrivalForm) {
         const detentionCards = detentionsContainer.querySelectorAll('.entry-card');
         const detentions = [];
         detentionCards.forEach(card => {
-            const timeFrom = card.querySelector('.detention-from').value;
-            const timeTo = card.querySelector('.detention-to').value;
+            let timeFrom = card.querySelector('.detention-from').value.trim();
+            let timeTo = card.querySelector('.detention-to').value.trim();
+            const pFrom = parseTimeComponents(timeFrom);
+            if (pFrom) timeFrom = pFrom.formatted;
+            const pTo = parseTimeComponents(timeTo);
+            if (pTo) timeTo = pTo.formatted;
             const totalDetention = card.querySelector('.detention-total').value || calculateDetentionDuration(timeFrom, timeTo);
+            const cat = card.querySelector('.detention-category-select') ? card.querySelector('.detention-category-select').value : '';
 
             detentions.push({
                 CoachNo: card.querySelector('.detention-coach-select').value,
@@ -1663,6 +1848,7 @@ if (arrivalForm) {
                 TimeFrom: timeFrom,
                 TimeTo: timeTo,
                 TotalDetention: totalDetention,
+                Category: cat,
                 IssueDescription: card.querySelector('.detention-desc').value.trim(),
                 ActionTaken: card.querySelector('.detention-action').value.trim()
             });

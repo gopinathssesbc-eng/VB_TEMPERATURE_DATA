@@ -289,6 +289,15 @@ input, select, textarea {
     resize: vertical;
 }
 
+textarea {
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    min-height: 85px;
+    resize: vertical;
+}
+
 select {
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
@@ -363,6 +372,10 @@ input:disabled, select:disabled, textarea:disabled {
     margin-bottom: 1rem;
 }
 
+.dynamic-container:empty {
+    margin-bottom: 0.5rem;
+}
+
 .empty-placeholder {
     padding: 1.25rem;
     text-align: center;
@@ -375,13 +388,57 @@ input:disabled, select:disabled, textarea:disabled {
 
 .defect-row {
     display: grid;
-    grid-template-columns: 180px 1fr 42px;
+    grid-template-columns: 180px 200px 1fr 42px;
+    grid-template-areas: "coach cat desc action";
     gap: 0.75rem;
-    align-items: center;
+    align-items: start;
     background: rgba(15, 23, 42, 0.45);
-    padding: 0.75rem;
+    padding: 0.85rem;
     border-radius: 0.5rem;
     border: 1px solid var(--border);
+}
+
+.defect-coach-wrap {
+    grid-area: coach;
+    width: 100%;
+}
+
+.defect-cat-wrap {
+    grid-area: cat;
+    width: 100%;
+}
+
+.defect-desc-wrap {
+    grid-area: desc;
+    width: 100%;
+}
+
+.defect-desc-input {
+    width: 100%;
+    min-height: 85px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    resize: vertical;
+}
+
+.defect-action-wrap {
+    grid-area: action;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.defect-action-wrap .remove-btn {
+    height: 42px;
+    width: 42px;
+    padding: 0;
+    border-radius: 0.5rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .entry-card {
@@ -493,9 +550,60 @@ input:disabled, select:disabled, textarea:disabled {
 
 @media (max-width: 650px) {
     .defect-row {
-        grid-template-columns: 1fr auto;
+        grid-template-columns: 1fr 1fr auto;
+        grid-template-areas:
+            "coach cat action"
+            "desc  desc desc";
+        gap: 0.65rem;
+        align-items: center;
     }
-    .defect-row > div:nth-child(2) {
+    .defect-coach-wrap {
+        grid-area: coach;
+    }
+    .defect-cat-wrap {
+        grid-area: cat;
+    }
+    .defect-action-wrap {
+        grid-area: action;
+        display: flex;
+        justify-content: flex-end;
+    }
+    .defect-desc-wrap {
+        grid-area: desc;
+    }
+    .defect-desc-input {
+        min-height: 95px;
+    }
+}
+
+@media (max-width: 420px) {
+    .defect-row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "coach action"
+            "cat   cat"
+            "desc  desc";
+    }
+}
+
+.detention-times-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.2fr;
+    gap: 0.75rem;
+}
+
+.input-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: normal;
+    margin-left: 0.25rem;
+}
+
+@media (max-width: 520px) {
+    .detention-times-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .detention-times-row > div:nth-child(3) {
         grid-column: 1 / -1;
     }
 }
