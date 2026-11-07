@@ -386,31 +386,8 @@ input:disabled, select:disabled, textarea:disabled {
     border-radius: 0.5rem;
 }
 
-.defect-row {
-    display: grid;
-    grid-template-columns: 180px 200px 1fr 42px;
-    grid-template-areas: "coach cat desc action";
-    gap: 0.75rem;
-    align-items: start;
-    background: rgba(15, 23, 42, 0.45);
-    padding: 0.85rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--border);
-}
-
-.defect-coach-wrap {
-    grid-area: coach;
-    width: 100%;
-}
-
-.defect-cat-wrap {
-    grid-area: cat;
-    width: 100%;
-}
-
-.defect-desc-wrap {
-    grid-area: desc;
-    width: 100%;
+.defect-card {
+    /* Inherits .entry-card styling */
 }
 
 .defect-desc-input {
@@ -421,24 +398,6 @@ input:disabled, select:disabled, textarea:disabled {
     word-break: break-word;
     overflow-wrap: break-word;
     resize: vertical;
-}
-
-.defect-action-wrap {
-    grid-area: action;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-}
-
-.defect-action-wrap .remove-btn {
-    height: 42px;
-    width: 42px;
-    padding: 0;
-    border-radius: 0.5rem;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .entry-card {
@@ -548,41 +507,10 @@ input:disabled, select:disabled, textarea:disabled {
     animation: fadeIn 0.35s ease-in-out;
 }
 
-@media (max-width: 650px) {
-    .defect-row {
-        grid-template-columns: 1fr 1fr auto;
-        grid-template-areas:
-            "coach cat action"
-            "desc  desc desc";
-        gap: 0.65rem;
-        align-items: center;
-    }
-    .defect-coach-wrap {
-        grid-area: coach;
-    }
-    .defect-cat-wrap {
-        grid-area: cat;
-    }
-    .defect-action-wrap {
-        grid-area: action;
-        display: flex;
-        justify-content: flex-end;
-    }
-    .defect-desc-wrap {
-        grid-area: desc;
-    }
-    .defect-desc-input {
-        min-height: 95px;
-    }
-}
-
-@media (max-width: 420px) {
-    .defect-row {
-        grid-template-columns: 1fr auto;
-        grid-template-areas:
-            "coach action"
-            "cat   cat"
-            "desc  desc";
+@media (max-width: 600px) {
+    .form-row-2 {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
 }
 

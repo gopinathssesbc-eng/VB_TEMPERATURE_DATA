@@ -611,34 +611,49 @@ function refreshAllCoachDropdowns() {
 // Section 1: Defects
 function addDefectRow(coach = '', category = '', desc = '') {
     if (!defectsContainer) return;
-    const row = document.createElement('div');
-    row.className = 'defect-row';
-    row.innerHTML = `
-        <div class="defect-coach-wrap">
-            <select class="defect-coach-select" required>
-                ${buildCoachOptions(coach)}
-            </select>
+    let c = coach;
+    let cat = category;
+    let d = desc;
+    if (typeof coach === 'object' && coach !== null) {
+        c = coach.CoachNo || '';
+        cat = coach.Category || '';
+        d = coach.IssueDescription || '';
+    }
+    const index = defectsContainer.querySelectorAll('.defect-row').length + 1;
+    const card = document.createElement('div');
+    card.className = 'entry-card defect-card defect-row';
+    card.innerHTML = `
+        <div class="entry-card-header">
+            <span>Defect #${index}</span>
+            <button type="button" class="remove-btn">✕ Remove</button>
         </div>
-        <div class="defect-cat-wrap">
-            <select class="defect-cat-select" required>
-                ${buildDefectCategoryOptions(category)}
-            </select>
+        <div class="form-row-2">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Coach Number</label>
+                <select class="defect-coach-select" required>
+                    ${buildCoachOptions(c)}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Defect Category</label>
+                <select class="defect-cat-select" required>
+                    ${buildDefectCategoryOptions(cat)}
+                </select>
+            </div>
         </div>
-        <div class="defect-action-wrap">
-            <button type="button" class="remove-btn" title="Remove Defect">✕</button>
-        </div>
-        <div class="defect-desc-wrap">
-            <textarea class="defect-desc-input" rows="3" placeholder="Enter defect / issue description" required></textarea>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Defect Description</label>
+            <textarea class="defect-desc-input" rows="3" placeholder="Enter defect / issue description" required>${d || ''}</textarea>
         </div>
     `;
-    if (desc) {
-        row.querySelector('.defect-desc-input').value = desc;
-    }
-    row.querySelector('.remove-btn').addEventListener('click', () => {
-        row.remove();
+
+    card.querySelector('.remove-btn').addEventListener('click', () => {
+        card.remove();
+        renumberCards(defectsContainer, 'Defect');
         checkDefectsEmpty();
     });
-    defectsContainer.appendChild(row);
+
+    defectsContainer.appendChild(card);
     checkDefectsEmpty();
 }
 
@@ -677,20 +692,18 @@ function addRailMadadCard(data = {}) {
                 <input type="text" class="rm-ref-input" placeholder="e.g. RM-123456" value="${data.RMReferenceNo || ''}" required>
             </div>
         </div>
-        <div class="form-row-2">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Complaint Main Category</label>
-                <select class="rm-main-category" required>
-                    ${buildMainCategoryOptions(data.MainCategory || '')}
-                </select>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Complaint Sub Category</label>
-                <select class="rm-sub-category" required>
-                    ${buildSubCategoryOptions(isCustomSub ? 'Other' : rawSubCat)}
-                </select>
-                <input type="text" class="rm-sub-category-custom" placeholder="Type custom sub category" value="${isCustomSub ? rawSubCat : ''}" style="${isCustomSub ? 'display: block; margin-top: 0.4rem;' : 'display: none; margin-top: 0.4rem;'}">
-            </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Complaint Main Category</label>
+            <select class="rm-main-category" required>
+                ${buildMainCategoryOptions(data.MainCategory || '')}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Complaint Sub Category</label>
+            <select class="rm-sub-category" required>
+                ${buildSubCategoryOptions(isCustomSub ? 'Other' : rawSubCat)}
+            </select>
+            <input type="text" class="rm-sub-category-custom" placeholder="Type custom sub category" value="${isCustomSub ? rawSubCat : ''}" style="${isCustomSub ? 'display: block; margin-top: 0.4rem;' : 'display: none; margin-top: 0.4rem;'}">
         </div>
         <div class="form-group" style="margin-bottom: 0;">
             <label>Complaint Description</label>
