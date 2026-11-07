@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="m_4Uo8QBLi-SFkqr7PEeZdEP1VRCFnWUsln1CBbwLfE" />
-    
+
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Train Axle Temperature Log and Dashboard by SBC Coaching Depot. Enter and monitor temperature data for trains IC2021, IC2058, IC2059, IC2029, IC2008, and IC2006.">
-    <meta name="keywords" content="Train Axle Temperature, SBC Coaching Depot, Train Maintenance, Indian Railways, IC2021, IC2058, IC2059, IC2029, IC2008, IC2006, Temperature Data Logger">
+    <meta name="description"
+        content="Train Axle Temperature Log and Dashboard by SBC Coaching Depot. Enter and monitor temperature data for trains IC2021, IC2058, IC2059, IC2029, IC2008, IC2006, and IC2015.">
+    <meta name="keywords"
+        content="Train Axle Temperature, SBC Coaching Depot, Train Maintenance, Indian Railways, IC2021, IC2058, IC2059, IC2029, IC2008, IC2006, IC2015, Temperature Data Logger">
     <meta name="author" content="SBC Coaching Depot">
     <meta name="robots" content="index, follow">
-    
+
     <!-- Open Graph (Social Media) -->
     <meta property="og:title" content="Train Axle Temperature Log">
     <meta property="og:description" content="Monitor and log axle temperature data for railway coaches seamlessly.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://gopinathssesbc-eng.github.io/VB_TEMPERATURE_DATA/">
-    
+
     <title>Train Axle Temperature</title>
-    
+
     <!-- PWA & Mobile Web App Meta Tags -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -26,20 +29,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Train Axle">
-    
+
     <!-- App Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.6">
+    <link rel="stylesheet" href="style.css?v=2.7">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Flatpickr Calendar Library -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
 </head>
+
 <body>
     <div class="global-branding">
         <div class="branding-text">Designed and Developed by<br><strong>SBC COACHING DEPOT</strong></div>
@@ -61,9 +65,12 @@
                 </button>
             </form>
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
-            <div style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
+            <div
+                style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
                 v2.3 <br>
-                <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
+                <button type="button" onclick="showChangelog()"
+                    style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View
+                    Changelog</button>
             </div>
         </div>
     </div>
@@ -111,10 +118,17 @@
                 <span class="menu-title">IC2006 Dashboard</span>
                 <span class="menu-subtitle">View recent temperature trends</span>
             </button>
+            <button class="menu-btn" onclick="openDashboard('IC2015')">
+                <span class="menu-title">IC2015 Dashboard</span>
+                <span class="menu-subtitle">View recent temperature trends</span>
+            </button>
         </main>
-        <div style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
-            v2.3 <br>
-            <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
+        <div
+            style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
+            v2.7 <br>
+            <button type="button" onclick="showChangelog()"
+                style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View
+                Changelog</button>
         </div>
     </div>
 
@@ -130,7 +144,7 @@
             <form id="dataForm">
                 <section class="metadata-section">
                     <h2>Session Details</h2>
-                    
+
                     <div class="form-group">
                         <label for="trainSelect">Train Number</label>
                         <select id="trainSelect" name="Train" required>
@@ -141,6 +155,7 @@
                             <option value="IC2029">IC2029</option>
                             <option value="IC2008">IC2008</option>
                             <option value="IC2006">IC2006</option>
+                            <option value="IC2015">IC2015</option>
                         </select>
                     </div>
 
@@ -166,8 +181,9 @@
 
                 <section class="coaches-section">
                     <h2>Coach Temperatures</h2>
-                    <p class="placeholder-text" style="margin-bottom: 1.5rem;">Expand each coach to enter the 8 bearing temperatures.</p>
-                    
+                    <p class="placeholder-text" style="margin-bottom: 1.5rem;">Expand each coach to enter the 8 bearing
+                        temperatures.</p>
+
                     <div id="coachesContainer" class="accordion-container">
                         <!-- JS will inject the 8 coaches here -->
                     </div>
@@ -178,7 +194,7 @@
                     <div class="spinner hidden"></div>
                 </button>
             </form>
-            
+
             <div style="text-align: center; margin-top: 2rem;">
                 <button class="back-btn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
             </div>
@@ -245,7 +261,8 @@
 
                         <div class="form-group">
                             <label for="arrivalEnteredBy">Data Entered By</label>
-                            <input type="text" id="arrivalEnteredBy" name="Data Entered By" placeholder="Name or Token Number" required>
+                            <input type="text" id="arrivalEnteredBy" name="Data Entered By"
+                                placeholder="Name or Token Number" required>
                         </div>
                     </div>
 
@@ -258,49 +275,54 @@
                         <span>🔍 Load Report</span>
                         <div class="spinner hidden" style="width: 1.1rem; height: 1.1rem; border-width: 2px;"></div>
                     </button>
-                    <div id="arrivalLoadStatus" style="font-size: 0.85rem; margin-top: 0.6rem; text-align: center; color: var(--text-muted);">
+                    <div id="arrivalLoadStatus"
+                        style="font-size: 0.85rem; margin-top: 0.6rem; text-align: center; color: var(--text-muted);">
                         Select Date & Rake, then click Load Report to view or enter data
                     </div>
                 </section>
 
-                <!-- Sections 1, 2, 3 & Submit Button: Hidden by default until "Load Report" is clicked -->
-                <div id="arrivalSectionsWrapper" style="display: none;">
-                    <!-- Section 1: Defects -->
-                    <section class="metadata-section">
-                        <h2>Section 1: Defects</h2>
-                        <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                            Select coach number and enter issue description. Click "Add Defect" to log more rows.
-                        </p>
+                    <!-- Sections 1, 2, 3 & Submit Button: Hidden by default until "Load Report" is clicked -->
+                    <div id="arrivalSectionsWrapper" style="display: none;">
+                        <!-- Section 1: Defects -->
+                        <section class="metadata-section">
+                            <h2>Section 1: Defects</h2>
+                            <p class="placeholder-text"
+                                style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                                Select coach number and enter issue description. Click "Add Defect" to log more rows.
+                            </p>
 
-                        <div id="defectsContainer" class="dynamic-container">
-                            <!-- JS injects defect rows here -->
-                        </div>
+                            <div id="defectsContainer" class="dynamic-container">
+                                <!-- JS injects defect rows here -->
+                            </div>
 
                         <button type="button" id="addDefectBtn" class="add-btn">
                             <span>➕ Add Defect</span>
                         </button>
-                    </section>
+                </section>
 
                     <!-- Section 2: Rail Madad Complaints -->
                     <section class="metadata-section">
                         <h2>Section 2: Rail Madad Complaints</h2>
-                        <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                            Log passenger complaints received via Rail Madad, reference numbers, and actions taken enroute.
+                        <p class="placeholder-text"
+                            style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                            Log passenger complaints received via Rail Madad, reference numbers, and actions taken
+                            enroute.
                         </p>
 
                         <div id="railMadadContainer" class="dynamic-container">
                             <!-- JS injects Rail Madad complaint cards here -->
                         </div>
 
-                        <button type="button" id="addRailMadadBtn" class="add-btn">
-                            <span>➕ Add Rail Madad Complaint</span>
-                        </button>
-                    </section>
+                    <button type="button" id="addRailMadadBtn" class="add-btn">
+                        <span>➕ Add Rail Madad Complaint</span>
+                    </button>
+                </section>
 
                     <!-- Section 3: Detentions -->
                     <section class="metadata-section">
                         <h2>Section 3: Detentions</h2>
-                        <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                        <p class="placeholder-text"
+                            style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
                             Log station detentions. Total detention duration will calculate automatically.
                         </p>
 
@@ -308,22 +330,22 @@
                             <!-- JS injects detention cards here -->
                         </div>
 
-                        <button type="button" id="addDetentionBtn" class="add-btn">
-                            <span>➕ Add Detention</span>
-                        </button>
+                            <button type="button" id="addDetentionBtn" class="add-btn">
+                                <span>➕ Add Detention</span>
+                            </button>
                     </section>
 
                     <button type="submit" id="arrivalSubmitBtn" style="margin-top: 1rem;">
                         <span>💾 Save Arrival Report (Sync to 3 Sheets)</span>
                         <div class="spinner hidden"></div>
                     </button>
-                </div>
-            </form>
+    </div>
+    </form>
 
-            <div style="text-align: center; margin-top: 2rem;">
-                <button class="back-btn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
-            </div>
-        </main>
+    <div style="text-align: center; margin-top: 2rem;">
+        <button class="back-btn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
+    </div>
+    </main>
     </div>
 
     <!-- Dashboard Screen -->
@@ -342,9 +364,10 @@
         <main id="dashboardCharts" style="display: none;">
             <!-- JS will inject charts here -->
         </main>
-        
+
         <div style="text-align: center; margin-top: 1rem; padding-bottom: 1rem;">
-            <button class="back-btn" id="bottomDashboardBackBtn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
+            <button class="back-btn" id="bottomDashboardBackBtn" onclick="backToMenu()" style="margin-bottom: 0;">← Back
+                to Menu</button>
         </div>
     </div>
 
@@ -355,6 +378,7 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.6"></script>
+    <script src="app.js?v=2.7"></script>
 </body>
+
 </html>

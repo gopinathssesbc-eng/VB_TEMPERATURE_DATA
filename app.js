@@ -19,7 +19,7 @@ const TRAIN_COACHES = {
     "IC2029": ['c1 235565', 'c2 235567', 'e1 235571', 'c3 235569', 'c4 235568', 'c5 235572', 'c6 235570', 'c7 235566'],
     "IC2008": ['c1 235049', 'c2 235057', 'c3 235061', 'c4 235056', 'c5 235055', 'c6 235060', 'c7 235054', 'e1 231078', 'e2 231077', 'c8 235053', 'c9 235059', 'c10 235052', 'c11 235051', 'c12 235058', 'c13 235050', 'c14 235048'],
     "IC2006": ['c14 235002', 'c13 235010', 'c12 235014', 'c11 235009', 'c10 235008', 'c9 235013', 'c8 235007', 'e2 231003', 'e1 231002', 'c7 235006', 'c6 235012', 'c5 235005', 'c4 235004', 'c3 235011', 'c2 235003', 'c1 235001'],
-    "IC2015": ['C1', 'C2', 'E1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8']
+    "IC2015": ['c14 235292', 'c13 235310', 'c12 235326', 'c11 235309', 'c10 235308', 'c9 235325', 'c8 235307', 'e2 231532', 'e1 231531', 'c7 235306', 'c6 235323', 'c5 235303', 'c4 235304', 'c3 235324', 'c2 235305', 'c1 235391']
 };
 const AXLES = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3', 'L4', 'R4'];
 const STATIONS = {
@@ -28,7 +28,8 @@ const STATIONS = {
     "IC2059": ["MYS", "MAS"],
     "IC2029": ["SBC", "DWR"],
     "IC2008": ["SBC", "ERS"],
-    "IC2006": ["KCG", "YPR"]
+    "IC2006": ["KCG", "YPR"],
+    "IC2015": ["SBC", "DWR", "ERS"]
 };
 const TOKENS = {
     "IC2021": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
@@ -36,7 +37,8 @@ const TOKENS = {
     "IC2059": ["T59", "K69", "K65", "T26", "T30", "T40", "T38", "T87", "T140", "T123", "T118", "T131", "K356", "T171", "T166", "K439", "K447", "K398"],
     "IC2029": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
     "IC2008": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
-    "IC2006": ["KCG staff"]
+    "IC2006": ["KCG staff"],
+    "IC2015": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"]
 };
 const COLORS = [
     '#ef4444', '#f97316', '#f59e0b', '#84cc16',
@@ -184,7 +186,7 @@ function calculateDetentionDuration(fromStr, toStr) {
 
     if (diffMinutes === 0) return '0 mins';
     if (diffMinutes < 60) return `${diffMinutes} mins`;
-    
+
     const hrs = Math.floor(diffMinutes / 60);
     const mins = diffMinutes % 60;
     return mins > 0 ? `${hrs} hr ${mins} mins` : `${hrs} hr`;
@@ -272,7 +274,7 @@ function buildSubCategoryOptions(selected = '') {
     list.forEach(sub => {
         const clean = sub.replace(/:$/, '').trim();
         const isSel = (clean.toLowerCase() === (selected || '').trim().toLowerCase() ||
-                       sub.trim().toLowerCase() === (selected || '').trim().toLowerCase());
+            sub.trim().toLowerCase() === (selected || '').trim().toLowerCase());
         if (isSel) found = true;
         html += `<option value="${clean}" ${isSel ? 'selected' : ''}>${clean}</option>`;
     });
@@ -1739,6 +1741,11 @@ function showChangelog() {
         title: 'Changelog',
         html: `
             <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; color: var(--text-main);">
+                <strong>v2.7 (Added Rake IC2015)</strong><br>
+                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
+                    <li>16-coach rake IC2015 configured with full coach numbers (c14 235292 down to c1 235391).</li>
+                    <li>Available in Data Entry, Dashboard, and Arrival Report.</li>
+                </ul>
                 <strong>v2.3 (Arrival Report 3-Section Overhaul)</strong><br>
                 <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
                     <li>Load button to retrieve and display existing arrival reports.</li>
