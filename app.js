@@ -1,7 +1,7 @@
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-const OLD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxT-6WdCNh-cRtN8g8K7CR28oC1R6YAqAw6bsbkU4FRHNG9BBblHrey3Ia47rmxlYc5yA/exec";
+const OLD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzG9U7ml4EihL5qSh-CMbV7VGXMXUzdkqeYy0MXJy21XKSO0_O5_RycGqAbFMBzawJPHg/exec";
 const NEW_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzJmNFmQddCZpDBEWWJB2f4oorGghmZ4hEifcGwqUpMR0lrRjGvx1QlMy2mFnEEF-scYQ/exec";
 const IC2006_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxUacggoRnVVnpsQik52XBaMv9Aj9X1Fdw5f7rbK-bjsqrcmZR7vDsMnZIwfJU_zsPbuQ/exec"; // Update this with the IC2006 script deployed Web App URL
 const ARRIVAL_REPORT_WEB_APP_URL = OLD_WEB_APP_URL; // Google Apps Script Web App URL for Arrival Report
