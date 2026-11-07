@@ -68,20 +68,21 @@ const statusIndicator = document.getElementById('status');
 const arrivalForm = document.getElementById('arrivalForm');
 const arrivalSubmitBtn = document.getElementById('arrivalSubmitBtn');
 const arrivalStatus = document.getElementById('arrivalStatus');
-const arrivalReportedBy = document.getElementById('arrivalReportedBy');
-const arrivalRakeSelect = document.getElementById('arrivalRakeSelect');
 const arrivalDateInput = document.getElementById('arrivalDateInput');
+const arrivalRakeSelect = document.getElementById('arrivalRakeSelect');
 const arrivalTrainSelect = document.getElementById('arrivalTrainSelect');
 const arrivalOtherTrainGroup = document.getElementById('arrivalOtherTrainGroup');
 const arrivalOtherTrainInput = document.getElementById('arrivalOtherTrainInput');
-const arrivalCoachSelect = document.getElementById('arrivalCoachSelect');
-const arrivalCategorySelect = document.getElementById('arrivalCategorySelect');
-const arrivalIssueDesc = document.getElementById('arrivalIssueDesc');
-const detentionDetailsContainer = document.getElementById('detentionDetailsContainer');
-const arrivalStationName = document.getElementById('arrivalStationName');
-const arrivalDetentionFrom = document.getElementById('arrivalDetentionFrom');
-const arrivalDetentionUpto = document.getElementById('arrivalDetentionUpto');
-const arrivalActionTaken = document.getElementById('arrivalActionTaken');
+const arrivalEnteredBy = document.getElementById('arrivalEnteredBy');
+const arrivalLoadBtn = document.getElementById('arrivalLoadBtn');
+const arrivalLoadStatus = document.getElementById('arrivalLoadStatus');
+
+const defectsContainer = document.getElementById('defectsContainer');
+const addDefectBtn = document.getElementById('addDefectBtn');
+const railMadadContainer = document.getElementById('railMadadContainer');
+const addRailMadadBtn = document.getElementById('addRailMadadBtn');
+const detentionsContainer = document.getElementById('detentionsContainer');
+const addDetentionBtn = document.getElementById('addDetentionBtn');
 
 const dashboardTitle = document.getElementById('dashboardTitle');
 const dashboardLoading = document.getElementById('dashboardLoading');
@@ -158,18 +159,290 @@ function clearForm() {
     updateStatus("", "");
 }
 
+// Calculation of detention duration
+function calculateDetentionDuration(fromStr, toStr) {
+    if (!fromStr || !toStr) return '';
+    const [h1, m1] = fromStr.split(':').map(Number);
+    const [h2, m2] = toStr.split(':').map(Number);
+    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return '';
+
+    let diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+    if (diffMinutes < 0) {
+        diffMinutes += 24 * 60; // Crosses midnight
+    }
+
+    if (diffMinutes === 0) return '0 mins';
+    if (diffMinutes < 60) return `${diffMinutes} mins`;
+    
+    const hrs = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    return mins > 0 ? `${hrs} hr ${mins} mins` : `${hrs} hr`;
+}
+
+function getCoachesList() {
+    const rake = arrivalRakeSelect ? arrivalRakeSelect.value : '';
+    return (rake && TRAIN_COACHES[rake]) ? TRAIN_COACHES[rake] : [];
+}
+
+function buildCoachOptions(selectedCoach = '', includeAllOption = false) {
+    const coaches = getCoachesList();
+    let html = '<option value="">-- Select Coach --</option>';
+    if (includeAllOption) {
+        const isAllSelected = (selectedCoach === 'Rake / Loco / All') ? 'selected' : '';
+        html += `<option value="Rake / Loco / All" ${isAllSelected}>Rake / Loco / All</option>`;
+    }
+    coaches.forEach(c => {
+        const sel = (c.toLowerCase() === (selectedCoach || '').toLowerCase()) ? 'selected' : '';
+        html += `<option value="${c}" ${sel}>${c.toUpperCase()}</option>`;
+    });
+    return html;
+}
+
+function refreshAllCoachDropdowns() {
+    if (!defectsContainer || !railMadadContainer || !detentionsContainer) return;
+    defectsContainer.querySelectorAll('.defect-coach-select').forEach(sel => {
+        const current = sel.value;
+        sel.innerHTML = buildCoachOptions(current);
+    });
+    railMadadContainer.querySelectorAll('.rm-coach-select').forEach(sel => {
+        const current = sel.value;
+        sel.innerHTML = buildCoachOptions(current);
+    });
+    detentionsContainer.querySelectorAll('.detention-coach-select').forEach(sel => {
+        const current = sel.value;
+        sel.innerHTML = buildCoachOptions(current, true);
+    });
+}
+
+// Section 1: Defects
+function addDefectRow(coach = '', desc = '') {
+    if (!defectsContainer) return;
+    const row = document.createElement('div');
+    row.className = 'defect-row';
+    row.innerHTML = `
+        <div>
+            <select class="defect-coach-select" required>
+                ${buildCoachOptions(coach)}
+            </select>
+        </div>
+        <div>
+            <input type="text" class="defect-desc-input" placeholder="Enter defect / issue description" value="${desc || ''}" required>
+        </div>
+        <div>
+            <button type="button" class="remove-btn" title="Remove Defect">✕</button>
+        </div>
+    `;
+    row.querySelector('.remove-btn').addEventListener('click', () => {
+        row.remove();
+        checkDefectsEmpty();
+    });
+    defectsContainer.appendChild(row);
+    checkDefectsEmpty();
+}
+
+function checkDefectsEmpty() {
+    if (!defectsContainer) return;
+    const rows = defectsContainer.querySelectorAll('.defect-row');
+    const existingPlaceholder = defectsContainer.querySelector('.empty-placeholder');
+    if (rows.length === 0) {
+        if (!existingPlaceholder) {
+            const ph = document.createElement('div');
+            ph.className = 'empty-placeholder';
+            ph.textContent = 'No defects added yet. Click "+ Add Defect" below to add.';
+            defectsContainer.appendChild(ph);
+        }
+    } else if (existingPlaceholder) {
+        existingPlaceholder.remove();
+    }
+}
+
+// Section 2: Rail Madad
+function addRailMadadCard(data = {}) {
+    if (!railMadadContainer) return;
+    const index = railMadadContainer.querySelectorAll('.entry-card').length + 1;
+    const card = document.createElement('div');
+    card.className = 'entry-card';
+    card.innerHTML = `
+        <div class="entry-card-header">
+            <span>Rail Madad Complaint #${index}</span>
+            <button type="button" class="remove-btn">✕ Remove</button>
+        </div>
+        <div class="form-row-2">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Coach Number</label>
+                <select class="rm-coach-select" required>
+                    ${buildCoachOptions(data.CoachNo || '')}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>RM Reference Number</label>
+                <input type="text" class="rm-ref-input" placeholder="e.g. RM-123456" value="${data.RMReferenceNo || ''}" required>
+            </div>
+        </div>
+        <div class="form-row-2">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Complaint Main Category</label>
+                <select class="rm-main-category" required>
+                    <option value="">-- Select Main Category --</option>
+                    <option value="Electrical / AC" ${data.MainCategory === 'Electrical / AC' ? 'selected' : ''}>Electrical / AC</option>
+                    <option value="Mechanical / Coach Body" ${data.MainCategory === 'Mechanical / Coach Body' ? 'selected' : ''}>Mechanical / Coach Body</option>
+                    <option value="Cleanliness & Housekeeping" ${data.MainCategory === 'Cleanliness & Housekeeping' ? 'selected' : ''}>Cleanliness & Housekeeping</option>
+                    <option value="Water & Toilets" ${data.MainCategory === 'Water & Toilets' ? 'selected' : ''}>Water & Toilets</option>
+                    <option value="Catering" ${data.MainCategory === 'Catering' ? 'selected' : ''}>Catering</option>
+                    <option value="Security" ${data.MainCategory === 'Security' ? 'selected' : ''}>Security</option>
+                    <option value="Punctuality" ${data.MainCategory === 'Punctuality' ? 'selected' : ''}>Punctuality</option>
+                    <option value="Others" ${data.MainCategory === 'Others' ? 'selected' : ''}>Others</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Complaint Sub Category</label>
+                <input type="text" class="rm-sub-category" placeholder="e.g. AC cooling, flush valve" value="${data.SubCategory || ''}" required>
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Complaint Description</label>
+            <textarea class="rm-desc-input" rows="2" placeholder="Details of passenger complaint" required>${data.ComplaintDescription || ''}</textarea>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Action Taken Enroute</label>
+            <textarea class="rm-action-input" rows="2" placeholder="Action taken by technician / OBHS / crew" required>${data.ActionTaken || ''}</textarea>
+        </div>
+    `;
+    card.querySelector('.remove-btn').addEventListener('click', () => {
+        card.remove();
+        renumberCards(railMadadContainer, 'Rail Madad Complaint');
+        checkRailMadadEmpty();
+    });
+    railMadadContainer.appendChild(card);
+    checkRailMadadEmpty();
+}
+
+function checkRailMadadEmpty() {
+    if (!railMadadContainer) return;
+    const cards = railMadadContainer.querySelectorAll('.entry-card');
+    const existingPlaceholder = railMadadContainer.querySelector('.empty-placeholder');
+    if (cards.length === 0) {
+        if (!existingPlaceholder) {
+            const ph = document.createElement('div');
+            ph.className = 'empty-placeholder';
+            ph.textContent = 'No Rail Madad complaints logged. Click "+ Add Rail Madad Complaint" if any occurred.';
+            railMadadContainer.appendChild(ph);
+        }
+    } else if (existingPlaceholder) {
+        existingPlaceholder.remove();
+    }
+}
+
+// Section 3: Detentions
+function addDetentionCard(data = {}) {
+    if (!detentionsContainer) return;
+    const index = detentionsContainer.querySelectorAll('.entry-card').length + 1;
+    const card = document.createElement('div');
+    card.className = 'entry-card';
+    card.innerHTML = `
+        <div class="entry-card-header">
+            <span>Detention #${index}</span>
+            <button type="button" class="remove-btn">✕ Remove</button>
+        </div>
+        <div class="form-row-2">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Coach Number</label>
+                <select class="detention-coach-select" required>
+                    ${buildCoachOptions(data.CoachNo || '', true)}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Station</label>
+                <input type="text" class="detention-station" placeholder="e.g. SBC, KPN" value="${data.Station || ''}" required>
+            </div>
+        </div>
+        <div class="form-row-3" style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 0.75rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Time From</label>
+                <input type="time" class="detention-from" value="${data.TimeFrom || ''}" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Time To</label>
+                <input type="time" class="detention-to" value="${data.TimeTo || ''}" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Total Detention</label>
+                <input type="text" class="detention-total calculated-input" readonly placeholder="Auto-calculated" value="${data.TotalDetention || ''}">
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Issue Description</label>
+            <textarea class="detention-desc" rows="2" placeholder="Reason for train detention" required>${data.IssueDescription || ''}</textarea>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Action Taken</label>
+            <textarea class="detention-action" rows="2" placeholder="Action taken to rectify and dispatch" required>${data.ActionTaken || ''}</textarea>
+        </div>
+    `;
+
+    const fromInput = card.querySelector('.detention-from');
+    const toInput = card.querySelector('.detention-to');
+    const totalInput = card.querySelector('.detention-total');
+
+    const updateCalc = () => {
+        totalInput.value = calculateDetentionDuration(fromInput.value, toInput.value);
+    };
+    fromInput.addEventListener('input', updateCalc);
+    toInput.addEventListener('input', updateCalc);
+    if (fromInput.value && toInput.value && !totalInput.value) {
+        updateCalc();
+    }
+
+    card.querySelector('.remove-btn').addEventListener('click', () => {
+        card.remove();
+        renumberCards(detentionsContainer, 'Detention');
+        checkDetentionsEmpty();
+    });
+
+    detentionsContainer.appendChild(card);
+    checkDetentionsEmpty();
+}
+
+function checkDetentionsEmpty() {
+    if (!detentionsContainer) return;
+    const cards = detentionsContainer.querySelectorAll('.entry-card');
+    const existingPlaceholder = detentionsContainer.querySelector('.empty-placeholder');
+    if (cards.length === 0) {
+        if (!existingPlaceholder) {
+            const ph = document.createElement('div');
+            ph.className = 'empty-placeholder';
+            ph.textContent = 'No train detentions logged. Click "+ Add Detention" if the train was detained.';
+            detentionsContainer.appendChild(ph);
+        }
+    } else if (existingPlaceholder) {
+        existingPlaceholder.remove();
+    }
+}
+
+function renumberCards(container, prefix) {
+    if (!container) return;
+    const cards = container.querySelectorAll('.entry-card');
+    cards.forEach((card, idx) => {
+        const titleSpan = card.querySelector('.entry-card-header span');
+        if (titleSpan) titleSpan.textContent = `${prefix} #${idx + 1}`;
+    });
+}
+
 function clearArrivalForm() {
     if (arrivalForm) arrivalForm.reset();
     if (arrivalDatePicker) arrivalDatePicker.setDate(new Date());
-    if (arrivalCoachSelect) {
-        arrivalCoachSelect.innerHTML = '<option value="">-- Select Rake First --</option>';
-        arrivalCoachSelect.disabled = true;
-    }
-    if (detentionDetailsContainer) detentionDetailsContainer.style.display = 'none';
+    if (defectsContainer) defectsContainer.innerHTML = '';
+    if (railMadadContainer) railMadadContainer.innerHTML = '';
+    if (detentionsContainer) detentionsContainer.innerHTML = '';
     if (arrivalOtherTrainGroup) arrivalOtherTrainGroup.style.display = 'none';
-    const noRadio = document.querySelector('input[name="TrainDetained"][value="No"]');
-    if (noRadio) noRadio.checked = true;
-    updateArrivalStatus("Ready to submit", "");
+    if (arrivalLoadStatus) {
+        arrivalLoadStatus.textContent = 'Select Date & Rake, then click Load to view or edit existing records';
+        arrivalLoadStatus.style.color = 'var(--text-muted)';
+    }
+    checkDefectsEmpty();
+    checkRailMadadEmpty();
+    checkDetentionsEmpty();
+    updateArrivalStatus("Ready to load/submit", "");
 }
 
 function openDataEntry() {
@@ -181,6 +454,8 @@ function openDataEntry() {
 function openArrivalReport() {
     hideAllScreens();
     clearArrivalForm();
+    // Start with 1 empty defect row ready for entry
+    addDefectRow();
     if (arrivalReportScreen) arrivalReportScreen.style.display = 'flex';
     window.scrollTo(0, 0);
 }
@@ -830,36 +1105,22 @@ function updateStatus(text, type) {
 // ARRIVAL REPORT EVENT LISTENERS
 // ============================================================================
 
-// Populate dependent Coach dropdown based on selected Rake
+// When Rake changes, refresh coach dropdowns in all dynamic cards & suggest default train
 if (arrivalRakeSelect) {
     arrivalRakeSelect.addEventListener('change', () => {
         const selectedRake = arrivalRakeSelect.value;
-        arrivalCoachSelect.innerHTML = '<option value="">-- Select Coach --</option>';
+        refreshAllCoachDropdowns();
 
-        if (selectedRake && TRAIN_COACHES[selectedRake]) {
-            arrivalCoachSelect.disabled = false;
-            TRAIN_COACHES[selectedRake].forEach(coach => {
-                const opt = document.createElement('option');
-                opt.value = coach;
-                opt.textContent = coach.toUpperCase();
-                arrivalCoachSelect.appendChild(opt);
-            });
-
-            // Auto-suggest primary train number for convenience
-            const defaultTrains = {
-                "IC2021": "20661",
-                "IC2058": "26651",
-                "IC2059": "20607",
-                "IC2029": "20661",
-                "IC2008": "26651",
-                "IC2006": "20703"
-            };
-            if (defaultTrains[selectedRake] && !arrivalTrainSelect.value) {
-                arrivalTrainSelect.value = defaultTrains[selectedRake];
-            }
-        } else {
-            arrivalCoachSelect.disabled = true;
-            arrivalCoachSelect.innerHTML = '<option value="">-- Select Rake First --</option>';
+        const defaultTrains = {
+            "IC2021": "20661",
+            "IC2058": "26651",
+            "IC2059": "20607",
+            "IC2029": "20661",
+            "IC2008": "26651",
+            "IC2006": "20703"
+        };
+        if (defaultTrains[selectedRake] && !arrivalTrainSelect.value) {
+            arrivalTrainSelect.value = defaultTrains[selectedRake];
         }
     });
 }
@@ -879,31 +1140,156 @@ if (arrivalTrainSelect) {
     });
 }
 
-// Train Detained conditional display
-document.querySelectorAll('input[name="TrainDetained"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-        const isDetained = document.querySelector('input[name="TrainDetained"]:checked')?.value === 'Yes';
-        if (isDetained) {
-            detentionDetailsContainer.style.display = 'block';
-            arrivalStationName.setAttribute('required', 'required');
-            arrivalDetentionFrom.setAttribute('required', 'required');
-            arrivalDetentionUpto.setAttribute('required', 'required');
-            arrivalActionTaken.setAttribute('required', 'required');
-        } else {
-            detentionDetailsContainer.style.display = 'none';
-            arrivalStationName.removeAttribute('required');
-            arrivalDetentionFrom.removeAttribute('required');
-            arrivalDetentionUpto.removeAttribute('required');
-            arrivalActionTaken.removeAttribute('required');
-            arrivalStationName.value = '';
-            arrivalDetentionFrom.value = '';
-            arrivalDetentionUpto.value = '';
-            arrivalActionTaken.value = '';
+// Add row buttons
+if (addDefectBtn) {
+    addDefectBtn.addEventListener('click', () => {
+        addDefectRow();
+    });
+}
+
+if (addRailMadadBtn) {
+    addRailMadadBtn.addEventListener('click', () => {
+        addRailMadadCard();
+    });
+}
+
+if (addDetentionBtn) {
+    addDetentionBtn.addEventListener('click', () => {
+        addDetentionCard();
+    });
+}
+
+// Load Existing Report Button
+if (arrivalLoadBtn) {
+    arrivalLoadBtn.addEventListener('click', async () => {
+        if (!currentPassword) {
+            handleSessionExpired();
+            return;
+        }
+
+        const date = arrivalDateInput.value.trim();
+        const rake = arrivalRakeSelect.value;
+        const train = arrivalTrainSelect.value;
+
+        if (!date || !rake) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Missing Date or Rake',
+                text: 'Please select both Date and Rake Number before loading.',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: 'var(--primary)'
+            });
+            return;
+        }
+
+        const btnText = arrivalLoadBtn.querySelector('span');
+        const spinner = arrivalLoadBtn.querySelector('.spinner');
+        arrivalLoadBtn.disabled = true;
+        btnText.textContent = 'Loading...';
+        spinner.classList.remove('hidden');
+        arrivalLoadStatus.textContent = 'Checking for existing records in Google Sheets...';
+        arrivalLoadStatus.style.color = '#38bdf8';
+
+        try {
+            const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || getWebAppUrl(rake);
+            const url = `${targetUrl}?action=get_arrival_report&password=${encodeURIComponent(currentPassword)}&date=${encodeURIComponent(date)}&rake=${encodeURIComponent(rake)}&train=${encodeURIComponent(train)}`;
+            const response = await fetch(url);
+            const result = await response.json();
+
+            if (result.status === 'unauthorized') {
+                handleSessionExpired();
+                return;
+            }
+
+            if (result.status === 'success' && result.found) {
+                // Populate basic details
+                if (result.basic) {
+                    if (result.basic.DataEnteredBy) arrivalEnteredBy.value = result.basic.DataEnteredBy;
+                    if (result.basic.TrainNo) {
+                        arrivalTrainSelect.value = result.basic.TrainNo;
+                        if (!arrivalTrainSelect.value) {
+                            arrivalTrainSelect.value = 'Other';
+                            arrivalOtherTrainGroup.style.display = 'block';
+                            arrivalOtherTrainInput.value = result.basic.TrainNo;
+                        }
+                    }
+                }
+
+                // Populate Section 1: Defects
+                defectsContainer.innerHTML = '';
+                if (result.defects && result.defects.length > 0) {
+                    result.defects.forEach(d => {
+                        if (d.CoachNo !== 'NIL' || result.defects.length > 1) {
+                            addDefectRow(d.CoachNo, d.IssueDescription);
+                        }
+                    });
+                }
+                checkDefectsEmpty();
+
+                // Populate Section 2: Rail Madad
+                railMadadContainer.innerHTML = '';
+                if (result.railMadad && result.railMadad.length > 0) {
+                    result.railMadad.forEach(rm => {
+                        addRailMadadCard(rm);
+                    });
+                }
+                checkRailMadadEmpty();
+
+                // Populate Section 3: Detentions
+                detentionsContainer.innerHTML = '';
+                if (result.detentions && result.detentions.length > 0) {
+                    result.detentions.forEach(dt => {
+                        addDetentionCard(dt);
+                    });
+                }
+                checkDetentionsEmpty();
+
+                arrivalLoadStatus.textContent = `Loaded existing report for ${rake} on ${date}. You can edit and re-save.`;
+                arrivalLoadStatus.style.color = 'var(--success)';
+                updateArrivalStatus('Existing report loaded', 'online');
+
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Report Loaded',
+                    text: `Existing report found for ${rake} on ${date}. You can review or edit details and click Save.`,
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            } else {
+                // No prior report found
+                arrivalLoadStatus.textContent = `No existing report found for ${rake} on ${date}. You can enter new details.`;
+                arrivalLoadStatus.style.color = 'var(--text-muted)';
+                updateArrivalStatus('Ready to submit new report', '');
+
+                // Ensure at least 1 defect row is open
+                if (defectsContainer.querySelectorAll('.defect-row').length === 0) {
+                    addDefectRow();
+                }
+
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No Prior Report Found',
+                    text: `No report exists yet for ${rake} on ${date}. You can enter new records below.`,
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            arrivalLoadStatus.textContent = 'Failed to load report from server. You can still enter new data.';
+            arrivalLoadStatus.style.color = 'var(--error)';
+        } finally {
+            arrivalLoadBtn.disabled = false;
+            btnText.textContent = '🔍 Load Report';
+            spinner.classList.add('hidden');
         }
     });
-});
+}
 
-// Handle Arrival Report Submission
+// Handle Arrival Report Submission (Syncs to 3 sheets: Arrival Report, Rail Madad, Detentions)
 if (arrivalForm) {
     arrivalForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -913,64 +1299,99 @@ if (arrivalForm) {
             return;
         }
 
-        const reportedBy = arrivalReportedBy.value.trim();
-        const rakeNo = arrivalRakeSelect.value;
         const date = arrivalDateInput.value.trim();
+        const rakeNo = arrivalRakeSelect.value;
         let trainNo = arrivalTrainSelect.value;
         if (trainNo === 'Other') {
             trainNo = arrivalOtherTrainInput.value.trim();
         }
-        const coachNo = arrivalCoachSelect.value;
-        const issueCategory = arrivalCategorySelect.value;
-        const issueDesc = arrivalIssueDesc.value.trim();
-        const isDetained = document.querySelector('input[name="TrainDetained"]:checked')?.value || 'No';
+        const enteredBy = arrivalEnteredBy.value.trim();
 
-        let stationName = 'N/A';
-        let detentionFrom = 'N/A';
-        let detentionUpto = 'N/A';
-        let actionTaken = 'N/A';
-
-        if (isDetained === 'Yes') {
-            stationName = arrivalStationName.value.trim() || 'N/A';
-            detentionFrom = arrivalDetentionFrom.value.trim() || 'N/A';
-            detentionUpto = arrivalDetentionUpto.value.trim() || 'N/A';
-            actionTaken = arrivalActionTaken.value.trim() || 'N/A';
+        if (!date || !rakeNo || !trainNo || !enteredBy) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Incomplete Basic Details',
+                text: 'Please complete Date, Rake Number, Train Number, and Data Entered By.',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: 'var(--primary)'
+            });
+            return;
         }
+
+        // Collect Section 1: Defects
+        const defectRows = defectsContainer.querySelectorAll('.defect-row');
+        const defects = [];
+        defectRows.forEach(row => {
+            const coach = row.querySelector('.defect-coach-select').value;
+            const desc = row.querySelector('.defect-desc-input').value.trim();
+            if (coach || desc) {
+                defects.push({
+                    CoachNo: coach,
+                    IssueDescription: desc
+                });
+            }
+        });
+
+        // Collect Section 2: Rail Madad
+        const rmCards = railMadadContainer.querySelectorAll('.entry-card');
+        const railMadad = [];
+        rmCards.forEach(card => {
+            railMadad.push({
+                CoachNo: card.querySelector('.rm-coach-select').value,
+                RMReferenceNo: card.querySelector('.rm-ref-input').value.trim(),
+                MainCategory: card.querySelector('.rm-main-category').value,
+                SubCategory: card.querySelector('.rm-sub-category').value.trim(),
+                ComplaintDescription: card.querySelector('.rm-desc-input').value.trim(),
+                ActionTaken: card.querySelector('.rm-action-input').value.trim()
+            });
+        });
+
+        // Collect Section 3: Detentions
+        const detentionCards = detentionsContainer.querySelectorAll('.entry-card');
+        const detentions = [];
+        detentionCards.forEach(card => {
+            const timeFrom = card.querySelector('.detention-from').value;
+            const timeTo = card.querySelector('.detention-to').value;
+            const totalDetention = card.querySelector('.detention-total').value || calculateDetentionDuration(timeFrom, timeTo);
+
+            detentions.push({
+                CoachNo: card.querySelector('.detention-coach-select').value,
+                Station: card.querySelector('.detention-station').value.trim(),
+                TimeFrom: timeFrom,
+                TimeTo: timeTo,
+                TotalDetention: totalDetention,
+                IssueDescription: card.querySelector('.detention-desc').value.trim(),
+                ActionTaken: card.querySelector('.detention-action').value.trim()
+            });
+        });
 
         // Format current timestamp
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
         const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-        const rowData = {
-            "Timestamp": timestamp,
-            "Date": date,
-            "Reported By": reportedBy,
-            "Rake No": rakeNo,
-            "Train No": trainNo,
-            "Coach No": coachNo,
-            "Issue Category": issueCategory,
-            "Issue Description": issueDesc,
-            "Train Detained": isDetained,
-            "Station Name": stationName,
-            "Detention From": detentionFrom,
-            "Detention Upto": detentionUpto,
-            "Action Taken": actionTaken
-        };
-
         const payload = {
             password: currentPassword,
-            train: "Arrival Report",
-            action: "arrival_report",
-            rowData: rowData
+            action: "save_arrival_report",
+            basic: {
+                Timestamp: timestamp,
+                Date: date,
+                RakeNo: rakeNo,
+                TrainNo: trainNo,
+                DataEnteredBy: enteredBy
+            },
+            defects: defects,
+            railMadad: railMadad,
+            detentions: detentions
         };
 
         const btnText = arrivalSubmitBtn.querySelector('span');
         const spinner = arrivalSubmitBtn.querySelector('.spinner');
         arrivalSubmitBtn.disabled = true;
-        btnText.textContent = 'Saving...';
+        btnText.textContent = 'Syncing 3 Sheets...';
         spinner.classList.remove('hidden');
-        updateArrivalStatus("Saving arrival report...", "loading");
+        updateArrivalStatus("Syncing to Arrival Report, Rail Madad & Detentions sheets...", "loading");
 
         try {
             const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || getWebAppUrl(rakeNo);
@@ -982,11 +1403,18 @@ if (arrivalForm) {
 
             const result = await response.json();
             if (result.status === "success") {
-                updateArrivalStatus("Saved successfully", "online");
+                updateArrivalStatus("Saved & Synced", "online");
                 Swal.fire({
                     icon: 'success',
-                    title: 'Arrival Report Saved',
-                    text: result.message || 'Report logged successfully in Google Sheets.',
+                    title: 'Arrival Report Saved!',
+                    html: `
+                        <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
+                            Successfully synced to all 3 Google Sheets:<br>
+                            ✔ <strong>Arrival Report</strong>: ${defects.length} defect(s)<br>
+                            ✔ <strong>Rail Madad</strong>: ${railMadad.length} complaint(s)<br>
+                            ✔ <strong>Detentions</strong>: ${detentions.length} detention record(s)
+                        </div>
+                    `,
                     background: 'var(--surface)',
                     color: 'var(--text-main)',
                     confirmButtonColor: 'var(--success)'
@@ -1011,7 +1439,7 @@ if (arrivalForm) {
             });
         } finally {
             arrivalSubmitBtn.disabled = false;
-            btnText.textContent = 'Save Arrival Report';
+            btnText.textContent = '💾 Save Arrival Report (Sync to 3 Sheets)';
             spinner.classList.add('hidden');
         }
     });
@@ -1023,12 +1451,13 @@ function showChangelog() {
         title: 'Changelog',
         html: `
             <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; color: var(--text-main);">
-                <strong>v2.2 (Arrival Report Update)</strong><br>
+                <strong>v2.3 (Arrival Report 3-Section Overhaul)</strong><br>
                 <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
-                    <li>Added Arrival Report feature on Main Menu.</li>
-                    <li>Log coach defects, issue categories & train detention records.</li>
-                    <li>Dynamic coach selection mapped to selected rake.</li>
-                    <li>Direct sync to the 'Arrival Report' Google Sheet.</li>
+                    <li>Load button to retrieve and display existing arrival reports.</li>
+                    <li>Section 1: Defects with dynamic coach dropdown & add defect rows.</li>
+                    <li>Section 2: Rail Madad Complaints with categories & enroute actions.</li>
+                    <li>Section 3: Detentions with auto-calculated duration.</li>
+                    <li>Auto-syncs across 3 separate Google Sheets (Arrival Report, Rail Madad, Detentions).</li>
                 </ul>
                 <strong>v2.1 (PWA Update)</strong><br>
                 <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">

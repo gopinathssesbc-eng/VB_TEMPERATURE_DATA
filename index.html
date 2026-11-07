@@ -33,7 +33,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.2">
+    <link rel="stylesheet" href="style.css?v=2.3">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Flatpickr Calendar Library -->
@@ -62,7 +62,7 @@
             </form>
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v2.2 <br>
+                v2.3 <br>
                 <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
             </div>
         </div>
@@ -85,7 +85,7 @@
             </button>
             <button class="menu-btn secondary-menu-btn" onclick="openArrivalReport()">
                 <span class="menu-title">Arrival Report</span>
-                <span class="menu-subtitle">Log coach defects, issues & detentions</span>
+                <span class="menu-subtitle">Defects, Rail Madad & Detentions</span>
             </button>
             <button class="menu-btn" onclick="openDashboard('IC2021')">
                 <span class="menu-title">IC2021 Dashboard</span>
@@ -113,7 +113,7 @@
             </button>
         </main>
         <div style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
-            v2.2 <br>
+            v2.3 <br>
             <button type="button" onclick="showChangelog()" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View Changelog</button>
         </div>
     </div>
@@ -190,55 +190,60 @@
         <header>
             <button class="back-btn" onclick="backToMenu()">← Back to Menu</button>
             <h1>Arrival Report</h1>
-            <div id="arrivalStatus" class="status-indicator">Ready to submit</div>
+            <div id="arrivalStatus" class="status-indicator">Ready to load/submit</div>
         </header>
 
         <main>
             <form id="arrivalForm">
+                <!-- Section 0: Basic Details -->
                 <section class="metadata-section">
-                    <h2>Report Details</h2>
+                    <h2>Basic Details</h2>
 
-                    <div class="form-group">
-                        <label for="arrivalReportedBy">Reported By</label>
-                        <input type="text" id="arrivalReportedBy" name="Reported By" placeholder="Enter Name or Token Number" required>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="arrivalDateInput">Date</label>
+                            <input type="text" id="arrivalDateInput" name="Date" placeholder="Select Date" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="arrivalRakeSelect">Rake No</label>
+                            <select id="arrivalRakeSelect" name="Rake No" required>
+                                <option value="">-- Select Rake --</option>
+                                <option value="IC2021">IC2021</option>
+                                <option value="IC2058">IC2058</option>
+                                <option value="IC2059">IC2059</option>
+                                <option value="IC2029">IC2029</option>
+                                <option value="IC2008">IC2008</option>
+                                <option value="IC2006">IC2006</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="arrivalRakeSelect">Rake No</label>
-                        <select id="arrivalRakeSelect" name="Rake No" required>
-                            <option value="">-- Select Rake --</option>
-                            <option value="IC2021">IC2021</option>
-                            <option value="IC2058">IC2058</option>
-                            <option value="IC2059">IC2059</option>
-                            <option value="IC2029">IC2029</option>
-                            <option value="IC2008">IC2008</option>
-                            <option value="IC2006">IC2006</option>
-                        </select>
-                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="arrivalTrainSelect">Train No</label>
+                            <select id="arrivalTrainSelect" name="Train No" required>
+                                <option value="">-- Select Train No --</option>
+                                <option value="20607">20607 (MAS - MYS)</option>
+                                <option value="20608">20608 (MYS - MAS)</option>
+                                <option value="20641">20641 (SBC - CBE)</option>
+                                <option value="20642">20642 (CBE - SBC)</option>
+                                <option value="20661">20661 (SBC - DWR)</option>
+                                <option value="20662">20662 (DWR - SBC)</option>
+                                <option value="20663">20663 (MAS - SMVB)</option>
+                                <option value="20664">20664 (SMVB - MAS)</option>
+                                <option value="20703">20703 (KCG - YPR)</option>
+                                <option value="20704">20704 (YPR - KCG)</option>
+                                <option value="26651">26651 (SBC - ERS)</option>
+                                <option value="26652">26652 (ERS - SBC)</option>
+                                <option value="Other">Other (Enter Train No)</option>
+                            </select>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="arrivalDateInput">Date</label>
-                        <input type="text" id="arrivalDateInput" name="Date" placeholder="Select Date" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="arrivalTrainSelect">Train No</label>
-                        <select id="arrivalTrainSelect" name="Train No" required>
-                            <option value="">-- Select Train No --</option>
-                            <option value="20607">20607 (MAS - MYS)</option>
-                            <option value="20608">20608 (MYS - MAS)</option>
-                            <option value="20641">20641 (SBC - CBE)</option>
-                            <option value="20642">20642 (CBE - SBC)</option>
-                            <option value="20661">20661 (SBC - DWR)</option>
-                            <option value="20662">20662 (DWR - SBC)</option>
-                            <option value="20663">20663 (MAS - SMVB)</option>
-                            <option value="20664">20664 (SMVB - MAS)</option>
-                            <option value="20703">20703 (KCG - YPR)</option>
-                            <option value="20704">20704 (YPR - KCG)</option>
-                            <option value="26651">26651 (SBC - ERS)</option>
-                            <option value="26652">26652 (ERS - SBC)</option>
-                            <option value="Other">Other (Enter Train No)</option>
-                        </select>
+                        <div class="form-group">
+                            <label for="arrivalEnteredBy">Data Entered By</label>
+                            <input type="text" id="arrivalEnteredBy" name="Data Entered By" placeholder="Name or Token Number" required>
+                        </div>
                     </div>
 
                     <div class="form-group" id="arrivalOtherTrainGroup" style="display: none;">
@@ -246,81 +251,65 @@
                         <input type="text" id="arrivalOtherTrainInput" placeholder="e.g. 20631">
                     </div>
 
-                    <div class="form-group">
-                        <label for="arrivalCoachSelect">Coach Number</label>
-                        <select id="arrivalCoachSelect" name="Coach Number" required disabled>
-                            <option value="">-- Select Rake First --</option>
-                        </select>
+                    <button type="button" id="arrivalLoadBtn" class="load-btn">
+                        <span>🔍 Load Report</span>
+                        <div class="spinner hidden" style="width: 1.1rem; height: 1.1rem; border-width: 2px;"></div>
+                    </button>
+                    <div id="arrivalLoadStatus" style="font-size: 0.85rem; margin-top: 0.6rem; text-align: center; color: var(--text-muted);">
+                        Select Date & Rake, then click Load to view or edit existing records
                     </div>
                 </section>
 
+                <!-- Section 1: Defects -->
                 <section class="metadata-section">
-                    <h2>Defect / Issue Details</h2>
+                    <h2>Section 1: Defects</h2>
+                    <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                        Select coach number and enter issue description. Click "Add Defect" to log more rows.
+                    </p>
 
-                    <div class="form-group">
-                        <label for="arrivalCategorySelect">Issue Category</label>
-                        <select id="arrivalCategorySelect" name="Issue Category" required>
-                            <option value="">-- Select Issue Category --</option>
-                            <option value="Plug door">Plug door</option>
-                            <option value="Vaccum toilet">Vaccum toilet</option>
-                            <option value="IC door">IC door</option>
-                            <option value="Driver cab">Driver cab</option>
-                            <option value="Seat">Seat</option>
-                            <option value="Others">Others</option>
-                        </select>
+                    <div id="defectsContainer" class="dynamic-container">
+                        <!-- JS injects defect rows here -->
                     </div>
 
-                    <div class="form-group">
-                        <label for="arrivalIssueDesc">Issue Description</label>
-                        <textarea id="arrivalIssueDesc" name="Issue Description" rows="3" placeholder="Describe the defect or problem in detail..." required></textarea>
-                    </div>
+                    <button type="button" id="addDefectBtn" class="add-btn">
+                        <span>➕ Add Defect</span>
+                    </button>
                 </section>
 
+                <!-- Section 2: Rail Madad Complaints -->
                 <section class="metadata-section">
-                    <h2>Train Detention</h2>
+                    <h2>Section 2: Rail Madad Complaints</h2>
+                    <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                        Log passenger complaints received via Rail Madad, reference numbers, and actions taken enroute.
+                    </p>
 
-                    <div class="form-group">
-                        <label>Train Detained?</label>
-                        <div class="radio-toggle-group">
-                            <label class="radio-label">
-                                <input type="radio" name="TrainDetained" value="No" checked>
-                                <span>No</span>
-                            </label>
-                            <label class="radio-label">
-                                <input type="radio" name="TrainDetained" value="Yes">
-                                <span>Yes</span>
-                            </label>
-                        </div>
+                    <div id="railMadadContainer" class="dynamic-container">
+                        <!-- JS injects Rail Madad complaint cards here -->
                     </div>
 
-                    <!-- Detention details (shown only if Yes) -->
-                    <div id="detentionDetailsContainer" style="display: none;">
-                        <div class="form-group">
-                            <label for="arrivalStationName">Station Name</label>
-                            <input type="text" id="arrivalStationName" name="Station Name" placeholder="Station where train was detained">
-                        </div>
-
-                        <div class="form-row-2">
-                            <div class="form-group">
-                                <label for="arrivalDetentionFrom">Detention From</label>
-                                <input type="time" id="arrivalDetentionFrom" name="Detention From">
-                            </div>
-
-                            <div class="form-group">
-                                <label for="arrivalDetentionUpto">Detention Upto</label>
-                                <input type="time" id="arrivalDetentionUpto" name="Detention Upto">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="arrivalActionTaken">Action Taken</label>
-                            <textarea id="arrivalActionTaken" name="Action Taken" rows="2" placeholder="Action taken by technician or crew..."></textarea>
-                        </div>
-                    </div>
+                    <button type="button" id="addRailMadadBtn" class="add-btn">
+                        <span>➕ Add Rail Madad Complaint</span>
+                    </button>
                 </section>
 
-                <button type="submit" id="arrivalSubmitBtn">
-                    <span>Save Arrival Report</span>
+                <!-- Section 3: Detentions -->
+                <section class="metadata-section">
+                    <h2>Section 3: Detentions</h2>
+                    <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                        Log station detentions. Total detention duration will calculate automatically.
+                    </p>
+
+                    <div id="detentionsContainer" class="dynamic-container">
+                        <!-- JS injects detention cards here -->
+                    </div>
+
+                    <button type="button" id="addDetentionBtn" class="add-btn">
+                        <span>➕ Add Detention</span>
+                    </button>
+                </section>
+
+                <button type="submit" id="arrivalSubmitBtn" style="margin-top: 1rem;">
+                    <span>💾 Save Arrival Report (Sync to 3 Sheets)</span>
                     <div class="spinner hidden"></div>
                 </button>
             </form>
@@ -328,6 +317,8 @@
             <div style="text-align: center; margin-top: 2rem;">
                 <button class="back-btn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
             </div>
+        </main>
+    </div>
         </main>
     </div>
 
@@ -360,6 +351,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.2"></script>
+    <script src="app.js?v=2.3"></script>
 </body>
 </html>
