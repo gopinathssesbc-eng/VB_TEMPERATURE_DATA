@@ -77,6 +77,7 @@ const arrivalOtherTrainInput = document.getElementById('arrivalOtherTrainInput')
 const arrivalEnteredBy = document.getElementById('arrivalEnteredBy');
 const arrivalLoadBtn = document.getElementById('arrivalLoadBtn');
 const arrivalLoadStatus = document.getElementById('arrivalLoadStatus');
+const arrivalSectionsWrapper = document.getElementById('arrivalSectionsWrapper');
 
 const defectsContainer = document.getElementById('defectsContainer');
 const addDefectBtn = document.getElementById('addDefectBtn');
@@ -132,7 +133,16 @@ const arrivalDatePicker = flatpickr("#arrivalDateInput", {
     defaultDate: "today",
     disableMobile: "true",
     theme: "dark",
-    maxDate: "today"
+    maxDate: "today",
+    onChange: function () {
+        if (arrivalSectionsWrapper && arrivalSectionsWrapper.style.display !== 'none') {
+            arrivalSectionsWrapper.style.display = 'none';
+            if (arrivalLoadStatus) {
+                arrivalLoadStatus.textContent = 'Date changed. Click "Load Report" to view or enter data for this date.';
+                arrivalLoadStatus.style.color = 'var(--text-muted)';
+            }
+        }
+    }
 });
 
 // Navigation Functions
@@ -668,14 +678,15 @@ function clearArrivalForm() {
     if (railMadadContainer) railMadadContainer.innerHTML = '';
     if (detentionsContainer) detentionsContainer.innerHTML = '';
     if (arrivalOtherTrainGroup) arrivalOtherTrainGroup.style.display = 'none';
+    if (arrivalSectionsWrapper) arrivalSectionsWrapper.style.display = 'none';
     if (arrivalLoadStatus) {
-        arrivalLoadStatus.textContent = 'Select Date & Rake, then click Load to view or edit existing records';
+        arrivalLoadStatus.textContent = 'Select Date & Rake, then click Load Report to view or enter data';
         arrivalLoadStatus.style.color = 'var(--text-muted)';
     }
     checkDefectsEmpty();
     checkRailMadadEmpty();
     checkDetentionsEmpty();
-    updateArrivalStatus("Ready to load/submit", "");
+    updateArrivalStatus("Ready to load", "");
 }
 
 function openDataEntry() {
@@ -688,8 +699,7 @@ function openArrivalReport() {
     hideAllScreens();
     populateArrivalDropdowns();
     clearArrivalForm();
-    // Start with 1 empty defect row ready for entry
-    addDefectRow();
+    if (arrivalSectionsWrapper) arrivalSectionsWrapper.style.display = 'none';
     if (arrivalReportScreen) arrivalReportScreen.style.display = 'flex';
     window.scrollTo(0, 0);
     fetchDropdownData();
@@ -1348,15 +1358,24 @@ if (arrivalRakeSelect) {
         refreshAllCoachDropdowns();
 
         const defaultTrains = {
-            "IC2021": "20661",
-            "IC2058": "26651",
+            "IC2021": "20661/2",
+            "IC2058": "26651/2",
             "IC2059": "20607",
             "IC2029": "20661",
-            "IC2008": "26651",
-            "IC2006": "20703"
+            "IC2008": "26651/2",
+            "IC2006": "20703",
+            "IC2015": "20661/2"
         };
         if (defaultTrains[selectedRake] && !arrivalTrainSelect.value) {
             arrivalTrainSelect.value = defaultTrains[selectedRake];
+        }
+
+        if (arrivalSectionsWrapper && arrivalSectionsWrapper.style.display !== 'none') {
+            arrivalSectionsWrapper.style.display = 'none';
+            if (arrivalLoadStatus) {
+                arrivalLoadStatus.textContent = 'Rake changed. Click "Load Report" to view or enter data for this rake.';
+                arrivalLoadStatus.style.color = 'var(--text-muted)';
+            }
         }
     });
 }
@@ -1490,6 +1509,13 @@ if (arrivalLoadBtn) {
                 arrivalLoadStatus.style.color = 'var(--success)';
                 updateArrivalStatus('Existing report loaded', 'online');
 
+                if (arrivalSectionsWrapper) {
+                    arrivalSectionsWrapper.style.display = 'block';
+                    setTimeout(() => {
+                        arrivalSectionsWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 250);
+                }
+
                 Swal.fire({
                     icon: 'info',
                     title: 'Report Loaded',
@@ -1509,6 +1535,13 @@ if (arrivalLoadBtn) {
                     addDefectRow();
                 }
 
+                if (arrivalSectionsWrapper) {
+                    arrivalSectionsWrapper.style.display = 'block';
+                    setTimeout(() => {
+                        arrivalSectionsWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 250);
+                }
+
                 Swal.fire({
                     icon: 'info',
                     title: 'No Prior Report Found',
@@ -1522,6 +1555,12 @@ if (arrivalLoadBtn) {
             console.error(err);
             arrivalLoadStatus.textContent = 'Failed to load report from server. You can still enter new data.';
             arrivalLoadStatus.style.color = 'var(--error)';
+            if (arrivalSectionsWrapper) {
+                arrivalSectionsWrapper.style.display = 'block';
+                if (defectsContainer.querySelectorAll('.defect-row').length === 0) {
+                    addDefectRow();
+                }
+            }
         } finally {
             arrivalLoadBtn.disabled = false;
             btnText.textContent = '🔍 Load Report';

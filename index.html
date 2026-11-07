@@ -33,7 +33,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.5">
+    <link rel="stylesheet" href="style.css?v=2.6">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Flatpickr Calendar Library -->
@@ -259,69 +259,70 @@
                         <div class="spinner hidden" style="width: 1.1rem; height: 1.1rem; border-width: 2px;"></div>
                     </button>
                     <div id="arrivalLoadStatus" style="font-size: 0.85rem; margin-top: 0.6rem; text-align: center; color: var(--text-muted);">
-                        Select Date & Rake, then click Load to view or edit existing records
+                        Select Date & Rake, then click Load Report to view or enter data
                     </div>
                 </section>
 
-                <!-- Section 1: Defects -->
-                <section class="metadata-section">
-                    <h2>Section 1: Defects</h2>
-                    <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                        Select coach number and enter issue description. Click "Add Defect" to log more rows.
-                    </p>
+                <!-- Sections 1, 2, 3 & Submit Button: Hidden by default until "Load Report" is clicked -->
+                <div id="arrivalSectionsWrapper" style="display: none;">
+                    <!-- Section 1: Defects -->
+                    <section class="metadata-section">
+                        <h2>Section 1: Defects</h2>
+                        <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                            Select coach number and enter issue description. Click "Add Defect" to log more rows.
+                        </p>
 
-                    <div id="defectsContainer" class="dynamic-container">
-                        <!-- JS injects defect rows here -->
-                    </div>
+                        <div id="defectsContainer" class="dynamic-container">
+                            <!-- JS injects defect rows here -->
+                        </div>
 
-                    <button type="button" id="addDefectBtn" class="add-btn">
-                        <span>➕ Add Defect</span>
+                        <button type="button" id="addDefectBtn" class="add-btn">
+                            <span>➕ Add Defect</span>
+                        </button>
+                    </section>
+
+                    <!-- Section 2: Rail Madad Complaints -->
+                    <section class="metadata-section">
+                        <h2>Section 2: Rail Madad Complaints</h2>
+                        <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                            Log passenger complaints received via Rail Madad, reference numbers, and actions taken enroute.
+                        </p>
+
+                        <div id="railMadadContainer" class="dynamic-container">
+                            <!-- JS injects Rail Madad complaint cards here -->
+                        </div>
+
+                        <button type="button" id="addRailMadadBtn" class="add-btn">
+                            <span>➕ Add Rail Madad Complaint</span>
+                        </button>
+                    </section>
+
+                    <!-- Section 3: Detentions -->
+                    <section class="metadata-section">
+                        <h2>Section 3: Detentions</h2>
+                        <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                            Log station detentions. Total detention duration will calculate automatically.
+                        </p>
+
+                        <div id="detentionsContainer" class="dynamic-container">
+                            <!-- JS injects detention cards here -->
+                        </div>
+
+                        <button type="button" id="addDetentionBtn" class="add-btn">
+                            <span>➕ Add Detention</span>
+                        </button>
+                    </section>
+
+                    <button type="submit" id="arrivalSubmitBtn" style="margin-top: 1rem;">
+                        <span>💾 Save Arrival Report (Sync to 3 Sheets)</span>
+                        <div class="spinner hidden"></div>
                     </button>
-                </section>
-
-                <!-- Section 2: Rail Madad Complaints -->
-                <section class="metadata-section">
-                    <h2>Section 2: Rail Madad Complaints</h2>
-                    <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                        Log passenger complaints received via Rail Madad, reference numbers, and actions taken enroute.
-                    </p>
-
-                    <div id="railMadadContainer" class="dynamic-container">
-                        <!-- JS injects Rail Madad complaint cards here -->
-                    </div>
-
-                    <button type="button" id="addRailMadadBtn" class="add-btn">
-                        <span>➕ Add Rail Madad Complaint</span>
-                    </button>
-                </section>
-
-                <!-- Section 3: Detentions -->
-                <section class="metadata-section">
-                    <h2>Section 3: Detentions</h2>
-                    <p class="placeholder-text" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                        Log station detentions. Total detention duration will calculate automatically.
-                    </p>
-
-                    <div id="detentionsContainer" class="dynamic-container">
-                        <!-- JS injects detention cards here -->
-                    </div>
-
-                    <button type="button" id="addDetentionBtn" class="add-btn">
-                        <span>➕ Add Detention</span>
-                    </button>
-                </section>
-
-                <button type="submit" id="arrivalSubmitBtn" style="margin-top: 1rem;">
-                    <span>💾 Save Arrival Report (Sync to 3 Sheets)</span>
-                    <div class="spinner hidden"></div>
-                </button>
+                </div>
             </form>
 
             <div style="text-align: center; margin-top: 2rem;">
                 <button class="back-btn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
             </div>
-        </main>
-    </div>
         </main>
     </div>
 
@@ -354,6 +355,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.5"></script>
+    <script src="app.js?v=2.6"></script>
 </body>
 </html>

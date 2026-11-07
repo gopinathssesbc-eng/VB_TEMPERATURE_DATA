@@ -487,6 +487,10 @@ input:disabled, select:disabled, textarea:disabled {
     border-color: rgba(99, 102, 241, 0.4);
 }
 
+#arrivalSectionsWrapper {
+    animation: fadeIn 0.35s ease-in-out;
+}
+
 @media (max-width: 650px) {
     .defect-row {
         grid-template-columns: 1fr auto;
