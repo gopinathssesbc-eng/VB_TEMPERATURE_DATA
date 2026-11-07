@@ -1622,6 +1622,7 @@ if (arrivalForm) {
         const payload = {
             password: currentPassword,
             action: "save_arrival_report",
+            train: rakeNo,
             basic: {
                 Timestamp: timestamp,
                 Date: date,
