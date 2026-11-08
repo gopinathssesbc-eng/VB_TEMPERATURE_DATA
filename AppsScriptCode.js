@@ -1,10 +1,19 @@
 function checkPassword(providedPassword) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const passSheet = ss.getSheetByName("pass");
+  const passSheet = getSheetCaseInsensitive(ss, "pass");
   if (!passSheet) return false;
   
   const actualPassword = passSheet.getRange("A2").getValue();
-  return String(providedPassword) === String(actualPassword);
+  return String(providedPassword).trim() === String(actualPassword).trim();
+}
+
+function checkSettingsPassword(providedPassword) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const passSheet = getSheetCaseInsensitive(ss, "pass");
+  if (!passSheet) return false;
+  
+  const actualPassword = passSheet.getRange("A3").getValue();
+  return String(providedPassword).trim() === String(actualPassword).trim();
 }
 
 function getSheetCaseInsensitive(ss, targetName) {
@@ -50,6 +59,24 @@ function formatTimeCell(val) {
 }
 
 function doGet(e) {
+  // =========================================================================
+  // 0. VERIFY SETTINGS PASSWORD: Check against cell A3 in "pass" sheet
+  // =========================================================================
+  if (e && e.parameter && e.parameter.action === "verify_settings_password") {
+    const settingsPass = e.parameter.settings_password || e.parameter.password || "";
+    if (checkSettingsPassword(settingsPass)) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Settings password verified"
+      })).setMimeType(ContentService.MimeType.JSON);
+    } else {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "unauthorized",
+        message: "Incorrect Settings password"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
   // =========================================================================
   // 1. GET DROPDOWN DATA: Reads columns from "drop down data" sheet (Public read)
   // =========================================================================
@@ -339,6 +366,109 @@ function doPost(e) {
           .setMimeType(ContentService.MimeType.JSON);
     }
     
+    // =========================================================================
+    // 0. SETTINGS ACTIONS (Password stored in A3 cell in "pass" sheet)
+    // =========================================================================
+    if (request.action === "verify_settings_password") {
+      const settingsPass = request.settingsPassword || request.password || "";
+      if (checkSettingsPassword(settingsPass)) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "success",
+          message: "Settings password verified"
+        })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "unauthorized",
+          message: "Incorrect Settings password"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    if (request.action === "save_dropdown_categories") {
+      const settingsPass = request.settingsPassword || request.password || "";
+      if (!checkSettingsPassword(settingsPass)) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "unauthorized",
+          message: "Incorrect Settings password (from cell A3 in 'pass' sheet)"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      let sheet = getSheetCaseInsensitive(ss, "drop down data");
+      if (!sheet) {
+        sheet = ss.insertSheet("drop down data");
+      }
+
+      let allData = sheet.getDataRange().getValues();
+      let headers = allData.length > 0 ? allData[0].map(h => String(h || "").trim()) : [];
+
+      if (headers.length === 0) {
+        headers = ["Train Nos", "Rake No", "RM complaint main category", "Sub category", "defect category", "Detention category"];
+        sheet.appendRow(headers);
+        SpreadsheetApp.flush();
+        allData = sheet.getDataRange().getValues();
+        headers = allData[0].map(h => String(h || "").trim());
+      }
+
+      const lowerHeaders = headers.map(h => h.toLowerCase());
+      let mainCatCol = lowerHeaders.findIndex(h => h.includes("rm") || (h.includes("main") && h.includes("cat")));
+      let subCatCol = lowerHeaders.findIndex(h => h.includes("sub"));
+      let defectCatCol = lowerHeaders.findIndex(h => h.includes("defect"));
+      let detentionCatCol = lowerHeaders.findIndex(h => h.includes("detention"));
+
+      if (mainCatCol === -1) mainCatCol = 2;
+      if (subCatCol === -1) subCatCol = 3;
+      if (defectCatCol === -1) defectCatCol = 4;
+      if (detentionCatCol === -1) detentionCatCol = 5;
+
+      // Ensure headers exist at row 1 for these category columns
+      const headerDefs = [
+        { col: mainCatCol, name: "RM complaint main category" },
+        { col: subCatCol, name: "Sub category" },
+        { col: defectCatCol, name: "defect category" },
+        { col: detentionCatCol, name: "Detention category" }
+      ];
+      headerDefs.forEach(def => {
+        if (!headers[def.col] || headers[def.col].trim() === "") {
+          sheet.getRange(1, def.col + 1).setValue(def.name);
+        }
+      });
+      SpreadsheetApp.flush();
+
+      const mainCats = Array.isArray(request.mainCategories) ? request.mainCategories.map(s => String(s || "").trim()).filter(Boolean) : [];
+      const subCats = Array.isArray(request.subCategories) ? request.subCategories.map(s => String(s || "").trim()).filter(Boolean) : [];
+      const defectCats = Array.isArray(request.defectCategories) ? request.defectCategories.map(s => String(s || "").trim()).filter(Boolean) : [];
+      const detentionCats = Array.isArray(request.detentionCategories) ? request.detentionCategories.map(s => String(s || "").trim()).filter(Boolean) : [];
+
+      const lastRow = sheet.getLastRow();
+
+      const updateColumnData = (colIndex, items) => {
+        if (lastRow > 1) {
+          sheet.getRange(2, colIndex + 1, lastRow - 1, 1).clearContent();
+        }
+        if (items.length > 0) {
+          const matrix = items.map(item => [item]);
+          sheet.getRange(2, colIndex + 1, matrix.length, 1).setValues(matrix);
+        }
+      };
+
+      updateColumnData(mainCatCol, mainCats);
+      updateColumnData(subCatCol, subCats);
+      updateColumnData(defectCatCol, defectCats);
+      updateColumnData(detentionCatCol, detentionCats);
+
+      SpreadsheetApp.flush();
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Categories updated successfully in 'drop down data' sheet",
+        mainCategories: mainCats,
+        subCategories: subCats,
+        defectCategories: defectCats,
+        detentionCategories: detentionCats
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (!checkPassword(request.password)) {
       return ContentService.createTextOutput(JSON.stringify({ status: "unauthorized", message: "Incorrect password" }))
         .setMimeType(ContentService.MimeType.JSON);

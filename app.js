@@ -155,6 +155,8 @@ function hideAllScreens() {
     dataEntryScreen.style.display = 'none';
     dashboardScreen.style.display = 'none';
     if (arrivalReportScreen) arrivalReportScreen.style.display = 'none';
+    const settingsScreen = document.getElementById('settingsScreen');
+    if (settingsScreen) settingsScreen.style.display = 'none';
 }
 
 function backToMenu() {
@@ -2066,3 +2068,419 @@ window.addEventListener('online', () => {
 // Initialize dynamic dropdowns from cache/defaults & fetch latest from Google Sheet
 populateArrivalDropdowns();
 fetchDropdownData();
+
+// ============================================================================
+// SETTINGS SCREEN & DROPDOWN CATEGORIES MANAGEMENT
+// ============================================================================
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+let currentSettingsPassword = "";
+let settingsEditState = {
+    activeCategory: 'mainCategories',
+    mainCategories: [],
+    subCategories: [],
+    defectCategories: [],
+    detentionCategories: [],
+    hasUnsavedChanges: false
+};
+
+const CATEGORY_CONFIG = {
+    mainCategories: {
+        title: 'RM complaint main category',
+        subtitle: 'Values stored in "drop down data" sheet (Column C)',
+        placeholder: 'e.g. Coach Cleanliness, Water Availability...',
+        cacheKey: 'mainCategories'
+    },
+    subCategories: {
+        title: 'Sub category',
+        subtitle: 'Values stored in "drop down data" sheet (Column D)',
+        placeholder: 'e.g. Tap Leaking, Window/Door Broken...',
+        cacheKey: 'subCategories'
+    },
+    defectCategories: {
+        title: 'defect category',
+        subtitle: 'Values stored in "drop down data" sheet (Column E)',
+        placeholder: 'e.g. IC door, Plug door, CCTV, Propulsion...',
+        cacheKey: 'defectCategories'
+    },
+    detentionCategories: {
+        title: 'Detention category',
+        subtitle: 'Values stored in "drop down data" sheet (Column F)',
+        placeholder: 'e.g. Air Brake, Plug door, Undergear...',
+        cacheKey: 'detentionCategories'
+    }
+};
+
+async function openSettingsPrompt() {
+    const { value: pass } = await Swal.fire({
+        title: 'Settings Access',
+        html: '<p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Enter the Settings password (stored in cell A3 of "pass" sheet):</p>',
+        input: 'password',
+        inputPlaceholder: 'Settings password',
+        inputAttributes: {
+            autocapitalize: 'off',
+            autocorrect: 'off'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Unlock Settings',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: 'rgba(255, 255, 255, 0.1)',
+        background: 'var(--surface)',
+        color: 'var(--text-main)',
+        showLoaderOnConfirm: true,
+        preConfirm: async (enteredPassword) => {
+            if (!enteredPassword || !enteredPassword.trim()) {
+                Swal.showValidationMessage('Please enter the Settings password');
+                return false;
+            }
+            try {
+                const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+                const verifyUrl = `${targetUrl}?action=verify_settings_password&settings_password=${encodeURIComponent(enteredPassword.trim())}`;
+                const res = await fetch(verifyUrl);
+                const result = await res.json();
+                if (result && result.status === 'success') {
+                    return enteredPassword.trim();
+                } else {
+                    Swal.showValidationMessage(result.message || 'Incorrect Settings password (verified from cell A3)');
+                    return false;
+                }
+            } catch (err) {
+                Swal.showValidationMessage('Verification error: ' + (err.message || 'Network error'));
+                return false;
+            }
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    });
+
+    if (pass) {
+        currentSettingsPassword = pass;
+        openSettingsScreen();
+    }
+}
+
+function openSettingsScreen() {
+    hideAllScreens();
+    const settingsScreen = document.getElementById('settingsScreen');
+    if (settingsScreen) {
+        settingsScreen.style.display = 'flex';
+        initSettingsState();
+        renderSettingsView();
+    }
+}
+
+function initSettingsState() {
+    settingsEditState.mainCategories = [...(cachedDropdownData.mainCategories || DEFAULT_DROPDOWN_DATA.mainCategories)];
+    settingsEditState.subCategories = [...(cachedDropdownData.subCategories || DEFAULT_DROPDOWN_DATA.subCategories)];
+    settingsEditState.defectCategories = [...(cachedDropdownData.defectCategories || DEFAULT_DROPDOWN_DATA.defectCategories)];
+    settingsEditState.detentionCategories = [...(cachedDropdownData.detentionCategories || DEFAULT_DROPDOWN_DATA.detentionCategories)];
+    settingsEditState.hasUnsavedChanges = false;
+}
+
+function switchSettingsTab(catKey) {
+    if (!CATEGORY_CONFIG[catKey]) return;
+    settingsEditState.activeCategory = catKey;
+    renderSettingsView();
+}
+
+function renderSettingsView() {
+    const activeCat = settingsEditState.activeCategory;
+    const config = CATEGORY_CONFIG[activeCat];
+    if (!config) return;
+
+    // Update tab buttons
+    document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+        if (btn.id === `tab-${activeCat}`) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Update header & count
+    const titleEl = document.getElementById('currentCategoryTitle');
+    const subEl = document.getElementById('currentCategorySubtitle');
+    const inputEl = document.getElementById('newCategoryInput');
+    const countEl = document.getElementById('categoryItemCount');
+    const listEl = document.getElementById('categoryItemsList');
+    const statusEl = document.getElementById('settingsSaveStatus');
+
+    if (titleEl) titleEl.textContent = config.title;
+    if (subEl) subEl.textContent = config.subtitle;
+    if (inputEl) {
+        inputEl.placeholder = config.placeholder;
+        inputEl.value = '';
+    }
+
+    const items = settingsEditState[activeCat] || [];
+    if (countEl) {
+        countEl.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
+    }
+
+    // Render list
+    if (listEl) {
+        if (items.length === 0) {
+            listEl.innerHTML = '<div class="settings-empty-notice">No items in this category. Type above and click "+ Add" to create one.</div>';
+        } else {
+            listEl.innerHTML = items.map((item, idx) => `
+                <div class="settings-item-row" data-index="${idx}">
+                    <span class="settings-item-index">${idx + 1}.</span>
+                    <span class="settings-item-name">${escapeHtml(item)}</span>
+                    <div class="settings-item-actions">
+                        <button type="button" class="item-action-btn edit-btn" title="Edit name" onclick="editCategoryItem(${idx})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="item-action-btn delete-btn" title="Delete" onclick="deleteCategoryItem(${idx})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <line x1="10" y1="11" x2="10" y2="17"/>
+                                <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    if (statusEl) {
+        if (settingsEditState.hasUnsavedChanges) {
+            statusEl.innerHTML = '<span style="color: #fbbf24; font-weight: 600;">● Unsaved changes in categories</span>';
+        } else {
+            statusEl.innerHTML = '<span style="color: var(--text-muted);">Synced with Google Sheet "drop down data"</span>';
+        }
+    }
+}
+
+function addCurrentCategoryItem() {
+    const inputEl = document.getElementById('newCategoryInput');
+    if (!inputEl) return;
+    const val = inputEl.value.trim();
+    if (!val) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Empty Field',
+            text: 'Please enter a name for the category item.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: '#f59e0b'
+        });
+        return;
+    }
+
+    const activeCat = settingsEditState.activeCategory;
+    const list = settingsEditState[activeCat];
+
+    if (list.some(item => item.trim().toLowerCase() === val.toLowerCase())) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Already Exists',
+            text: `"${val}" is already present in this category.`,
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: '#f59e0b'
+        });
+        return;
+    }
+
+    list.push(val);
+    settingsEditState.hasUnsavedChanges = true;
+    inputEl.value = '';
+    renderSettingsView();
+}
+
+async function editCategoryItem(index) {
+    const activeCat = settingsEditState.activeCategory;
+    const list = settingsEditState[activeCat];
+    if (index < 0 || index >= list.length) return;
+
+    const currentText = list[index];
+
+    const { value: updatedText } = await Swal.fire({
+        title: 'Edit Category Item',
+        input: 'text',
+        inputValue: currentText,
+        inputPlaceholder: 'Enter updated item name',
+        showCancelButton: true,
+        confirmButtonText: 'Update',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#f59e0b',
+        background: 'var(--surface)',
+        color: 'var(--text-main)',
+        inputValidator: (value) => {
+            if (!value || !value.trim()) {
+                return 'Item name cannot be empty';
+            }
+        }
+    });
+
+    if (updatedText && updatedText.trim() && updatedText.trim() !== currentText) {
+        const trimmed = updatedText.trim();
+        if (list.some((item, i) => i !== index && item.trim().toLowerCase() === trimmed.toLowerCase())) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Duplicate Item',
+                text: `"${trimmed}" already exists in this category.`,
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: '#f59e0b'
+            });
+            return;
+        }
+
+        list[index] = trimmed;
+        settingsEditState.hasUnsavedChanges = true;
+        renderSettingsView();
+    }
+}
+
+async function deleteCategoryItem(index) {
+    const activeCat = settingsEditState.activeCategory;
+    const list = settingsEditState[activeCat];
+    if (index < 0 || index >= list.length) return;
+
+    const currentText = list[index];
+
+    const result = await Swal.fire({
+        title: 'Remove Item?',
+        html: `Are you sure you want to remove <strong>"${escapeHtml(currentText)}"</strong>?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Remove',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#ef4444',
+        background: 'var(--surface)',
+        color: 'var(--text-main)'
+    });
+
+    if (result.isConfirmed) {
+        list.splice(index, 1);
+        settingsEditState.hasUnsavedChanges = true;
+        renderSettingsView();
+    }
+}
+
+async function saveCategoriesToSheet() {
+    if (!currentSettingsPassword) {
+        await openSettingsPrompt();
+        if (!currentSettingsPassword) return;
+    }
+
+    const saveBtn = document.getElementById('saveCategoriesBtn');
+    const btnText = saveBtn ? saveBtn.querySelector('span') : null;
+    const spinner = saveBtn ? saveBtn.querySelector('.spinner') : null;
+
+    if (saveBtn) saveBtn.disabled = true;
+    if (btnText) btnText.textContent = 'Saving to Google Sheet...';
+    if (spinner) spinner.classList.remove('hidden');
+
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const payload = {
+            action: "save_dropdown_categories",
+            password: currentPassword,
+            settingsPassword: currentSettingsPassword,
+            mainCategories: settingsEditState.mainCategories,
+            subCategories: settingsEditState.subCategories,
+            defectCategories: settingsEditState.defectCategories,
+            detentionCategories: settingsEditState.detentionCategories
+        };
+
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result && result.status === "success") {
+            cachedDropdownData.mainCategories = [...settingsEditState.mainCategories];
+            cachedDropdownData.subCategories = [...settingsEditState.subCategories];
+            cachedDropdownData.defectCategories = [...settingsEditState.defectCategories];
+            cachedDropdownData.detentionCategories = [...settingsEditState.detentionCategories];
+
+            try {
+                localStorage.setItem(DROPDOWN_CACHE_KEY, JSON.stringify(cachedDropdownData));
+            } catch (e) {
+                console.warn('LocalStorage save error:', e);
+            }
+
+            populateArrivalDropdowns();
+            refreshRailMadadDropdowns();
+            refreshDefectDropdowns();
+            refreshDetentionDropdowns();
+
+            settingsEditState.hasUnsavedChanges = false;
+            renderSettingsView();
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Saved Successfully!',
+                text: 'Categories updated in "drop down data" sheet and applied across the app.',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: '#f59e0b'
+            });
+        } else if (result && result.status === "unauthorized") {
+            Swal.fire({
+                icon: 'error',
+                title: 'Unauthorized',
+                text: result.message || 'Incorrect Settings password (from cell A3 in "pass" sheet).',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: '#ef4444'
+            });
+            currentSettingsPassword = "";
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Save Failed',
+                text: result.message || 'Could not update categories in Google Sheet.',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    } catch (err) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Network Error',
+            text: 'Failed to communicate with Google Sheets: ' + (err.message || 'Network error'),
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: '#ef4444'
+        });
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+        if (btnText) btnText.textContent = 'Save Categories to Google Sheet';
+        if (spinner) spinner.classList.add('hidden');
+    }
+}
+
+// Enter key binding for adding items in settings
+document.addEventListener('DOMContentLoaded', () => {
+    const newCatInput = document.getElementById('newCategoryInput');
+    if (newCatInput) {
+        newCatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCurrentCategoryItem();
+            }
+        });
+    }
+});

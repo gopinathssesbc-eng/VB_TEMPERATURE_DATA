@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=1.0">
+    <link rel="stylesheet" href="style.css?v=1.2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Flatpickr Calendar Library -->
@@ -274,6 +274,21 @@
                     </button>
                 </div>
             </div>
+
+            <!-- 4. Settings -->
+            <button type="button" class="menu-card settings-menu-card" onclick="openSettingsPrompt()">
+                <div class="menu-card-icon icon-settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </div>
+                <div class="menu-card-content">
+                    <span class="menu-card-title">Settings</span>
+                    <span class="menu-card-subtitle">Manage dropdown categories</span>
+                </div>
+                <div class="menu-card-arrow">›</div>
+            </button>
         </main>
         <div
             style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
@@ -505,6 +520,78 @@
         </div>
     </div>
 
+    <!-- Settings Screen -->
+    <div class="container screen" id="settingsScreen" style="display: none;">
+        <header class="arrival-header">
+            <button type="button" class="back-btn arrival-back-btn" onclick="backToMenu()">← Back</button>
+            <h1 class="arrival-title">Settings</h1>
+            <div id="settingsStatus" class="status-indicator arrival-status" style="display: none;"></div>
+        </header>
+
+        <main class="settings-main">
+            <!-- Category Tabs -->
+            <div class="settings-tabs" role="tablist">
+                <button type="button" class="settings-tab-btn active" id="tab-mainCategories" onclick="switchSettingsTab('mainCategories')">
+                    RM Main Category
+                </button>
+                <button type="button" class="settings-tab-btn" id="tab-subCategories" onclick="switchSettingsTab('subCategories')">
+                    Sub Category
+                </button>
+                <button type="button" class="settings-tab-btn" id="tab-defectCategories" onclick="switchSettingsTab('defectCategories')">
+                    Defect Category
+                </button>
+                <button type="button" class="settings-tab-btn" id="tab-detentionCategories" onclick="switchSettingsTab('detentionCategories')">
+                    Detention Category
+                </button>
+            </div>
+
+            <!-- Category Section Card -->
+            <section class="settings-card">
+                <div class="settings-card-header">
+                    <div>
+                        <h2 id="currentCategoryTitle" class="settings-category-title">RM complaint main category</h2>
+                        <span id="currentCategorySubtitle" class="settings-category-subtitle">Values stored in "drop down data" sheet (Column C)</span>
+                    </div>
+                    <span id="categoryItemCount" class="category-count-badge">0 items</span>
+                </div>
+
+                <!-- Add Item Form -->
+                <div class="settings-add-box">
+                    <input type="text" id="newCategoryInput" class="settings-input" placeholder="Type new item name..." maxlength="90">
+                    <button type="button" id="addCategoryBtn" class="settings-add-btn" onclick="addCurrentCategoryItem()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>Add</span>
+                    </button>
+                </div>
+
+                <!-- Items List -->
+                <div id="categoryItemsList" class="settings-items-list">
+                    <!-- Populated dynamically -->
+                </div>
+            </section>
+
+            <!-- Save Section -->
+            <div class="settings-actions">
+                <button type="button" id="saveCategoriesBtn" class="settings-save-btn" onclick="saveCategoriesToSheet()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    <span>Save Categories to Google Sheet</span>
+                    <div class="spinner hidden"></div>
+                </button>
+                <div id="settingsSaveStatus" class="settings-save-status"></div>
+            </div>
+        </main>
+        <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
+            v1.0
+        </div>
+    </div>
+
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Chart.js -->
@@ -512,7 +599,7 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=1.0"></script>
+    <script src="app.js?v=1.2"></script>
 </body>
 
 </html>
