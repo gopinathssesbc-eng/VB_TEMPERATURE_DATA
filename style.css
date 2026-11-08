@@ -43,6 +43,66 @@ body {
     z-index: 1100; /* High z-index keeps it above the login modal */
 }
 
+/* Arrival Report & Logged-In Compact Layout: Hides global branding & removes excess top space */
+body.arrival-report-active,
+body.logged-in {
+    padding-top: 1.25rem;
+}
+
+body.arrival-report-active .global-branding,
+body.logged-in .global-branding {
+    display: none !important;
+}
+
+body.arrival-report-active .container {
+    gap: 1rem;
+}
+
+.arrival-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-top: 0.25rem;
+}
+
+.arrival-title {
+    font-size: 1.5rem;
+    margin: 0;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.arrival-back-btn {
+    margin-bottom: 0 !important;
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    white-space: nowrap;
+}
+
+.arrival-status {
+    margin-top: 0 !important;
+    font-size: 0.8rem !important;
+    padding: 0.25rem 0.6rem !important;
+    white-space: nowrap;
+    justify-self: end;
+}
+
+@media (max-width: 440px) {
+    .arrival-title {
+        font-size: 1.25rem;
+    }
+    .arrival-back-btn {
+        padding: 0.35rem 0.55rem !important;
+        font-size: 0.8rem !important;
+    }
+    .arrival-status {
+        font-size: 0.75rem !important;
+        padding: 0.2rem 0.45rem !important;
+    }
+}
+
 .branding-text {
     font-size: 0.85rem;
     color: var(--text-muted);
@@ -116,70 +176,260 @@ h1 {
     transform: translateY(-1px);
 }
 
-/* Menu Grid */
+/* Modern Menu Grid & Cards */
+.menu-header {
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.menu-app-title {
+    font-size: 1.85rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #34d399 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+}
+
 .menu-grid {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.85rem;
 }
 
-.menu-btn {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1.5rem;
+.menu-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
     background: rgba(30, 41, 59, 0.7);
     border: 1px solid var(--border);
+    border-radius: 0.875rem;
     backdrop-filter: blur(12px);
     text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    width: 100%;
 }
 
-.menu-btn:hover {
+.menu-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
     background: var(--surface-hover);
-    border-color: var(--primary);
-    transform: translateY(-2px);
 }
 
-.primary-menu-btn {
-    background: var(--primary);
-    border-color: var(--primary);
+.primary-menu-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(79, 70, 229, 0.95));
+    border-color: #6366f1;
 }
 
-.primary-menu-btn:hover {
-    background: var(--primary-hover);
+.primary-menu-card:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 1), rgba(67, 56, 202, 1));
 }
 
-.secondary-menu-btn {
+.secondary-menu-card {
     background: rgba(14, 165, 233, 0.15);
-    border-color: #0ea5e9;
+    border-color: rgba(14, 165, 233, 0.4);
 }
 
-.secondary-menu-btn:hover {
-    background: rgba(14, 165, 233, 0.28);
+.secondary-menu-card:hover {
+    background: rgba(14, 165, 233, 0.25);
     border-color: #38bdf8;
-    transform: translateY(-2px);
 }
 
-.install-menu-btn {
+.dashboards-menu-card {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+.dashboards-menu-card:hover,
+.dashboards-menu-card.active {
+    background: rgba(139, 92, 246, 0.25);
+    border-color: #a78bfa;
+}
+
+.install-menu-card {
     background: rgba(16, 185, 129, 0.12);
     border: 1px dashed var(--success);
 }
 
-.install-menu-btn:hover {
-    background: rgba(16, 185, 129, 0.25);
-    border-color: var(--success);
+.menu-card-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
 }
 
-.menu-title {
-    font-size: 1.25rem;
+.menu-card-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: #ffffff;
+}
+
+.icon-temp {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.icon-arrival {
+    background: rgba(14, 165, 233, 0.25);
+}
+
+.icon-arrival svg {
+    stroke: #38bdf8;
+}
+
+.icon-dashboards {
+    background: rgba(139, 92, 246, 0.25);
+}
+
+.icon-dashboards svg {
+    stroke: #c084fc;
+}
+
+.icon-install {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.icon-install svg {
+    stroke: var(--success);
+}
+
+.menu-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-card-title {
+    font-size: 1.05rem;
     font-weight: 600;
-    display: block;
-    margin-bottom: 0.25rem;
+    color: var(--text-main);
 }
 
-.menu-subtitle {
-    font-size: 0.875rem;
-    font-weight: 400;
-    opacity: 0.8;
+.primary-menu-card .menu-card-title {
+    color: #ffffff;
+}
+
+.menu-card-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.primary-menu-card .menu-card-subtitle {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.menu-card-arrow {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+
+.menu-card-chevron {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: transform 0.25s ease;
+}
+
+.menu-card-chevron.rotated {
+    transform: rotate(180deg);
+}
+
+/* Expanded Rakes List */
+.dashboards-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dashboards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid rgba(139, 92, 246, 0.4);
+    margin-top: 0.25rem;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+.dashboard-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.95rem;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid var(--border);
+    border-radius: 0.65rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.dashboard-item:hover {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: #a78bfa;
+    transform: translateX(3px);
+}
+
+.train-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 0.5rem;
+    background: rgba(139, 92, 246, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.train-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: #c084fc;
+}
+
+.item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.item-name {
+    font-size: 0.925rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.item-sub {
+    font-size: 0.725rem;
+    color: var(--text-muted);
+}
+
+.coach-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    white-space: nowrap;
+}
+
+.coach-badge.badge-16 {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.35);
 }
 
 /* Chart Container */
@@ -213,6 +463,10 @@ h1 {
     font-weight: 500;
     background: var(--surface);
     border: 1px solid var(--border);
+}
+
+.status-indicator:empty {
+    display: none !important;
 }
 
 .status-indicator::before {
@@ -651,10 +905,20 @@ button:disabled {
     text-align: center;
 }
 
+.modal-app-title {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: #38bdf8;
+    margin-bottom: 0.35rem;
+    letter-spacing: 0.3px;
+}
+
 .modal-content h2 {
-    margin-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
     border-bottom: none;
-    font-size: 1.5rem;
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    font-weight: 500;
 }
 
 .modal-content p {

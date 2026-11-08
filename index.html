@@ -15,12 +15,12 @@
     <meta name="robots" content="index, follow">
 
     <!-- Open Graph (Social Media) -->
-    <meta property="og:title" content="Train Axle Temperature Log">
-    <meta property="og:description" content="Monitor and log axle temperature data for railway coaches seamlessly.">
+    <meta property="og:title" content="VB Escorting App">
+    <meta property="og:description" content="Monitor and log axle temperature data and arrival reports for railway coaches seamlessly.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://gopinathssesbc-eng.github.io/VB_TEMPERATURE_DATA/">
 
-    <title>Train Axle Temperature</title>
+    <title>VB Escorting App</title>
 
     <!-- PWA & Mobile Web App Meta Tags -->
     <link rel="manifest" href="manifest.json">
@@ -28,7 +28,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Train Axle">
+    <meta name="apple-mobile-web-app-title" content="VB Escort">
 
     <!-- App Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=3.0">
+    <link rel="stylesheet" href="style.css?v=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Flatpickr Calendar Library -->
@@ -52,8 +52,8 @@
     <!-- Password Modal -->
     <div id="passwordModal" class="modal-overlay">
         <div class="modal-content">
+            <h1 class="modal-app-title">VB Escorting App</h1>
             <h2>Enter Password</h2>
-            <p>This data is protected. Please enter the password to continue.</p>
             <form id="passwordForm">
                 <div class="password-input-wrapper">
                     <input type="password" id="passwordInput" placeholder="Password" required>
@@ -67,77 +67,226 @@
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div
                 style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v2.3 <br>
-                <button type="button" onclick="showChangelog()"
-                    style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View
-                    Changelog</button>
+                v1.0
             </div>
         </div>
     </div>
 
     <!-- Main Menu Screen -->
     <div class="container screen" id="menuScreen" style="display: none;">
-        <header>
-            <h1>Main Menu</h1>
-            <p style="color: var(--text-muted); margin-bottom: 2rem;">Select an option to continue</p>
+        <header class="menu-header">
+            <h1 class="menu-app-title">VB Escorting App</h1>
         </header>
         <main class="menu-grid">
-            <button id="installAppBtn" class="menu-btn install-menu-btn" style="display: none;">
-                <span class="menu-title">📲 Install App (PWA)</span>
-                <span class="menu-subtitle">Install to home screen or desktop for fast offline access</span>
+            <button id="installAppBtn" class="menu-card install-menu-card" style="display: none;">
+                <div class="menu-card-icon icon-install">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                </div>
+                <div class="menu-card-content">
+                    <span class="menu-card-title">Install App (PWA)</span>
+                    <span class="menu-card-subtitle">Add to home screen for fast offline access</span>
+                </div>
             </button>
-            <button class="menu-btn primary-menu-btn" onclick="openDataEntry()">
-                <span class="menu-title">Enter Temperature Data</span>
-                <span class="menu-subtitle">Log new station readings</span>
+
+            <!-- 1. Enter Temperature Data -->
+            <button type="button" class="menu-card primary-menu-card" onclick="openDataEntry()">
+                <div class="menu-card-icon icon-temp">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+                    </svg>
+                </div>
+                <div class="menu-card-content">
+                    <span class="menu-card-title">Enter Temperature Data</span>
+                    <span class="menu-card-subtitle">Log new station readings</span>
+                </div>
+                <div class="menu-card-arrow">›</div>
             </button>
-            <button class="menu-btn secondary-menu-btn" onclick="openArrivalReport()">
-                <span class="menu-title">Arrival Report</span>
-                <span class="menu-subtitle">Defects, Rail Madad & Detentions</span>
+
+            <!-- 2. Arrival Report -->
+            <button type="button" class="menu-card secondary-menu-card" onclick="openArrivalReport()">
+                <div class="menu-card-icon icon-arrival">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                        <rect x="9" y="3" width="6" height="4" rx="2"/>
+                        <path d="m9 14 2 2 4-4"/>
+                    </svg>
+                </div>
+                <div class="menu-card-content">
+                    <span class="menu-card-title">Arrival Report</span>
+                    <span class="menu-card-subtitle">Defects, Rail Madad & Detentions</span>
+                </div>
+                <div class="menu-card-arrow">›</div>
             </button>
-            <button class="menu-btn" onclick="openDashboard('IC2021')">
-                <span class="menu-title">IC2021 Dashboard</span>
-                <span class="menu-subtitle">View recent temperature trends</span>
-            </button>
-            <button class="menu-btn" onclick="openDashboard('IC2058')">
-                <span class="menu-title">IC2058 Dashboard</span>
-                <span class="menu-subtitle">View recent temperature trends</span>
-            </button>
-            <button class="menu-btn" onclick="openDashboard('IC2059')">
-                <span class="menu-title">IC2059 Dashboard</span>
-                <span class="menu-subtitle">View recent temperature trends</span>
-            </button>
-            <button class="menu-btn" onclick="openDashboard('IC2029')">
-                <span class="menu-title">IC2029 Dashboard</span>
-                <span class="menu-subtitle">View recent temperature trends</span>
-            </button>
-            <button class="menu-btn" onclick="openDashboard('IC2008')">
-                <span class="menu-title">IC2008 Dashboard</span>
-                <span class="menu-subtitle">View recent temperature trends</span>
-            </button>
-            <button class="menu-btn" onclick="openDashboard('IC2006')">
-                <span class="menu-title">IC2006 Dashboard</span>
-                <span class="menu-subtitle">View recent temperature trends</span>
-            </button>
-            <button class="menu-btn" onclick="openDashboard('IC2015')">
-                <span class="menu-title">IC2015 Dashboard</span>
-                <span class="menu-subtitle">View recent temperature trends</span>
-            </button>
+
+            <!-- 3. Rake Dashboards (Expandable) -->
+            <div class="dashboards-wrapper">
+                <button type="button" class="menu-card dashboards-menu-card" id="rakeDashboardsBtn" onclick="toggleRakeDashboards()">
+                    <div class="menu-card-icon icon-dashboards">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    </div>
+                    <div class="menu-card-content">
+                        <span class="menu-card-title">Rake Dashboards</span>
+                        <span class="menu-card-subtitle">View temperature trendlines</span>
+                    </div>
+                    <div class="menu-card-chevron" id="dashboardsChevron">▼</div>
+                </button>
+
+                <div id="rakeDashboardsList" class="dashboards-list" style="display: none;">
+                    <button type="button" class="dashboard-item" onclick="openDashboard('IC2021')">
+                        <div class="train-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="3" width="16" height="16" rx="2"/>
+                                <path d="M4 11h16"/>
+                                <path d="M12 3v8"/>
+                                <path d="m8 19-2 3"/>
+                                <path d="m16 19 2 3"/>
+                                <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                                <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-name">IC2021 Dashboard</span>
+                            <span class="item-sub">View recent temperature trends</span>
+                        </div>
+                        <span class="coach-badge">8 Coaches</span>
+                    </button>
+
+                    <button type="button" class="dashboard-item" onclick="openDashboard('IC2058')">
+                        <div class="train-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="3" width="16" height="16" rx="2"/>
+                                <path d="M4 11h16"/>
+                                <path d="M12 3v8"/>
+                                <path d="m8 19-2 3"/>
+                                <path d="m16 19 2 3"/>
+                                <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                                <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-name">IC2058 Dashboard</span>
+                            <span class="item-sub">View recent temperature trends</span>
+                        </div>
+                        <span class="coach-badge">8 Coaches</span>
+                    </button>
+
+                    <button type="button" class="dashboard-item" onclick="openDashboard('IC2059')">
+                        <div class="train-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="3" width="16" height="16" rx="2"/>
+                                <path d="M4 11h16"/>
+                                <path d="M12 3v8"/>
+                                <path d="m8 19-2 3"/>
+                                <path d="m16 19 2 3"/>
+                                <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                                <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-name">IC2059 Dashboard</span>
+                            <span class="item-sub">View recent temperature trends</span>
+                        </div>
+                        <span class="coach-badge">8 Coaches</span>
+                    </button>
+
+                    <button type="button" class="dashboard-item" onclick="openDashboard('IC2029')">
+                        <div class="train-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="3" width="16" height="16" rx="2"/>
+                                <path d="M4 11h16"/>
+                                <path d="M12 3v8"/>
+                                <path d="m8 19-2 3"/>
+                                <path d="m16 19 2 3"/>
+                                <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                                <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-name">IC2029 Dashboard</span>
+                            <span class="item-sub">View recent temperature trends</span>
+                        </div>
+                        <span class="coach-badge">8 Coaches</span>
+                    </button>
+
+                    <button type="button" class="dashboard-item" onclick="openDashboard('IC2008')">
+                        <div class="train-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="3" width="16" height="16" rx="2"/>
+                                <path d="M4 11h16"/>
+                                <path d="M12 3v8"/>
+                                <path d="m8 19-2 3"/>
+                                <path d="m16 19 2 3"/>
+                                <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                                <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-name">IC2008 Dashboard</span>
+                            <span class="item-sub">View recent temperature trends</span>
+                        </div>
+                        <span class="coach-badge badge-16">16 Coaches</span>
+                    </button>
+
+                    <button type="button" class="dashboard-item" onclick="openDashboard('IC2006')">
+                        <div class="train-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="3" width="16" height="16" rx="2"/>
+                                <path d="M4 11h16"/>
+                                <path d="M12 3v8"/>
+                                <path d="m8 19-2 3"/>
+                                <path d="m16 19 2 3"/>
+                                <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                                <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-name">IC2006 Dashboard</span>
+                            <span class="item-sub">View recent temperature trends</span>
+                        </div>
+                        <span class="coach-badge badge-16">16 Coaches</span>
+                    </button>
+
+                    <button type="button" class="dashboard-item" onclick="openDashboard('IC2015')">
+                        <div class="train-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="3" width="16" height="16" rx="2"/>
+                                <path d="M4 11h16"/>
+                                <path d="M12 3v8"/>
+                                <path d="m8 19-2 3"/>
+                                <path d="m16 19 2 3"/>
+                                <circle cx="8" cy="15" r="1" fill="currentColor"/>
+                                <circle cx="16" cy="15" r="1" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-name">IC2015 Dashboard</span>
+                            <span class="item-sub">View recent temperature trends</span>
+                        </div>
+                        <span class="coach-badge badge-16">16 Coaches</span>
+                    </button>
+                </div>
+            </div>
         </main>
         <div
-            style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">
-            v2.7 <br>
-            <button type="button" onclick="showChangelog()"
-                style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding-top: 0.3rem;">View
-                Changelog</button>
+            style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
+            v1.0
         </div>
     </div>
 
     <!-- Data Entry Screen -->
     <div class="container screen" id="dataEntryScreen" style="display: none;">
-        <header>
-            <button class="back-btn" onclick="backToMenu()">← Back to Menu</button>
-            <h1>Axle Temperature Log</h1>
-            <div id="status" class="status-indicator">Ready to load</div>
+        <header class="arrival-header">
+            <button type="button" class="back-btn arrival-back-btn" onclick="backToMenu()">← Back</button>
+            <h1 class="arrival-title">Axle Temperature Log</h1>
+            <div id="status" class="status-indicator arrival-status" style="display: none;"></div>
         </header>
 
         <main>
@@ -203,10 +352,10 @@
 
     <!-- Arrival Report Screen -->
     <div class="container screen" id="arrivalReportScreen" style="display: none;">
-        <header>
-            <button class="back-btn" onclick="backToMenu()">← Back to Menu</button>
-            <h1>Arrival Report</h1>
-            <div id="arrivalStatus" class="status-indicator">Ready to load/submit</div>
+        <header class="arrival-header">
+            <button type="button" class="back-btn arrival-back-btn" onclick="backToMenu()">← Back</button>
+            <h1 class="arrival-title">Arrival Report</h1>
+            <div id="arrivalStatus" class="status-indicator arrival-status">Ready to load</div>
         </header>
 
         <main>
@@ -334,10 +483,10 @@
 
     <!-- Dashboard Screen -->
     <div class="container screen" id="dashboardScreen" style="display: none;">
-        <header>
-            <button class="back-btn" onclick="backToMenu()">← Back to Menu</button>
-            <h1 id="dashboardTitle">Dashboard</h1>
-            <p style="color: var(--text-muted); margin-bottom: 1rem;">Last 7 Days Trendline</p>
+        <header class="arrival-header">
+            <button type="button" class="back-btn arrival-back-btn" onclick="backToMenu()">← Back</button>
+            <h1 id="dashboardTitle" class="arrival-title">Dashboard</h1>
+            <div style="width: 50px;"></div>
         </header>
 
         <main id="dashboardLoading" style="text-align: center; padding: 2rem;">
@@ -362,7 +511,7 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=3.0"></script>
+    <script src="app.js?v=1.0"></script>
 </body>
 
 </html>

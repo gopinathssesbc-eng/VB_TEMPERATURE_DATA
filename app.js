@@ -149,6 +149,7 @@ const arrivalDatePicker = flatpickr("#arrivalDateInput", {
 
 // Navigation Functions
 function hideAllScreens() {
+    document.body.classList.remove('arrival-report-active');
     passwordModal.style.display = 'none';
     menuScreen.style.display = 'none';
     dataEntryScreen.style.display = 'none';
@@ -159,6 +160,35 @@ function hideAllScreens() {
 function backToMenu() {
     hideAllScreens();
     menuScreen.style.display = 'flex';
+}
+
+function toggleRakeDashboards() {
+    const list = document.getElementById('rakeDashboardsList');
+    const chevron = document.getElementById('dashboardsChevron');
+    const toggleBtn = document.getElementById('rakeDashboardsBtn');
+    if (!list) return;
+
+    const isHidden = (list.style.display === 'none');
+    if (isHidden) {
+        list.style.display = 'flex';
+        list.classList.add('expanded');
+        if (chevron) {
+            chevron.textContent = '▲';
+            chevron.classList.add('rotated');
+        }
+        if (toggleBtn) toggleBtn.classList.add('active');
+        setTimeout(() => {
+            list.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 80);
+    } else {
+        list.style.display = 'none';
+        list.classList.remove('expanded');
+        if (chevron) {
+            chevron.textContent = '▼';
+            chevron.classList.remove('rotated');
+        }
+        if (toggleBtn) toggleBtn.classList.remove('active');
+    }
 }
 
 function clearForm() {
@@ -906,6 +936,7 @@ function openDataEntry() {
 
 function openArrivalReport() {
     hideAllScreens();
+    document.body.classList.add('arrival-report-active');
     populateArrivalDropdowns();
     clearArrivalForm();
     if (arrivalSectionsWrapper) arrivalSectionsWrapper.style.display = 'none';
@@ -1302,6 +1333,7 @@ passwordForm.addEventListener('submit', async (e) => {
 
         if (result.status === "success") {
             currentPassword = enteredPassword;
+            document.body.classList.add('logged-in');
             hideAllScreens();
             menuScreen.style.display = 'flex'; // Go to menu instead of data entry
             fetchDropdownData(); // Sync latest dropdown data from Google Sheets in background
@@ -1545,6 +1577,7 @@ form.addEventListener('submit', async (e) => {
 
 function handleSessionExpired() {
     currentPassword = "";
+    document.body.classList.remove('logged-in');
     hideAllScreens();
     passwordModal.style.display = 'flex';
     passwordError.textContent = "Session expired or password changed. Please log in again.";
@@ -1552,8 +1585,14 @@ function handleSessionExpired() {
 }
 
 function updateStatus(text, type) {
-    statusIndicator.textContent = text;
-    statusIndicator.className = `status-indicator ${type}`;
+    if (!statusIndicator) return;
+    statusIndicator.textContent = text || "";
+    statusIndicator.className = `status-indicator arrival-status ${type || ""}`;
+    if (!text || !text.trim()) {
+        statusIndicator.style.display = 'none';
+    } else {
+        statusIndicator.style.display = 'inline-flex';
+    }
 }
 
 // ============================================================================
@@ -1944,51 +1983,6 @@ if (arrivalForm) {
             btnText.textContent = '💾 Save Arrival Report (Sync to 3 Sheets)';
             spinner.classList.add('hidden');
         }
-    });
-}
-
-// Changelog Modal
-function showChangelog() {
-    Swal.fire({
-        title: 'Changelog',
-        html: `
-            <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; color: var(--text-main);">
-                <strong>v2.7 (Added Rake IC2015)</strong><br>
-                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
-                    <li>16-coach rake IC2015 configured with full coach numbers (c14 235292 down to c1 235391).</li>
-                    <li>Available in Data Entry, Dashboard, and Arrival Report.</li>
-                </ul>
-                <strong>v2.3 (Arrival Report 3-Section Overhaul)</strong><br>
-                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
-                    <li>Load button to retrieve and display existing arrival reports.</li>
-                    <li>Section 1: Defects with dynamic coach dropdown & add defect rows.</li>
-                    <li>Section 2: Rail Madad Complaints with categories & enroute actions.</li>
-                    <li>Section 3: Detentions with auto-calculated duration.</li>
-                    <li>Auto-syncs across 3 separate Google Sheets (Arrival Report, Rail Madad, Detentions).</li>
-                </ul>
-                <strong>v2.1 (PWA Update)</strong><br>
-                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
-                    <li>Progressive Web App (PWA) support added.</li>
-                    <li>Installable on Android, iOS, Windows, and macOS.</li>
-                    <li>Offline app shell caching via Service Worker.</li>
-                    <li>Custom train & thermometer app icons.</li>
-                </ul>
-                <strong>v2.0</strong><br>
-                <ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 1.5rem;">
-                    <li>IC2006 added date - 24/09/2026</li>
-                </ul>
-                <strong>Older Versions</strong><br>
-                <ul style="margin-top: 0.5rem; margin-bottom: 0; padding-left: 1.5rem;">
-                    <li>Initial releases and UI updates.</li>
-                    <li>Added dashboard charts and security layers.</li>
-                </ul>
-            </div>
-        `,
-        background: 'var(--surface)',
-        color: 'var(--text-main)',
-        confirmButtonColor: 'var(--primary)',
-        confirmButtonText: 'Close',
-        width: '400px'
     });
 }
 
