@@ -648,6 +648,93 @@ input:disabled, select:disabled, textarea:disabled {
     margin-bottom: 0;
 }
 
+/* Collapsible Arrival Report Sections (Accordion / Dropdown by Default) */
+.collapsible-section {
+    padding: 0 !important;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(30, 41, 59, 0.7);
+    transition: background 0.2s ease;
+    border-radius: 0.875rem;
+}
+
+.collapsible-section.is-open .collapsible-header {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.collapsible-header:hover {
+    background: rgba(51, 65, 85, 0.7);
+}
+
+.collapsible-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-bottom: none !important;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.collapsible-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.section-count-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-muted);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    letter-spacing: 0.2px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.section-count-badge.has-entries {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.15);
+}
+
+.section-chevron {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: transform 0.25s ease;
+    display: inline-block;
+}
+
+.section-chevron.rotated {
+    transform: rotate(180deg);
+    color: var(--primary);
+}
+
+.collapsible-body {
+    padding: 1.15rem 1.25rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: rgba(15, 23, 42, 0.35);
+    animation: fadeIn 0.25s ease-in-out;
+}
+
 .empty-placeholder {
     display: none !important;
 }

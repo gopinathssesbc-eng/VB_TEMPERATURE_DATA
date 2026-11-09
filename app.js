@@ -695,6 +695,7 @@ function checkDefectsEmpty() {
     if (rows.length === 0) {
         defectsContainer.innerHTML = '';
     }
+    updateArrivalSectionCounts();
 }
 
 // Section 2: Rail Madad
@@ -776,6 +777,7 @@ function checkRailMadadEmpty() {
     if (existingPlaceholder) {
         existingPlaceholder.remove();
     }
+    updateArrivalSectionCounts();
 }
 
 // Section 3: Detentions
@@ -884,6 +886,7 @@ function checkDetentionsEmpty() {
     if (existingPlaceholder) {
         existingPlaceholder.remove();
     }
+    updateArrivalSectionCounts();
 }
 
 function renumberCards(container, prefix) {
@@ -894,6 +897,85 @@ function renumberCards(container, prefix) {
         if (titleSpan) titleSpan.textContent = `${prefix} #${idx + 1}`;
     });
 }
+
+// Collapsible Section (Accordion) Handlers for Arrival Report
+function toggleSectionCollapse(contentId, chevronId) {
+    const content = document.getElementById(contentId);
+    const chevron = document.getElementById(chevronId);
+    if (!content) return;
+    const parentSection = content.closest('.collapsible-section');
+    const isHidden = (content.style.display === 'none' || !content.style.display);
+    if (isHidden) {
+        content.style.display = 'block';
+        if (chevron) chevron.classList.add('rotated');
+        if (parentSection) parentSection.classList.add('is-open');
+    } else {
+        content.style.display = 'none';
+        if (chevron) chevron.classList.remove('rotated');
+        if (parentSection) parentSection.classList.remove('is-open');
+    }
+}
+window.toggleSectionCollapse = toggleSectionCollapse;
+
+function collapseAllArrivalSections() {
+    ['defectsContent', 'railMadadContent', 'detentionsContent'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = 'none';
+            const parent = el.closest('.collapsible-section');
+            if (parent) parent.classList.remove('is-open');
+        }
+    });
+    ['defectsChevron', 'railMadadChevron', 'detentionsChevron'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('rotated');
+    });
+}
+window.collapseAllArrivalSections = collapseAllArrivalSections;
+
+function expandArrivalSection(key) {
+    const mapping = {
+        defects: { content: 'defectsContent', chevron: 'defectsChevron' },
+        railMadad: { content: 'railMadadContent', chevron: 'railMadadChevron' },
+        detentions: { content: 'detentionsContent', chevron: 'detentionsChevron' }
+    };
+    const target = mapping[key];
+    if (target) {
+        const content = document.getElementById(target.content);
+        const chevron = document.getElementById(target.chevron);
+        if (content) {
+            content.style.display = 'block';
+            const parent = content.closest('.collapsible-section');
+            if (parent) parent.classList.add('is-open');
+        }
+        if (chevron) chevron.classList.add('rotated');
+    }
+}
+window.expandArrivalSection = expandArrivalSection;
+
+function updateArrivalSectionCounts() {
+    const defectsCount = defectsContainer ? defectsContainer.querySelectorAll('.defect-row').length : 0;
+    const railMadadCount = railMadadContainer ? railMadadContainer.querySelectorAll('.entry-card').length : 0;
+    const detentionsCount = detentionsContainer ? detentionsContainer.querySelectorAll('.entry-card').length : 0;
+
+    const defBadge = document.getElementById('defectsCountBadge');
+    const rmBadge = document.getElementById('railMadadCountBadge');
+    const detBadge = document.getElementById('detentionsCountBadge');
+
+    if (defBadge) {
+        defBadge.textContent = `${defectsCount} ${defectsCount === 1 ? 'entry' : 'entries'}`;
+        defBadge.classList.toggle('has-entries', defectsCount > 0);
+    }
+    if (rmBadge) {
+        rmBadge.textContent = `${railMadadCount} ${railMadadCount === 1 ? 'entry' : 'entries'}`;
+        rmBadge.classList.toggle('has-entries', railMadadCount > 0);
+    }
+    if (detBadge) {
+        detBadge.textContent = `${detentionsCount} ${detentionsCount === 1 ? 'entry' : 'entries'}`;
+        detBadge.classList.toggle('has-entries', detentionsCount > 0);
+    }
+}
+window.updateArrivalSectionCounts = updateArrivalSectionCounts;
 
 function clearArrivalForm() {
     if (arrivalForm) arrivalForm.reset();
@@ -911,6 +993,8 @@ function clearArrivalForm() {
     checkDefectsEmpty();
     checkRailMadadEmpty();
     checkDetentionsEmpty();
+    collapseAllArrivalSections();
+    updateArrivalSectionCounts();
     updateArrivalStatus("Ready to load", "");
 }
 
@@ -1631,18 +1715,21 @@ if (arrivalTrainSelect) {
 // Add row buttons
 if (addDefectBtn) {
     addDefectBtn.addEventListener('click', () => {
+        expandArrivalSection('defects');
         addDefectRow();
     });
 }
 
 if (addRailMadadBtn) {
     addRailMadadBtn.addEventListener('click', () => {
+        expandArrivalSection('railMadad');
         addRailMadadCard();
     });
 }
 
 if (addDetentionBtn) {
     addDetentionBtn.addEventListener('click', () => {
+        expandArrivalSection('detentions');
         addDetentionCard();
     });
 }
@@ -1738,6 +1825,10 @@ if (arrivalLoadBtn) {
                 }
                 checkDetentionsEmpty();
 
+                // Collapse all arrival sections by default & show accurate counts
+                collapseAllArrivalSections();
+                updateArrivalSectionCounts();
+
                 arrivalLoadStatus.textContent = `Loaded existing report for ${rake} on ${date}. You can edit and re-save.`;
                 arrivalLoadStatus.style.color = 'var(--success)';
                 updateArrivalStatus('Existing report loaded', 'online');
@@ -1763,9 +1854,15 @@ if (arrivalLoadBtn) {
                 arrivalLoadStatus.style.color = 'var(--text-muted)';
                 updateArrivalStatus('Ready to submit new report', '');
 
-                // Keep defects empty: only "+ Add More Defects" button is visible
+                // Keep sections empty: start clean
                 defectsContainer.innerHTML = '';
+                railMadadContainer.innerHTML = '';
+                detentionsContainer.innerHTML = '';
                 checkDefectsEmpty();
+                checkRailMadadEmpty();
+                checkDetentionsEmpty();
+                collapseAllArrivalSections();
+                updateArrivalSectionCounts();
 
                 if (arrivalSectionsWrapper) {
                     arrivalSectionsWrapper.style.display = 'block';
@@ -1790,13 +1887,42 @@ if (arrivalLoadBtn) {
             if (arrivalSectionsWrapper) {
                 arrivalSectionsWrapper.style.display = 'block';
                 defectsContainer.innerHTML = '';
+                railMadadContainer.innerHTML = '';
+                detentionsContainer.innerHTML = '';
                 checkDefectsEmpty();
+                checkRailMadadEmpty();
+                checkDetentionsEmpty();
+                collapseAllArrivalSections();
+                updateArrivalSectionCounts();
             }
         } finally {
             arrivalLoadBtn.disabled = false;
             btnText.textContent = '🔍 Load Report';
             spinner.classList.add('hidden');
         }
+    });
+}
+
+// Auto-expand any collapsed sections that contain invalid fields so browser validation works seamlessly
+if (arrivalSubmitBtn) {
+    arrivalSubmitBtn.addEventListener('click', () => {
+        const sections = [
+            { contentId: 'defectsContent', chevronId: 'defectsChevron' },
+            { contentId: 'railMadadContent', chevronId: 'railMadadChevron' },
+            { contentId: 'detentionsContent', chevronId: 'detentionsChevron' }
+        ];
+        sections.forEach(sec => {
+            const el = document.getElementById(sec.contentId);
+            if (el && el.style.display === 'none') {
+                if (el.querySelector(':invalid')) {
+                    el.style.display = 'block';
+                    const chev = document.getElementById(sec.chevronId);
+                    if (chev) chev.classList.add('rotated');
+                    const parent = el.closest('.collapsible-section');
+                    if (parent) parent.classList.add('is-open');
+                }
+            }
+        });
     });
 }
 

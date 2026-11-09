@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.0">
+    <link rel="stylesheet" href="style.css?v=2.1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Flatpickr Calendar Library -->
@@ -433,42 +433,66 @@
                     <!-- Sections 1, 2, 3 & Submit Button: Hidden by default until "Load Report" is clicked -->
                     <div id="arrivalSectionsWrapper" style="display: none;">
                         <!-- Section 1: Defects -->
-                        <section class="metadata-section">
-                            <h2>Section 1: Defects</h2>
-
-                            <div id="defectsContainer" class="dynamic-container">
-                                <!-- JS injects defect rows here -->
+                        <section class="metadata-section collapsible-section" id="sectionDefects">
+                            <div class="collapsible-header" onclick="toggleSectionCollapse('defectsContent', 'defectsChevron')">
+                                <h2 class="collapsible-title">Section 1: Defects</h2>
+                                <div class="collapsible-meta">
+                                    <span id="defectsCountBadge" class="section-count-badge">0 entries</span>
+                                    <span id="defectsChevron" class="section-chevron">▼</span>
+                                </div>
                             </div>
 
-                            <button type="button" id="addDefectBtn" class="add-btn">
-                                <span>➕ Add More Defects</span>
-                            </button>
+                            <div id="defectsContent" class="collapsible-body" style="display: none;">
+                                <div id="defectsContainer" class="dynamic-container">
+                                    <!-- JS injects defect rows here -->
+                                </div>
+
+                                <button type="button" id="addDefectBtn" class="add-btn">
+                                    <span>➕ Add More Defects</span>
+                                </button>
+                            </div>
                         </section>
 
                         <!-- Section 2: Rail Madad Complaints -->
-                        <section class="metadata-section">
-                            <h2>Section 2: Rail Madad Complaints</h2>
-
-                            <div id="railMadadContainer" class="dynamic-container">
-                                <!-- JS injects Rail Madad complaint cards here -->
+                        <section class="metadata-section collapsible-section" id="sectionRailMadad">
+                            <div class="collapsible-header" onclick="toggleSectionCollapse('railMadadContent', 'railMadadChevron')">
+                                <h2 class="collapsible-title">Section 2: Rail Madad Complaints</h2>
+                                <div class="collapsible-meta">
+                                    <span id="railMadadCountBadge" class="section-count-badge">0 entries</span>
+                                    <span id="railMadadChevron" class="section-chevron">▼</span>
+                                </div>
                             </div>
 
-                            <button type="button" id="addRailMadadBtn" class="add-btn">
-                                <span>➕ Add Rail Madad Complaint</span>
-                            </button>
+                            <div id="railMadadContent" class="collapsible-body" style="display: none;">
+                                <div id="railMadadContainer" class="dynamic-container">
+                                    <!-- JS injects Rail Madad complaint cards here -->
+                                </div>
+
+                                <button type="button" id="addRailMadadBtn" class="add-btn">
+                                    <span>➕ Add Rail Madad Complaint</span>
+                                </button>
+                            </div>
                         </section>
 
                         <!-- Section 3: Detentions -->
-                        <section class="metadata-section">
-                            <h2>Section 3: Detentions</h2>
-
-                            <div id="detentionsContainer" class="dynamic-container">
-                                <!-- JS injects detention cards here -->
+                        <section class="metadata-section collapsible-section" id="sectionDetentions">
+                            <div class="collapsible-header" onclick="toggleSectionCollapse('detentionsContent', 'detentionsChevron')">
+                                <h2 class="collapsible-title">Section 3: Detentions</h2>
+                                <div class="collapsible-meta">
+                                    <span id="detentionsCountBadge" class="section-count-badge">0 entries</span>
+                                    <span id="detentionsChevron" class="section-chevron">▼</span>
+                                </div>
                             </div>
 
-                            <button type="button" id="addDetentionBtn" class="add-btn">
-                                <span>➕ Add Detention</span>
-                            </button>
+                            <div id="detentionsContent" class="collapsible-body" style="display: none;">
+                                <div id="detentionsContainer" class="dynamic-container">
+                                    <!-- JS injects detention cards here -->
+                                </div>
+
+                                <button type="button" id="addDetentionBtn" class="add-btn">
+                                    <span>➕ Add Detention</span>
+                                </button>
+                            </div>
                         </section>
 
                     <button type="submit" id="arrivalSubmitBtn" style="margin-top: 1rem;">
@@ -586,7 +610,7 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.0"></script>
+    <script src="app.js?v=2.1"></script>
 </body>
 
 </html>
