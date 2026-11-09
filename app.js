@@ -772,16 +772,8 @@ function addRailMadadCard(data = {}) {
 
 function checkRailMadadEmpty() {
     if (!railMadadContainer) return;
-    const cards = railMadadContainer.querySelectorAll('.entry-card');
     const existingPlaceholder = railMadadContainer.querySelector('.empty-placeholder');
-    if (cards.length === 0) {
-        if (!existingPlaceholder) {
-            const ph = document.createElement('div');
-            ph.className = 'empty-placeholder';
-            ph.textContent = 'No Rail Madad complaints logged. Click "+ Add Rail Madad Complaint" if any occurred.';
-            railMadadContainer.appendChild(ph);
-        }
-    } else if (existingPlaceholder) {
+    if (existingPlaceholder) {
         existingPlaceholder.remove();
     }
 }
@@ -888,16 +880,8 @@ function addDetentionCard(data = {}) {
 
 function checkDetentionsEmpty() {
     if (!detentionsContainer) return;
-    const cards = detentionsContainer.querySelectorAll('.entry-card');
     const existingPlaceholder = detentionsContainer.querySelector('.empty-placeholder');
-    if (cards.length === 0) {
-        if (!existingPlaceholder) {
-            const ph = document.createElement('div');
-            ph.className = 'empty-placeholder';
-            ph.textContent = 'No train detentions logged. Click "+ Add Detention" if the train was detained.';
-            detentionsContainer.appendChild(ph);
-        }
-    } else if (existingPlaceholder) {
+    if (existingPlaceholder) {
         existingPlaceholder.remove();
     }
 }

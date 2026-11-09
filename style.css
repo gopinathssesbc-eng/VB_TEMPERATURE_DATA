@@ -521,17 +521,17 @@ section {
     background: rgba(30, 41, 59, 0.7);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border);
-    border-radius: 1rem;
-    padding: 1.5rem;
+    border-radius: 0.875rem;
+    padding: 1.15rem 1.25rem;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 h2 {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     font-weight: 600;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.4rem;
     border-bottom: 1px solid var(--border);
 }
 
@@ -645,17 +645,11 @@ input:disabled, select:disabled, textarea:disabled {
 }
 
 .dynamic-container:empty {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
 }
 
 .empty-placeholder {
-    padding: 1.25rem;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    background: rgba(15, 23, 42, 0.3);
-    border: 1px dashed var(--border);
-    border-radius: 0.5rem;
+    display: none !important;
 }
 
 .defect-card {
