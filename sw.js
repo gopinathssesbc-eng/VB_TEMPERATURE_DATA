@@ -1,12 +1,12 @@
-const CACHE_NAME = 'vb-escorting-v2.1';
+const CACHE_NAME = 'vb-escorting-v2.4';
 
 const STATIC_ASSETS = [
     './',
     './index.html',
     './style.css',
-    './style.css?v=2.1',
+    './style.css?v=2.4',
     './app.js',
-    './app.js?v=2.1',
+    './app.js?v=2.4',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
@@ -20,7 +20,10 @@ const STATIC_ASSETS = [
     'https://npmcdn.com/flatpickr/dist/themes/dark.css',
     'https://cdn.jsdelivr.net/npm/sweetalert2@11',
     'https://cdn.jsdelivr.net/npm/chart.js',
-    'https://cdn.jsdelivr.net/npm/flatpickr'
+    'https://cdn.jsdelivr.net/npm/flatpickr',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 ];
 
 // Install Event: Pre-cache static assets

@@ -269,6 +269,576 @@ h1 {
     stroke: #fbbf24;
 }
 
+/* Manuals Menu Card */
+.manuals-menu-card {
+    background: rgba(20, 184, 166, 0.12);
+    border-color: rgba(20, 184, 166, 0.35);
+}
+
+.manuals-menu-card:hover {
+    background: rgba(20, 184, 166, 0.22);
+    border-color: #2dd4bf;
+}
+
+.icon-manuals {
+    background: rgba(20, 184, 166, 0.2);
+}
+
+.icon-manuals svg {
+    stroke: #2dd4bf;
+}
+
+/* Manuals Screen */
+.manuals-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-bottom: 2rem;
+}
+
+.manual-category-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0.25rem 0 0.1rem;
+    margin-top: 0.5rem;
+}
+
+#manualsListContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+button.manual-card {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+    padding: 0.95rem 1.15rem;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 0.875rem;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+button.manual-card:hover:not(:disabled) {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: #2dd4bf;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(20, 184, 166, 0.15);
+}
+
+.manual-card-icon {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 0.6rem;
+    background: rgba(20, 184, 166, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.manual-card-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: #2dd4bf;
+}
+
+.manual-card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.manual-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    line-height: 1.3;
+}
+
+.manual-card-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+.manual-card-arrow {
+    font-size: 1.4rem;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+
+/* Folder card variant */
+button.manual-folder-card {
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+button.manual-folder-card:hover:not(:disabled) {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: #a78bfa;
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.15);
+}
+
+.manual-folder-icon {
+    background: rgba(139, 92, 246, 0.15) !important;
+}
+
+.manual-folder-icon svg {
+    stroke: #a78bfa !important;
+}
+
+/* Search bar */
+.manuals-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.manuals-search-icon {
+    position: absolute;
+    left: 0.9rem;
+    width: 18px;
+    height: 18px;
+    stroke: var(--text-muted);
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.manuals-search-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.75rem !important;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.manuals-search-input:focus {
+    outline: none;
+    border-color: #2dd4bf;
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
+}
+
+.manuals-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Breadcrumb */
+.manuals-breadcrumb {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding: 0.1rem 0 0.6rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-height: 1.2rem;
+}
+
+/* Loading / error / empty states */
+.manuals-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.manuals-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(45, 212, 191, 0.2);
+    border-top-color: #2dd4bf;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.manuals-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2.5rem 1rem;
+    color: var(--error);
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+.manuals-error svg {
+    width: 32px;
+    height: 32px;
+    stroke: var(--error);
+}
+
+.manuals-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* PDF Viewer Full-Screen Overlay */
+.pdf-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+}
+
+.pdf-viewer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid var(--border);
+    min-height: 52px;
+    flex-shrink: 0;
+}
+
+.pdf-viewer-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: center;
+    flex: 1;
+    padding: 0 0.5rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+button.pdf-close-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    border: none;
+    background: rgba(239, 68, 68, 0.15);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button.pdf-close-btn:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.3);
+    transform: none;
+}
+
+.pdf-close-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: #f87171;
+}
+
+.pdf-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+}
+
+button.pdf-header-icon-btn,
+a.pdf-header-icon-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(30, 41, 59, 0.85);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-main);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+button.pdf-header-icon-btn:hover:not(:disabled),
+a.pdf-header-icon-btn:hover {
+    background: rgba(45, 212, 191, 0.2);
+    border-color: #2dd4bf;
+    transform: none;
+}
+
+button.pdf-header-icon-btn.active {
+    background: rgba(45, 212, 191, 0.22);
+    border-color: #2dd4bf;
+}
+
+.pdf-header-icon-btn svg {
+    width: 17px;
+    height: 17px;
+    stroke: #2dd4bf;
+}
+
+/* Inline PDF Search Bar */
+.pdf-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.75rem;
+    background: rgba(15, 23, 42, 0.98);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.pdf-search-input-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.pdf-search-input-icon {
+    position: absolute;
+    left: 0.65rem;
+    width: 15px;
+    height: 15px;
+    stroke: var(--text-muted);
+    pointer-events: none;
+}
+
+input.pdf-find-input {
+    width: 100%;
+    padding: 0.48rem 4.75rem 0.48rem 2.15rem !important;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    color: var(--text-main);
+    font-size: 0.88rem;
+}
+
+input.pdf-find-input:focus {
+    outline: none;
+    border-color: #2dd4bf;
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
+}
+
+.pdf-find-count {
+    position: absolute;
+    right: 1.9rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.pdf-find-count.no-match {
+    color: #f87171;
+}
+
+.pdf-find-count.has-match {
+    color: #2dd4bf;
+}
+
+button.pdf-find-clear-btn {
+    position: absolute;
+    right: 0.35rem;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    border-radius: 0.35rem;
+    cursor: pointer;
+}
+
+button.pdf-find-clear-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-main);
+    transform: none;
+}
+
+button.pdf-nav-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-size: 0.75rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+button.pdf-nav-btn:hover:not(:disabled) {
+    background: rgba(45, 212, 191, 0.2);
+    border-color: #2dd4bf;
+    transform: none;
+}
+
+button.pdf-nav-btn:disabled {
+    opacity: 0.35;
+}
+
+/* PDF.js Loading & Pages Container */
+.pdf-js-loading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    background: #1e293b;
+}
+
+.pdf-js-container {
+    flex: 1;
+    overflow: auto;
+    background: #334155;
+    padding: 0.75rem 0.5rem 4.5rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pdf-pages-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.pdf-page-wrapper {
+    position: relative;
+    background: #ffffff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.pdf-page-wrapper canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.pdf-page-wrapper .textLayer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    line-height: 1;
+    opacity: 1;
+    mix-blend-mode: multiply;
+}
+
+.pdf-page-wrapper .textLayer span {
+    color: transparent;
+}
+
+.pdf-page-wrapper .textLayer mark.pdf-match {
+    background: rgba(250, 204, 21, 0.55);
+    color: transparent;
+    border-radius: 2px;
+    padding: 1px 0;
+}
+
+.pdf-page-wrapper .textLayer mark.pdf-match.active {
+    background: rgba(249, 115, 22, 0.75);
+    outline: 2px solid #ea580c;
+}
+
+/* Bottom Page & Zoom Floating Bar */
+.pdf-bottom-controls {
+    position: fixed;
+    bottom: 0.9rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.38rem 0.85rem;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 9999px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    z-index: 2010;
+}
+
+.pdf-page-indicator {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.pdf-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-left: 1px solid var(--border);
+    padding-left: 0.65rem;
+}
+
+button.pdf-zoom-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(51, 65, 85, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: var(--text-main);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+button.pdf-zoom-btn:hover:not(:disabled) {
+    background: rgba(45, 212, 191, 0.25);
+    border-color: #2dd4bf;
+    transform: none;
+}
+
+.pdf-zoom-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 38px;
+    text-align: center;
+}
+
+.pdf-iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: #fff;
+}
+
 .install-menu-card {
     background: rgba(16, 185, 129, 0.12);
     border: 1px dashed var(--success);

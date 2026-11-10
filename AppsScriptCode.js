@@ -1,3 +1,9 @@
+// Run this function ONCE inside the Apps Script editor to authorize Google Drive access
+function authorizeDriveAccess() {
+  const folder = DriveApp.getFolderById("1H-YLok0VOOUCL2KUhfMCS1oRbXlBEJee");
+  Logger.log("Drive access authorized! Root folder: " + folder.getName());
+}
+
 function checkPassword(providedPassword) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const passSheet = getSheetCaseInsensitive(ss, "pass");
@@ -73,6 +79,139 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({
         status: "unauthorized",
         message: "Incorrect Settings password"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // =========================================================================
+  // DRIVE: LIST FOLDER CONTENTS (no password needed — access via Drive sharing)
+  // =========================================================================
+  if (e && e.parameter && e.parameter.action === "list_drive_folder") {
+    try {
+      const folderId = e.parameter.folderId;
+      if (!folderId) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error", message: "folderId parameter required"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      const folder = DriveApp.getFolderById(folderId);
+      const result = {
+        status: "success",
+        id: folderId,
+        name: folder.getName(),
+        folders: [],
+        files: []
+      };
+      const subFolders = folder.getFolders();
+      while (subFolders.hasNext()) {
+        const f = subFolders.next();
+        result.folders.push({ id: f.getId(), name: f.getName() });
+      }
+      const files = folder.getFiles();
+      while (files.hasNext()) {
+        const f = files.next();
+        const mime = f.getMimeType();
+        // Only include viewable files (PDFs + Google Docs/Slides/etc.)
+        result.files.push({
+          id: f.getId(),
+          name: f.getName(),
+          mimeType: mime
+        });
+      }
+      result.folders.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      result.files.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "error", message: err.toString()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // =========================================================================
+  // DRIVE: SEARCH FILES RECURSIVELY WITHIN ROOT FOLDER
+  // =========================================================================
+  if (e && e.parameter && e.parameter.action === "search_drive") {
+    try {
+      const rootId = e.parameter.folderId;
+      const query = (e.parameter.query || "").toLowerCase().trim();
+      if (!rootId || !query) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error", message: "folderId and query required"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      const results = [];
+      function searchFolder(folderId, path) {
+        var folder = DriveApp.getFolderById(folderId);
+        // Search files
+        var files = folder.getFiles();
+        while (files.hasNext()) {
+          var f = files.next();
+          if (f.getName().toLowerCase().indexOf(query) !== -1) {
+            results.push({
+              id: f.getId(),
+              name: f.getName(),
+              mimeType: f.getMimeType(),
+              path: path
+            });
+          }
+        }
+        // Recurse into subfolders
+        var subs = folder.getFolders();
+        while (subs.hasNext()) {
+          var sub = subs.next();
+          searchFolder(sub.getId(), path + " › " + sub.getName());
+        }
+      }
+      var root = DriveApp.getFolderById(rootId);
+      searchFolder(rootId, root.getName());
+      results.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        query: query,
+        results: results
+      })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "error", message: err.toString()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // =========================================================================
+  // DRIVE: FETCH PDF BYTES (BASE64) FOR INLINE PDF.JS VIEWER & TEXT SEARCH
+  // =========================================================================
+  if (e && e.parameter && e.parameter.action === "get_drive_file") {
+    try {
+      const fileId = e.parameter.fileId;
+      if (!fileId) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error", message: "fileId parameter required"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      const file = DriveApp.getFileById(fileId);
+      const size = file.getSize();
+      const maxSize = 20 * 1024 * 1024; // 20 MB safety threshold for Apps Script response
+      if (size > maxSize) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "too_large",
+          size: size,
+          message: "File exceeds 20 MB threshold; use preview fallback."
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      const bytes = file.getBlob().getBytes();
+      const base64 = Utilities.base64Encode(bytes);
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        name: file.getName(),
+        mimeType: file.getMimeType(),
+        size: size,
+        data: base64
+      })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "error", message: err.toString()
       })).setMimeType(ContentService.MimeType.JSON);
     }
   }
