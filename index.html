@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.4">
+    <link rel="stylesheet" href="style.css?v=2.5">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -519,6 +519,10 @@
                         <span>💾 Save Arrival Report (Sync to 3 Sheets)</span>
                         <div class="spinner hidden"></div>
                     </button>
+
+                    <button type="button" id="arrivalGeneratePdfBtn" class="generate-pdf-btn" onclick="generateArrivalReportPdf()">
+                        <span>📄 Generate PDF & Share</span>
+                    </button>
     </div>
     </form>
 
@@ -710,6 +714,36 @@
         <iframe id="pdfIframe" class="pdf-iframe" src="" allow="autoplay" allowfullscreen style="display: none;"></iframe>
     </div>
 
+    <!-- Generated Arrival Report PDF Preview & Share Overlay -->
+    <div id="generatedPdfOverlay" class="pdf-overlay" style="display: none;">
+        <div class="pdf-viewer-header">
+            <button type="button" class="pdf-close-btn" onclick="closeGeneratedPdfPreview()" title="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="5" x2="5" y2="19"/><line x1="5" y1="5" x2="19" y2="19"/>
+                </svg>
+            </button>
+            <span id="generatedPdfTitle" class="pdf-viewer-title">Arrival Report PDF</span>
+            <div class="pdf-header-actions">
+                <button type="button" id="generatedPdfDownloadBtn" class="pdf-action-pill download-pill" onclick="downloadGeneratedArrivalPdf()" title="Download PDF">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>Save</span>
+                </button>
+                <button type="button" id="generatedPdfShareBtn" class="pdf-action-pill share-pill" onclick="shareGeneratedArrivalPdf()" title="Share PDF (WhatsApp, Telegram, etc.)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                    <span>Share</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="generatedPdfBody" class="pdf-js-container">
+            <div id="generatedPdfPagesContainer" class="pdf-pages-container"></div>
+        </div>
+    </div>
+
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Chart.js -->
@@ -718,8 +752,11 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- PDF.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- jsPDF + AutoTable for Report PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.4"></script>
+    <script src="app.js?v=2.5"></script>
 </body>
 
 </html>

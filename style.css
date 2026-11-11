@@ -839,6 +839,78 @@ button.pdf-zoom-btn:hover:not(:disabled) {
     background: #fff;
 }
 
+/* Generate & Share Arrival Report PDF Button */
+button.generate-pdf-btn {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: rgba(20, 184, 166, 0.16);
+    border: 1px solid rgba(45, 212, 191, 0.45);
+    border-radius: 0.65rem;
+    color: #5eead4;
+    font-size: 0.98rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+button.generate-pdf-btn:hover:not(:disabled) {
+    background: rgba(20, 184, 166, 0.28);
+    border-color: #2dd4bf;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(20, 184, 166, 0.22);
+}
+
+button.pdf-action-pill {
+    width: auto;
+    height: 34px;
+    padding: 0 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button.pdf-action-pill svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+button.pdf-action-pill.download-pill {
+    background: rgba(51, 65, 85, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: var(--text-main);
+}
+
+button.pdf-action-pill.download-pill:hover:not(:disabled) {
+    background: rgba(71, 85, 105, 0.95);
+    border-color: #94a3b8;
+    transform: none;
+}
+
+button.pdf-action-pill.share-pill {
+    background: #10b981;
+    border: 1px solid #10b981;
+    color: #ffffff;
+}
+
+button.pdf-action-pill.share-pill:hover:not(:disabled) {
+    background: #059669;
+    border-color: #059669;
+    transform: none;
+}
+
 .install-menu-card {
     background: rgba(16, 185, 129, 0.12);
     border: 1px dashed var(--success);

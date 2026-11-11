@@ -169,6 +169,14 @@ function hideAllScreens() {
             if (iframe) iframe.src = '';
         }
     }
+    const genPdfOverlay = document.getElementById('generatedPdfOverlay');
+    if (genPdfOverlay) {
+        if (typeof closeGeneratedPdfPreview === 'function') {
+            closeGeneratedPdfPreview();
+        } else {
+            genPdfOverlay.style.display = 'none';
+        }
+    }
 }
 
 function backToMenu() {
@@ -1938,6 +1946,95 @@ if (arrivalSubmitBtn) {
     });
 }
 
+function collectArrivalReportData() {
+    const date = formatToDDMMYYYY(arrivalDateInput.value);
+    const rakeNo = arrivalRakeSelect.value;
+    let trainNo = arrivalTrainSelect.value;
+    if (trainNo === 'Other') {
+        trainNo = arrivalOtherTrainInput.value.trim();
+    }
+    const enteredBy = arrivalEnteredBy.value.trim();
+
+    // Collect Section 1: Defects
+    const defectRows = defectsContainer.querySelectorAll('.defect-row');
+    const defects = [];
+    defectRows.forEach(row => {
+        const coach = row.querySelector('.defect-coach-select').value;
+        const cat = row.querySelector('.defect-cat-select') ? row.querySelector('.defect-cat-select').value : '';
+        const desc = row.querySelector('.defect-desc-input').value.trim();
+        if (coach || desc || cat) {
+            defects.push({
+                CoachNo: coach,
+                Category: cat,
+                IssueDescription: desc
+            });
+        }
+    });
+
+    // Collect Section 2: Rail Madad
+    const rmCards = railMadadContainer.querySelectorAll('.entry-card');
+    const railMadad = [];
+    rmCards.forEach(card => {
+        const subSelect = card.querySelector('.rm-sub-category');
+        const customInput = card.querySelector('.rm-sub-category-custom');
+        let subCategoryValue = subSelect ? subSelect.value.trim() : '';
+        if ((subCategoryValue === 'Other' || subCategoryValue === 'Others:') && customInput) {
+            subCategoryValue = customInput.value.trim() || 'Other';
+        }
+
+        railMadad.push({
+            CoachNo: card.querySelector('.rm-coach-select').value,
+            RMReferenceNo: card.querySelector('.rm-ref-input').value.trim(),
+            MainCategory: card.querySelector('.rm-main-category').value,
+            SubCategory: subCategoryValue,
+            ComplaintDescription: card.querySelector('.rm-desc-input').value.trim(),
+            ActionTaken: card.querySelector('.rm-action-input').value.trim()
+        });
+    });
+
+    // Collect Section 3: Detentions
+    const detentionCards = detentionsContainer.querySelectorAll('.entry-card');
+    const detentions = [];
+    detentionCards.forEach(card => {
+        let timeFrom = card.querySelector('.detention-from').value.trim();
+        let timeTo = card.querySelector('.detention-to').value.trim();
+        const pFrom = parseTimeComponents(timeFrom);
+        if (pFrom) timeFrom = pFrom.formatted;
+        const pTo = parseTimeComponents(timeTo);
+        if (pTo) timeTo = pTo.formatted;
+        const totalDetention = card.querySelector('.detention-total').value || calculateDetentionDuration(timeFrom, timeTo);
+        const cat = card.querySelector('.detention-category-select') ? card.querySelector('.detention-category-select').value : '';
+
+        detentions.push({
+            CoachNo: card.querySelector('.detention-coach-select').value,
+            Station: card.querySelector('.detention-station').value.trim(),
+            TimeFrom: timeFrom,
+            TimeTo: timeTo,
+            TotalDetention: totalDetention,
+            Category: cat,
+            IssueDescription: card.querySelector('.detention-desc').value.trim(),
+            ActionTaken: card.querySelector('.detention-action').value.trim()
+        });
+    });
+
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    return {
+        basic: {
+            Timestamp: timestamp,
+            Date: date,
+            RakeNo: rakeNo,
+            TrainNo: trainNo,
+            DataEnteredBy: enteredBy
+        },
+        defects,
+        railMadad,
+        detentions
+    };
+}
+
 // Handle Arrival Report Submission (Syncs to 3 sheets: Arrival Report, Rail Madad, Detentions)
 if (arrivalForm) {
     arrivalForm.addEventListener('submit', async (e) => {
@@ -1948,13 +2045,8 @@ if (arrivalForm) {
             return;
         }
 
-        const date = formatToDDMMYYYY(arrivalDateInput.value);
-        const rakeNo = arrivalRakeSelect.value;
-        let trainNo = arrivalTrainSelect.value;
-        if (trainNo === 'Other') {
-            trainNo = arrivalOtherTrainInput.value.trim();
-        }
-        const enteredBy = arrivalEnteredBy.value.trim();
+        const report = collectArrivalReportData();
+        const { Date: date, RakeNo: rakeNo, TrainNo: trainNo, DataEnteredBy: enteredBy } = report.basic;
 
         if (!date || !rakeNo || !trainNo || !enteredBy) {
             Swal.fire({
@@ -1968,87 +2060,14 @@ if (arrivalForm) {
             return;
         }
 
-        // Collect Section 1: Defects
-        const defectRows = defectsContainer.querySelectorAll('.defect-row');
-        const defects = [];
-        defectRows.forEach(row => {
-            const coach = row.querySelector('.defect-coach-select').value;
-            const cat = row.querySelector('.defect-cat-select') ? row.querySelector('.defect-cat-select').value : '';
-            const desc = row.querySelector('.defect-desc-input').value.trim();
-            if (coach || desc || cat) {
-                defects.push({
-                    CoachNo: coach,
-                    Category: cat,
-                    IssueDescription: desc
-                });
-            }
-        });
-
-        // Collect Section 2: Rail Madad
-        const rmCards = railMadadContainer.querySelectorAll('.entry-card');
-        const railMadad = [];
-        rmCards.forEach(card => {
-            const subSelect = card.querySelector('.rm-sub-category');
-            const customInput = card.querySelector('.rm-sub-category-custom');
-            let subCategoryValue = subSelect ? subSelect.value.trim() : '';
-            if ((subCategoryValue === 'Other' || subCategoryValue === 'Others:') && customInput) {
-                subCategoryValue = customInput.value.trim() || 'Other';
-            }
-
-            railMadad.push({
-                CoachNo: card.querySelector('.rm-coach-select').value,
-                RMReferenceNo: card.querySelector('.rm-ref-input').value.trim(),
-                MainCategory: card.querySelector('.rm-main-category').value,
-                SubCategory: subCategoryValue,
-                ComplaintDescription: card.querySelector('.rm-desc-input').value.trim(),
-                ActionTaken: card.querySelector('.rm-action-input').value.trim()
-            });
-        });
-
-        // Collect Section 3: Detentions
-        const detentionCards = detentionsContainer.querySelectorAll('.entry-card');
-        const detentions = [];
-        detentionCards.forEach(card => {
-            let timeFrom = card.querySelector('.detention-from').value.trim();
-            let timeTo = card.querySelector('.detention-to').value.trim();
-            const pFrom = parseTimeComponents(timeFrom);
-            if (pFrom) timeFrom = pFrom.formatted;
-            const pTo = parseTimeComponents(timeTo);
-            if (pTo) timeTo = pTo.formatted;
-            const totalDetention = card.querySelector('.detention-total').value || calculateDetentionDuration(timeFrom, timeTo);
-            const cat = card.querySelector('.detention-category-select') ? card.querySelector('.detention-category-select').value : '';
-
-            detentions.push({
-                CoachNo: card.querySelector('.detention-coach-select').value,
-                Station: card.querySelector('.detention-station').value.trim(),
-                TimeFrom: timeFrom,
-                TimeTo: timeTo,
-                TotalDetention: totalDetention,
-                Category: cat,
-                IssueDescription: card.querySelector('.detention-desc').value.trim(),
-                ActionTaken: card.querySelector('.detention-action').value.trim()
-            });
-        });
-
-        // Format current timestamp
-        const now = new Date();
-        const pad = n => String(n).padStart(2, '0');
-        const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-
         const payload = {
             password: currentPassword,
             action: "save_arrival_report",
             train: rakeNo,
-            basic: {
-                Timestamp: timestamp,
-                Date: date,
-                RakeNo: rakeNo,
-                TrainNo: trainNo,
-                DataEnteredBy: enteredBy
-            },
-            defects: defects,
-            railMadad: railMadad,
-            detentions: detentions
+            basic: report.basic,
+            defects: report.defects,
+            railMadad: report.railMadad,
+            detentions: report.detentions
         };
 
         const btnText = arrivalSubmitBtn.querySelector('span');
@@ -3504,3 +3523,341 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+
+// ============================================================
+// ARRIVAL REPORT PDF GENERATION, PREVIEW & SHARE
+// ============================================================
+
+const generatedPdfState = {
+    blob: null,
+    file: null,
+    fileName: '',
+    summaryText: ''
+};
+
+function generateArrivalReportPdf() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire({
+            icon: 'error',
+            title: 'PDF Library Not Loaded',
+            text: 'Please check your internet connection and refresh the app.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const report = collectArrivalReportData();
+    const { basic, defects, railMadad, detentions } = report;
+
+    if (!basic.Date || !basic.RakeNo || !basic.TrainNo) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Basic Details',
+            text: 'Please select Date, Rake Number, and Train Number before generating the PDF.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 12;
+
+    // 1. Header Banner
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 24, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13.5);
+    doc.text('VANDE BHARAT ESCORTING - ARRIVAL REPORT', marginX, 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`SBC Coaching Depot  |  Generated: ${basic.Timestamp}`, marginX, 18);
+
+    // 2. Top Basic Details Table
+    doc.autoTable({
+        startY: 28,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        head: [['Date', 'Rake No', 'Train No', 'Data Entered By']],
+        body: [[
+            basic.Date || '-',
+            basic.RakeNo || '-',
+            basic.TrainNo || '-',
+            basic.DataEnteredBy || '-'
+        ]],
+        headStyles: {
+            fillColor: [30, 58, 138],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 9,
+            cellPadding: 3
+        },
+        bodyStyles: {
+            fontSize: 9.5,
+            fontStyle: 'bold',
+            textColor: [15, 23, 42],
+            cellPadding: 3.5
+        }
+    });
+
+    function drawSectionTitle(title) {
+        let y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 50) + 8;
+        if (y > 265) {
+            doc.addPage();
+            y = 16;
+        }
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(title, marginX, y);
+        return y + 2.5;
+    }
+
+    // 3. Section 1: Defects Table
+    const sec1Y = drawSectionTitle(`Section 1: Defects (${defects.length})`);
+    const defectBody = defects.length > 0
+        ? defects.map((d, i) => [
+            String(i + 1),
+            d.CoachNo || '-',
+            d.Category || '-',
+            d.IssueDescription || '-'
+        ])
+        : [[{ content: 'NIL — No Defects Reported', colSpan: 4, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+
+    doc.autoTable({
+        startY: sec1Y,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        head: [['S.No', 'Coach No', 'Defect Category', 'Issue Description']],
+        body: defectBody,
+        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59], cellPadding: 2.5 },
+        columnStyles: {
+            0: { cellWidth: 12, halign: 'center' },
+            1: { cellWidth: 28 },
+            2: { cellWidth: 38 },
+            3: { cellWidth: 'auto' }
+        }
+    });
+
+    // 4. Section 2: Rail Madad Complaints Table
+    const sec2Y = drawSectionTitle(`Section 2: Rail Madad Complaints (${railMadad.length})`);
+    const rmBody = railMadad.length > 0
+        ? railMadad.map((rm, i) => [
+            String(i + 1),
+            rm.CoachNo || '-',
+            rm.RMReferenceNo || '-',
+            [rm.MainCategory, rm.SubCategory].filter(Boolean).join('\n') || '-',
+            rm.ComplaintDescription || '-',
+            rm.ActionTaken || '-'
+        ])
+        : [[{ content: 'NIL — No Rail Madad Complaints Reported', colSpan: 6, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+
+    doc.autoTable({
+        startY: sec2Y,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        head: [['S.No', 'Coach', 'RM Ref', 'Category', 'Complaint Description', 'Action Taken']],
+        body: rmBody,
+        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
+        columnStyles: {
+            0: { cellWidth: 11, halign: 'center' },
+            1: { cellWidth: 22 },
+            2: { cellWidth: 24 },
+            3: { cellWidth: 32 },
+            4: { cellWidth: 'auto' },
+            5: { cellWidth: 42 }
+        }
+    });
+
+    // 5. Section 3: Detentions Table
+    const sec3Y = drawSectionTitle(`Section 3: Detentions (${detentions.length})`);
+    const detBody = detentions.length > 0
+        ? detentions.map((dt, i) => [
+            String(i + 1),
+            dt.CoachNo || '-',
+            dt.Station || '-',
+            `${dt.TimeFrom || '-'} - ${dt.TimeTo || '-'}\n(${dt.TotalDetention || '-'})`,
+            dt.Category || '-',
+            [
+                dt.IssueDescription ? `Reason: ${dt.IssueDescription}` : '',
+                dt.ActionTaken ? `Action: ${dt.ActionTaken}` : ''
+            ].filter(Boolean).join('\n') || '-'
+        ])
+        : [[{ content: 'NIL — No Detentions Reported', colSpan: 6, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+
+    doc.autoTable({
+        startY: sec3Y,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        head: [['S.No', 'Coach', 'Station', 'Time (Total)', 'Category', 'Reason & Action Taken']],
+        body: detBody,
+        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
+        columnStyles: {
+            0: { cellWidth: 11, halign: 'center' },
+            1: { cellWidth: 22 },
+            2: { cellWidth: 24 },
+            3: { cellWidth: 28 },
+            4: { cellWidth: 28 },
+            5: { cellWidth: 'auto' }
+        }
+    });
+
+    // 6. Footer on every page
+    const totalPages = doc.internal.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('VB Escorting App  •  SBC Coaching Depot', marginX, pageHeight - 8);
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - marginX, pageHeight - 8, { align: 'right' });
+    }
+
+    const safeTrain = String(basic.TrainNo || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+    const fileName = `Arrival_Report_${basic.RakeNo}_${safeTrain}_${basic.Date}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    generatedPdfState.blob = pdfBlob;
+    generatedPdfState.file = pdfFile;
+    generatedPdfState.fileName = fileName;
+    generatedPdfState.summaryText =
+        `VB Arrival Report\nDate: ${basic.Date}\nRake: ${basic.RakeNo} | Train: ${basic.TrainNo}\n` +
+        `Defects: ${defects.length} | Rail Madad: ${railMadad.length} | Detentions: ${detentions.length}`;
+
+    openGeneratedPdfPreview(fileName, pdfBlob);
+}
+window.generateArrivalReportPdf = generateArrivalReportPdf;
+
+async function openGeneratedPdfPreview(fileName, pdfBlob) {
+    const overlay = document.getElementById('generatedPdfOverlay');
+    const titleEl = document.getElementById('generatedPdfTitle');
+    const pagesContainer = document.getElementById('generatedPdfPagesContainer');
+    const bodyEl = document.getElementById('generatedPdfBody');
+    if (!overlay || !pagesContainer) return;
+
+    if (titleEl) titleEl.textContent = fileName;
+    pagesContainer.innerHTML = '<div class="manuals-loading"><div class="manuals-spinner"></div><span>Rendering PDF preview...</span></div>';
+    overlay.style.display = 'flex';
+
+    try {
+        if (!window.pdfjsLib) throw new Error('PDF.js unavailable');
+        const arrayBuf = await pdfBlob.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+        pagesContainer.innerHTML = '';
+
+        const availWidth = Math.max(280, Math.min((bodyEl ? bodyEl.clientWidth : window.innerWidth) - 24, 860));
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        for (let p = 1; p <= pdf.numPages; p++) {
+            const page = await pdf.getPage(p);
+            const vp1 = page.getViewport({ scale: 1.0 });
+            const scale = availWidth / vp1.width;
+            const viewport = page.getViewport({ scale });
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pdf-page-wrapper';
+            wrapper.style.width = `${Math.floor(viewport.width)}px`;
+            wrapper.style.height = `${Math.floor(viewport.height)}px`;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.floor(viewport.width * dpr);
+            canvas.height = Math.floor(viewport.height * dpr);
+            wrapper.appendChild(canvas);
+            pagesContainer.appendChild(wrapper);
+
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            await page.render({ canvasContext: ctx, viewport }).promise;
+        }
+        try { pdf.destroy(); } catch (e) {}
+    } catch (err) {
+        pagesContainer.innerHTML = `
+            <div class="manuals-empty">
+                <p>PDF generated successfully: <strong>${escapeHtml(fileName)}</strong></p>
+                <p style="margin-top:0.5rem;">Tap <strong>Share</strong> or <strong>Save</strong> above.</p>
+            </div>
+        `;
+    }
+}
+
+function downloadGeneratedArrivalPdf() {
+    if (!generatedPdfState.blob) return;
+    const url = URL.createObjectURL(generatedPdfState.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = generatedPdfState.fileName || 'Arrival_Report.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+window.downloadGeneratedArrivalPdf = downloadGeneratedArrivalPdf;
+
+async function shareGeneratedArrivalPdf() {
+    if (!generatedPdfState.file) return;
+
+    const shareData = {
+        files: [generatedPdfState.file],
+        title: generatedPdfState.fileName,
+        text: generatedPdfState.summaryText
+    };
+
+    if (navigator.canShare && navigator.canShare({ files: [generatedPdfState.file] })) {
+        try {
+            await navigator.share(shareData);
+            return;
+        } catch (err) {
+            if (err && err.name === 'AbortError') return; // User closed share sheet
+            console.warn('Web Share API failed, falling back:', err);
+        }
+    }
+
+    // Fallback for desktop browsers that do not support sharing PDF files directly
+    downloadGeneratedArrivalPdf();
+    const encodedText = encodeURIComponent(generatedPdfState.summaryText);
+    Swal.fire({
+        icon: 'info',
+        title: 'PDF Downloaded',
+        html: `
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+                Your browser doesn't support attaching PDF files directly to the OS share menu, so <strong>${escapeHtml(generatedPdfState.fileName)}</strong> has been downloaded. You can attach it in:
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <a href="https://wa.me/?text=${encodedText}" target="_blank" rel="noopener"
+                   style="padding: 0.6rem 1rem; background: #25D366; color: #fff; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">
+                   WhatsApp
+                </a>
+                <a href="https://t.me/share/url?url=&text=${encodedText}" target="_blank" rel="noopener"
+                   style="padding: 0.6rem 1rem; background: #0088cc; color: #fff; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">
+                   Telegram
+                </a>
+            </div>
+        `,
+        background: 'var(--surface)',
+        color: 'var(--text-main)',
+        confirmButtonColor: 'var(--primary)',
+        confirmButtonText: 'OK'
+    });
+}
+window.shareGeneratedArrivalPdf = shareGeneratedArrivalPdf;
+
+function closeGeneratedPdfPreview() {
+    const overlay = document.getElementById('generatedPdfOverlay');
+    const pagesContainer = document.getElementById('generatedPdfPagesContainer');
+    if (pagesContainer) pagesContainer.innerHTML = '';
+    if (overlay) overlay.style.display = 'none';
+}
+window.closeGeneratedPdfPreview = closeGeneratedPdfPreview;
