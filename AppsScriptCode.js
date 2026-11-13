@@ -250,6 +250,7 @@ function doGet(e) {
     let subCatCol = headers.findIndex(h => h.includes("sub"));
     let defectCatCol = headers.findIndex(h => h.includes("defect"));
     let detentionCatCol = headers.findIndex(h => h.includes("detention"));
+    let staffTokenCol = headers.findIndex(h => h.includes("token") || h.includes("staff"));
 
     if (trainCol === -1) trainCol = 0;
     if (rakeCol === -1) rakeCol = 1;
@@ -264,6 +265,7 @@ function doGet(e) {
     const subCategories = [];
     const defectCategories = [];
     const detentionCategories = [];
+    const staffTokens = [];
 
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
@@ -291,7 +293,20 @@ function doGet(e) {
         const val = String(row[detentionCatCol] || "").trim();
         if (val && !detentionCategories.includes(val)) detentionCategories.push(val);
       }
+      if (staffTokenCol !== -1 && staffTokenCol < row.length) {
+        const val = String(row[staffTokenCol] || "").trim();
+        if (val && !staffTokens.includes(val)) staffTokens.push(val);
+      }
     }
+
+    const defaultStaffTokens = [
+      "921", "305", "935", "958", "733", "464", "792", "384", "705", "924",
+      "269", "758", "858", "591", "638", "485", "412", "981", "973", "534",
+      "992", "334", "261", "878", "429", "446", "295", "990", "941", "490",
+      "796", "909", "294", "755", "839", "314", "274", "980", "469", "330",
+      "744", "2005", "407", "222", "361", "272"
+    ];
+    const finalStaffTokens = staffTokens.length > 0 ? staffTokens : defaultStaffTokens;
 
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
@@ -300,7 +315,8 @@ function doGet(e) {
       mainCategories: mainCategories,
       subCategories: subCategories,
       defectCategories: defectCategories,
-      detentionCategories: detentionCategories
+      detentionCategories: detentionCategories,
+      staffTokens: finalStaffTokens
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -766,10 +782,13 @@ function doPost(e) {
           dropSheet.getRange(1, maintDefectCol + 1).setValue("Maintenance defect category");
         }
 
+        let staffColIdx = headersLower.findIndex(h => h.includes("token") || h.includes("staff"));
         const maxRows = Math.max(dropSheet.getMaxRows(), 40);
         const lastCol = Math.max(dropSheet.getLastColumn(), maintDefectCol + mainCatNames.length + 3);
-        if (lastCol >= maintDefectCol + 1) {
-          dropSheet.getRange(2, maintDefectCol + 1, maxRows - 1, lastCol - maintDefectCol).clearContent();
+        for (let c = maintDefectCol; c < lastCol; c++) {
+          if (c !== staffColIdx) {
+            dropSheet.getRange(2, c + 1, maxRows - 1, 1).clearContent();
+          }
         }
 
         // Set Main Category Column (Col G)
@@ -847,18 +866,26 @@ function doPost(e) {
       let subCatCol = lowerHeaders.findIndex(h => h.includes("sub"));
       let defectCatCol = lowerHeaders.findIndex(h => h.includes("defect"));
       let detentionCatCol = lowerHeaders.findIndex(h => h.includes("detention"));
+      let staffTokenCol = lowerHeaders.findIndex(h => h.includes("token") || h.includes("staff"));
 
       if (mainCatCol === -1) mainCatCol = 2;
       if (subCatCol === -1) subCatCol = 3;
       if (defectCatCol === -1) defectCatCol = 4;
       if (detentionCatCol === -1) detentionCatCol = 5;
+      if (staffTokenCol === -1) {
+        staffTokenCol = Math.max(headers.length, 12);
+        sheet.getRange(1, staffTokenCol + 1).setValue("Staff Token No");
+        headers[staffTokenCol] = "Staff Token No";
+        lowerHeaders[staffTokenCol] = "staff token no";
+      }
 
       // Ensure headers exist at row 1 for these category columns
       const headerDefs = [
         { col: mainCatCol, name: "RM complaint main category" },
         { col: subCatCol, name: "Sub category" },
         { col: defectCatCol, name: "defect category" },
-        { col: detentionCatCol, name: "Detention category" }
+        { col: detentionCatCol, name: "Detention category" },
+        { col: staffTokenCol, name: "Staff Token No" }
       ];
       headerDefs.forEach(def => {
         if (!headers[def.col] || headers[def.col].trim() === "") {
@@ -871,6 +898,7 @@ function doPost(e) {
       const subCats = Array.isArray(request.subCategories) ? request.subCategories.map(s => String(s || "").trim()).filter(Boolean) : [];
       const defectCats = Array.isArray(request.defectCategories) ? request.defectCategories.map(s => String(s || "").trim()).filter(Boolean) : [];
       const detentionCats = Array.isArray(request.detentionCategories) ? request.detentionCategories.map(s => String(s || "").trim()).filter(Boolean) : [];
+      const staffTokens = Array.isArray(request.staffTokens) ? request.staffTokens.map(s => String(s || "").trim()).filter(Boolean) : null;
 
       const lastRow = sheet.getLastRow();
 
@@ -888,6 +916,9 @@ function doPost(e) {
       updateColumnData(subCatCol, subCats);
       updateColumnData(defectCatCol, defectCats);
       updateColumnData(detentionCatCol, detentionCats);
+      if (staffTokens !== null) {
+        updateColumnData(staffTokenCol, staffTokens);
+      }
 
       SpreadsheetApp.flush();
 
@@ -897,7 +928,8 @@ function doPost(e) {
         mainCategories: mainCats,
         subCategories: subCats,
         defectCategories: defectCats,
-        detentionCategories: detentionCats
+        detentionCategories: detentionCats,
+        staffTokens: staffTokens !== null ? staffTokens : []
       })).setMimeType(ContentService.MimeType.JSON);
     }
 

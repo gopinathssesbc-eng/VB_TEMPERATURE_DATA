@@ -31,14 +31,22 @@ const STATIONS = {
     "IC2006": ["KCG", "YPR"],
     "IC2015": ["SBC", "ERS"]
 };
+const DEFAULT_STAFF_TOKENS = [
+    "921", "305", "935", "958", "733", "464", "792", "384", "705", "924",
+    "269", "758", "858", "591", "638", "485", "412", "981", "973", "534",
+    "992", "334", "261", "878", "429", "446", "295", "990", "941", "490",
+    "796", "909", "294", "755", "839", "314", "274", "980", "469", "330",
+    "744", "2005", "407", "222", "361", "272"
+];
+
 const TOKENS = {
-    "IC2021": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
-    "IC2058": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
+    "IC2021": DEFAULT_STAFF_TOKENS,
+    "IC2058": DEFAULT_STAFF_TOKENS,
     "IC2059": ["T59", "K69", "K65", "T26", "T30", "T40", "T38", "T87", "T140", "T123", "T118", "T131", "K356", "T171", "T166", "K439", "K447", "K398"],
-    "IC2029": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
-    "IC2008": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"],
+    "IC2029": DEFAULT_STAFF_TOKENS,
+    "IC2008": DEFAULT_STAFF_TOKENS,
     "IC2006": ["KCG staff"],
-    "IC2015": ["261", "269", "270", "274", "294", "295", "305", "314", "334", "384", "412", "429", "446", "464", "485", "486", "490", "534", "591", "638", "705", "733", "755", "758", "792", "796", "807", "837", "838", "839", "858", "878", "909", "921", "924", "935", "941", "958", "973", "980", "981", "990", "992"]
+    "IC2015": DEFAULT_STAFF_TOKENS
 };
 const COLORS = [
     '#ef4444', '#f97316', '#f59e0b', '#84cc16',
@@ -350,17 +358,18 @@ const DEFAULT_DROPDOWN_DATA = {
         "Air Brake",
         "Undergear",
         "Others"
-    ]
+    ],
+    staffTokens: DEFAULT_STAFF_TOKENS
 };
 
 // Clear legacy cached dropdown keys to purge stale train numbers
 try {
-    ['app_dropdown_data', 'app_dropdown_data_v2', 'app_dropdown_data_v3', 'app_dropdown_data_v4', 'app_dropdown_data_v5'].forEach(k => localStorage.removeItem(k));
+    ['app_dropdown_data', 'app_dropdown_data_v2', 'app_dropdown_data_v3', 'app_dropdown_data_v4', 'app_dropdown_data_v5', 'app_dropdown_data_v6'].forEach(k => localStorage.removeItem(k));
 } catch (e) {
     console.warn('Storage cleanup warning:', e);
 }
 
-const DROPDOWN_CACHE_KEY = 'app_dropdown_data_v6';
+const DROPDOWN_CACHE_KEY = 'app_dropdown_data_v7';
 
 let cachedDropdownData = (() => {
     try {
@@ -369,6 +378,9 @@ let cachedDropdownData = (() => {
             const parsed = JSON.parse(saved);
             if (parsed && Array.isArray(parsed.trainNos) && Array.isArray(parsed.rakeNos) &&
                 Array.isArray(parsed.mainCategories) && Array.isArray(parsed.subCategories)) {
+                if (!Array.isArray(parsed.staffTokens) || parsed.staffTokens.length === 0) {
+                    parsed.staffTokens = [...DEFAULT_STAFF_TOKENS];
+                }
                 return parsed;
             }
         }
@@ -597,6 +609,10 @@ async function fetchDropdownData() {
                 cachedDropdownData.detentionCategories = result.detentionCategories;
                 updated = true;
             }
+            if (Array.isArray(result.staffTokens) && result.staffTokens.length > 0) {
+                cachedDropdownData.staffTokens = result.staffTokens;
+                updated = true;
+            }
 
             if (updated) {
                 try {
@@ -609,6 +625,9 @@ async function fetchDropdownData() {
                 refreshDefectDropdowns();
                 refreshDetentionDropdowns();
                 refreshAllCoachDropdowns();
+                if (typeof populateTechnicianSelect === 'function') {
+                    populateTechnicianSelect(trainSelect ? trainSelect.value : '');
+                }
             }
         }
     } catch (err) {
@@ -1263,11 +1282,51 @@ function renderCharts(allData, train) {
 }
 
 
+function populateTechnicianSelect(train) {
+    if (!technicianSelect) return;
+    const currentVal = technicianSelect.value;
+    technicianSelect.innerHTML = '<option value="">-- Select Token --</option>';
+
+    if (!train) {
+        technicianSelect.disabled = true;
+        return;
+    }
+
+    let tokenList = [];
+    if (train === "IC2059" || train === "IC2006") {
+        tokenList = TOKENS[train] || [];
+    } else {
+        tokenList = (cachedDropdownData && Array.isArray(cachedDropdownData.staffTokens) && cachedDropdownData.staffTokens.length > 0)
+            ? cachedDropdownData.staffTokens
+            : (TOKENS[train] || DEFAULT_STAFF_TOKENS);
+    }
+
+    if (tokenList && tokenList.length > 0) {
+        // Sort tokens numerically if numeric, otherwise alphanumeric
+        const sortedList = [...tokenList].sort((a, b) => {
+            const numA = parseInt(a, 10);
+            const numB = parseInt(b, 10);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return String(a).localeCompare(String(b));
+        });
+
+        sortedList.forEach(token => {
+            const option = document.createElement('option');
+            option.value = token;
+            option.textContent = token;
+            if (token === currentVal) option.selected = true;
+            technicianSelect.appendChild(option);
+        });
+        technicianSelect.disabled = false;
+    } else {
+        technicianSelect.disabled = true;
+    }
+}
+
 // Set up the dynamic station and token dropdown based on train selection
 trainSelect.addEventListener('change', (e) => {
     const train = e.target.value;
     stationSelect.innerHTML = '<option value="">-- Select Station --</option>';
-    technicianSelect.innerHTML = '<option value="">-- Select Token --</option>';
 
     if (train && STATIONS[train]) {
         STATIONS[train].forEach(station => {
@@ -1278,22 +1337,11 @@ trainSelect.addEventListener('change', (e) => {
         });
         stationSelect.disabled = false;
 
-        if (TOKENS[train]) {
-            TOKENS[train].forEach(token => {
-                const option = document.createElement('option');
-                option.value = token;
-                option.textContent = token;
-                technicianSelect.appendChild(option);
-            });
-            technicianSelect.disabled = false;
-        } else {
-            technicianSelect.disabled = true;
-        }
-
+        populateTechnicianSelect(train);
         buildCoachInputs(train); // Rebuild coaches based on selected train
     } else {
         stationSelect.disabled = true;
-        technicianSelect.disabled = true;
+        populateTechnicianSelect('');
         coachesContainer.innerHTML = '';
     }
 });
@@ -3377,6 +3425,7 @@ let settingsEditState = {
     subCategories: [],
     defectCategories: [],
     detentionCategories: [],
+    staffTokens: [],
     maintenanceCategories: {},
     selectedMaintMainCat: 'Interior',
     hasUnsavedChanges: false
@@ -3412,6 +3461,12 @@ const CATEGORY_CONFIG = {
         subtitle: 'Values stored in "Maintenance Categories" sheet',
         placeholder: 'e.g. Passenger Seat, AC Blower, Brake Disc...',
         cacheKey: 'maintenanceCategories'
+    },
+    staffTokens: {
+        title: 'Staff Token Numbers',
+        subtitle: 'Values stored in "drop down data" sheet (Staff Token No)',
+        placeholder: 'e.g. 921, 305, 469...',
+        cacheKey: 'staffTokens'
     }
 };
 
@@ -3478,6 +3533,7 @@ function initSettingsState() {
     settingsEditState.subCategories = [...(cachedDropdownData.subCategories || DEFAULT_DROPDOWN_DATA.subCategories)];
     settingsEditState.defectCategories = [...(cachedDropdownData.defectCategories || DEFAULT_DROPDOWN_DATA.defectCategories)];
     settingsEditState.detentionCategories = [...(cachedDropdownData.detentionCategories || DEFAULT_DROPDOWN_DATA.detentionCategories)];
+    settingsEditState.staffTokens = [...(cachedDropdownData.staffTokens || DEFAULT_DROPDOWN_DATA.staffTokens || DEFAULT_STAFF_TOKENS)];
     settingsEditState.maintenanceCategories = JSON.parse(JSON.stringify(cachedMaintenanceCategories || DEFAULT_MAINTENANCE_CATEGORIES));
     const mainKeys = Object.keys(settingsEditState.maintenanceCategories);
     if (!settingsEditState.selectedMaintMainCat || !settingsEditState.maintenanceCategories[settingsEditState.selectedMaintMainCat]) {
@@ -3846,7 +3902,8 @@ async function saveCategoriesToSheet() {
                 mainCategories: settingsEditState.mainCategories,
                 subCategories: settingsEditState.subCategories,
                 defectCategories: settingsEditState.defectCategories,
-                detentionCategories: settingsEditState.detentionCategories
+                detentionCategories: settingsEditState.detentionCategories,
+                staffTokens: settingsEditState.staffTokens
             };
 
             const response = await fetch(targetUrl, {
@@ -3864,6 +3921,9 @@ async function saveCategoriesToSheet() {
                 cachedDropdownData.subCategories = [...settingsEditState.subCategories];
                 cachedDropdownData.defectCategories = [...settingsEditState.defectCategories];
                 cachedDropdownData.detentionCategories = [...settingsEditState.detentionCategories];
+                if (Array.isArray(settingsEditState.staffTokens)) {
+                    cachedDropdownData.staffTokens = [...settingsEditState.staffTokens];
+                }
 
                 try {
                     localStorage.setItem(DROPDOWN_CACHE_KEY, JSON.stringify(cachedDropdownData));
@@ -3875,6 +3935,9 @@ async function saveCategoriesToSheet() {
                 refreshRailMadadDropdowns();
                 refreshDefectDropdowns();
                 refreshDetentionDropdowns();
+                if (typeof populateTechnicianSelect === 'function') {
+                    populateTechnicianSelect(trainSelect ? trainSelect.value : '');
+                }
 
                 settingsEditState.hasUnsavedChanges = false;
                 renderSettingsView();
