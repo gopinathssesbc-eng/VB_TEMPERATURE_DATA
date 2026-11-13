@@ -2571,33 +2571,34 @@ let loadedPendingRemarks = [];
 function handleMaintStatusChange(selectEl) {
     const card = selectEl.closest('.maint-entry-card');
     if (!card) return;
-    const dateInput = card.querySelector('.maint-attended-date');
-    const badge = card.querySelector('.maint-attended-badge');
+    const statusChip = card.querySelector('.maint-status-chip');
+    const strip = card.querySelector('.maint-attended-strip');
+    const dateText = card.querySelector('.maint-attended-date-text');
+    const dateHidden = card.querySelector('.maint-attended-date');
     const basicDateInput = document.getElementById('maintDateInput');
     const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
 
     if (selectEl.value === 'Pending') {
         card.classList.add('is-pending');
-        if (dateInput) {
-            dateInput.value = '';
-            dateInput.style.color = 'var(--text-muted)';
-            dateInput.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+        selectEl.classList.remove('is-attended');
+        selectEl.classList.add('is-pending');
+        if (statusChip) {
+            statusChip.textContent = '⚠️ PENDING';
+            statusChip.className = 'maint-status-chip is-pending';
         }
-        if (badge) {
-            badge.textContent = '⚠️ Pending (Empty until attended)';
-            badge.style.color = '#fbbf24';
-        }
+        if (strip) strip.classList.add('hidden');
+        if (dateHidden) dateHidden.value = '';
     } else {
         card.classList.remove('is-pending');
-        if (dateInput) {
-            dateInput.value = basicDate;
-            dateInput.style.color = '#34d399';
-            dateInput.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+        selectEl.classList.remove('is-pending');
+        selectEl.classList.add('is-attended');
+        if (statusChip) {
+            statusChip.textContent = '✓ ATTENDED';
+            statusChip.className = 'maint-status-chip is-attended';
         }
-        if (badge) {
-            badge.textContent = '✓ Attended on this date';
-            badge.style.color = '#34d399';
-        }
+        if (strip) strip.classList.remove('hidden');
+        if (dateText) dateText.textContent = basicDate;
+        if (dateHidden) dateHidden.value = basicDate;
     }
 }
 window.handleMaintStatusChange = handleMaintStatusChange;
@@ -2646,70 +2647,67 @@ function renderPendingRemarks(pendingList = []) {
         });
 
         card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(245, 158, 11, 0.25); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="maint-card-header">
+                <div class="maint-header-left">
                     <span class="pending-meta-tag ${isAttended ? 'attended' : ''}" id="pendingBadge_${idx}">
                         ${isAttended ? '✓ ATTENDED (Resolved Today)' : '⚠️ PENDING DEFECT'}
                     </span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">
-                        Logged on: <strong style="color: #fbbf24;">${escapeHtml(item.OriginalDate)}</strong> ${item.TrainNo ? `(Train: ${escapeHtml(item.TrainNo)})` : ''}
+                    <span style="font-size: 0.76rem; color: var(--text-muted);">
+                        Logged: <strong style="color: #fbbf24;">${escapeHtml(item.OriginalDate)}</strong> ${item.TrainNo ? `(${escapeHtml(item.TrainNo)})` : ''}
                     </span>
                 </div>
-                <span id="pendingHint_${idx}" style="font-size: 0.78rem; color: ${isAttended ? '#34d399' : '#38bdf8'}; font-style: italic;">
-                    ${isAttended ? '✓ Marked Attended (shifts to Section 1 upon clicking Save)' : 'Select Attended below to resolve on this date'}
+                <span id="pendingHint_${idx}" style="font-size: 0.74rem; color: ${isAttended ? '#34d399' : '#38bdf8'}; font-style: italic;">
+                    ${isAttended ? '✓ Shifts to Section 1 upon Save' : 'Select Attended below to resolve today'}
                 </span>
             </div>
 
-            <div class="form-row-2">
-                <div class="form-group" style="margin-bottom: 0.75rem;">
+            <div class="maint-form-grid">
+                <div class="maint-field-group">
                     <label>Coach Number</label>
                     <select class="pending-coach-select maint-coach-select" required>
                         ${buildMaintCoachOptions(item.CoachNo)}
                     </select>
                 </div>
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>Defect Main Category</label>
-                    <select class="pending-main-cat maint-main-cat" required>
-                        ${mainCatOptionsHtml}
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-row-2">
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>Defect Sub Category</label>
-                    <select class="pending-sub-cat maint-sub-cat" required>
-                        <!-- Populated dynamically -->
-                    </select>
-                    <input type="text" class="pending-sub-cat-custom maint-sub-cat-custom" placeholder="Specify sub-category..." style="display: none; margin-top: 0.5rem;" maxlength="100">
-                </div>
-
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label style="font-weight: 700; color: #fbbf24;">Attention Status</label>
-                    <select class="pending-status-select" onchange="handlePendingStatusToggle(${idx}, this)" style="background: rgba(15, 23, 42, 0.85); font-weight: 600;">
+                <div class="maint-field-group">
+                    <label style="color: #fbbf24;">Attention Status</label>
+                    <select class="pending-status-select maint-status-select ${isAttended ? 'is-attended' : 'is-pending'}" onchange="handlePendingStatusToggle(${idx}, this)">
                         <option value="Pending" ${!isAttended ? 'selected' : ''}>Pending (Still Unresolved)</option>
                         <option value="Attended" ${isAttended ? 'selected' : ''}>Attended (Resolved Today)</option>
                     </select>
                 </div>
             </div>
 
-            <div class="form-group" style="margin-bottom: 0.75rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin: 0; font-size: 0.85rem; font-weight: 600;">Attended Date</label>
-                    <span id="pendingAttendedBadge_${idx}" style="font-size: 0.72rem; font-weight: 600; color: ${isAttended ? '#34d399' : '#fbbf24'};">
-                        ${isAttended ? ('✓ Resolving on ' + escapeHtml(basicDate)) : '⚠️ Pending (Empty until attended)'}
-                    </span>
+            <div class="maint-form-grid">
+                <div class="maint-field-group">
+                    <label>Main Category</label>
+                    <select class="pending-main-cat maint-main-cat" required>
+                        ${mainCatOptionsHtml}
+                    </select>
                 </div>
-                <input type="text" class="pending-attended-date" id="pendingAttendedDate_${idx}" value="${isAttended ? escapeHtml(basicDate) : ''}" placeholder="— (Empty while pending)" readonly style="background: rgba(15, 23, 42, 0.55); font-weight: 600; color: ${isAttended ? '#34d399' : 'var(--text-muted)'}; border-color: ${isAttended ? 'rgba(16, 185, 129, 0.35)' : 'rgba(148, 163, 184, 0.2)'};">
+                <div class="maint-field-group">
+                    <label>Sub Category</label>
+                    <select class="pending-sub-cat maint-sub-cat" required>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
             </div>
 
-            <div class="form-group" style="margin-bottom: 0.75rem;">
+            <input type="text" class="pending-sub-cat-custom maint-sub-cat-custom" placeholder="Specify other sub-category..." style="display: none; margin-top: -0.2rem; margin-bottom: 0.45rem; padding: 0.45rem 0.6rem; font-size: 0.85rem;" maxlength="100">
+
+            <div class="maint-attended-strip ${isAttended ? '' : 'hidden'}" id="pendingAttendedStrip_${idx}">
+                <span style="font-weight: 700;">Attended Date:</span>
+                <span id="pendingAttendedDateText_${idx}" style="font-weight: 600;">${isAttended ? escapeHtml(basicDate) : ''}</span>
+                <span style="opacity: 0.8; font-size: 0.7rem;">(Resolving on today's date)</span>
+                <input type="hidden" class="pending-attended-date" id="pendingAttendedDate_${idx}" value="${isAttended ? escapeHtml(basicDate) : ''}">
+            </div>
+
+            <div class="maint-field-group">
                 <label>Defect Description</label>
                 <textarea class="pending-desc-text" rows="2" placeholder="Describe defect details..." required>${escapeHtml(item.DefectDescription || '')}</textarea>
             </div>
 
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Attention Given</label>
+            <div class="maint-field-group" style="margin-bottom: 0;">
+                <label>Attention Given / Action Taken Today</label>
                 <textarea class="pending-attention-text" rows="2" placeholder="Action taken / rectification details today...">${escapeHtml(item.AttentionGiven || '')}</textarea>
             </div>
         `;
@@ -2771,46 +2769,38 @@ function handlePendingStatusToggle(idx, selectEl) {
     const card = document.getElementById(`pendingCard_${idx}`);
     const badge = document.getElementById(`pendingBadge_${idx}`);
     const hint = document.getElementById(`pendingHint_${idx}`);
-    const attendedInput = document.getElementById(`pendingAttendedDate_${idx}`);
-    const attendedBadge = document.getElementById(`pendingAttendedBadge_${idx}`);
+    const strip = document.getElementById(`pendingAttendedStrip_${idx}`);
+    const dateText = document.getElementById(`pendingAttendedDateText_${idx}`);
+    const dateHidden = document.getElementById(`pendingAttendedDate_${idx}`);
     const basicDateInput = document.getElementById('maintDateInput');
     const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
     if (!card || !badge) return;
 
     if (selectEl.value === 'Attended') {
         card.classList.add('status-attended');
+        selectEl.classList.remove('is-pending');
+        selectEl.classList.add('is-attended');
         badge.textContent = '✓ ATTENDED (Resolved Today)';
         badge.className = 'pending-meta-tag attended';
         if (hint) {
             hint.textContent = '✓ Marked Attended (shifts to Section 1 upon clicking Save)';
             hint.style.color = '#34d399';
         }
-        if (attendedInput) {
-            attendedInput.value = basicDate;
-            attendedInput.style.color = '#34d399';
-            attendedInput.style.borderColor = 'rgba(16, 185, 129, 0.35)';
-        }
-        if (attendedBadge) {
-            attendedBadge.textContent = '✓ Resolving on ' + basicDate;
-            attendedBadge.style.color = '#34d399';
-        }
+        if (strip) strip.classList.remove('hidden');
+        if (dateText) dateText.textContent = basicDate;
+        if (dateHidden) dateHidden.value = basicDate;
     } else {
         card.classList.remove('status-attended');
+        selectEl.classList.remove('is-attended');
+        selectEl.classList.add('is-pending');
         badge.textContent = '⚠️ PENDING DEFECT';
         badge.className = 'pending-meta-tag';
         if (hint) {
             hint.textContent = 'Select Attended below to resolve on this date';
             hint.style.color = '#38bdf8';
         }
-        if (attendedInput) {
-            attendedInput.value = '';
-            attendedInput.style.color = 'var(--text-muted)';
-            attendedInput.style.borderColor = 'rgba(148, 163, 184, 0.2)';
-        }
-        if (attendedBadge) {
-            attendedBadge.textContent = '⚠️ Pending (Empty until attended)';
-            attendedBadge.style.color = '#fbbf24';
-        }
+        if (strip) strip.classList.add('hidden');
+        if (dateHidden) dateHidden.value = '';
     }
 }
 window.handlePendingStatusToggle = handlePendingStatusToggle;
@@ -2877,64 +2867,64 @@ function addMaintRemarkCard(data = {}) {
     });
 
     card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 0.5rem;">
-            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem;">
-                <span class="maint-card-index" style="font-weight: 700; font-size: 0.92rem; color: #34d399;">Remark</span>
+        <div class="maint-card-header">
+            <div class="maint-header-left">
+                <span class="maint-card-index">Remark</span>
+                <span class="maint-status-chip ${isPending ? 'is-pending' : 'is-attended'}">
+                    ${isPending ? '⚠️ PENDING' : '✓ ATTENDED'}
+                </span>
                 ${origTag}
             </div>
-            <button type="button" class="btn btn-danger btn-sm remove-maint-btn" style="padding: 0.25rem 0.65rem; font-size: 0.78rem; width: auto !important; margin: 0; min-width: 70px; flex: 0 0 auto;">✕ Remove</button>
+            <button type="button" class="btn btn-danger btn-sm remove-maint-btn" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; width: auto !important; margin: 0; min-width: 65px; flex: 0 0 auto;">✕ Remove</button>
         </div>
 
-        <div class="form-row-2">
-            <div class="form-group" style="margin-bottom: 0.75rem;">
+        <div class="maint-form-grid">
+            <div class="maint-field-group">
                 <label>Coach Number</label>
                 <select class="maint-coach-select" required>
                     ${buildMaintCoachOptions(selectedCoach)}
                 </select>
             </div>
-            <div class="form-group" style="margin-bottom: 0.75rem;">
-                <label>Defect Main Category</label>
+            <div class="maint-field-group">
+                <label>Attention Status</label>
+                <select class="maint-status-select ${isPending ? 'is-pending' : 'is-attended'}" required onchange="handleMaintStatusChange(this)">
+                    <option value="Attended" ${!isPending ? 'selected' : ''}>Attended (Resolved)</option>
+                    <option value="Pending" ${isPending ? 'selected' : ''}>Pending (Unresolved)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="maint-form-grid">
+            <div class="maint-field-group">
+                <label>Main Category</label>
                 <select class="maint-main-cat" required>
                     ${mainCatOptionsHtml}
                 </select>
             </div>
-        </div>
-
-        <div class="form-row-2">
-            <div class="form-group" style="margin-bottom: 0.75rem;">
-                <label>Defect Sub Category</label>
+            <div class="maint-field-group">
+                <label>Sub Category</label>
                 <select class="maint-sub-cat" required>
                     <!-- Dynamically populated -->
                 </select>
-                <input type="text" class="maint-sub-cat-custom" placeholder="Specify sub-category..." style="display: none; margin-top: 0.5rem;" maxlength="100">
-            </div>
-
-            <div class="form-group" style="margin-bottom: 0.75rem;">
-                <label>Attention Status</label>
-                <select class="maint-status-select" required onchange="handleMaintStatusChange(this)">
-                    <option value="Attended" ${currentStatus === 'Attended' ? 'selected' : ''}>Attended (Resolved)</option>
-                    <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending (Unresolved)</option>
-                </select>
             </div>
         </div>
 
-        <div class="form-group" style="margin-bottom: 0.75rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                <label style="margin: 0; font-size: 0.85rem; font-weight: 600;">Attended Date</label>
-                <span class="maint-attended-badge" style="font-size: 0.72rem; font-weight: 600; color: ${isPending ? '#fbbf24' : '#34d399'};">
-                    ${isPending ? '⚠️ Pending (Empty until attended)' : '✓ Attended on this date'}
-                </span>
-            </div>
-            <input type="text" class="maint-attended-date" value="${escapeHtml(attendedDateVal)}" placeholder="— (Empty while pending)" readonly style="background: rgba(15, 23, 42, 0.55); font-weight: 600; color: ${isPending ? 'var(--text-muted)' : '#34d399'}; border-color: ${isPending ? 'rgba(148, 163, 184, 0.2)' : 'rgba(16, 185, 129, 0.35)'};">
+        <input type="text" class="maint-sub-cat-custom" placeholder="Specify other sub-category..." style="display: none; margin-top: -0.2rem; margin-bottom: 0.45rem; padding: 0.45rem 0.6rem; font-size: 0.85rem;" maxlength="100">
+
+        <div class="maint-attended-strip ${isPending ? 'hidden' : ''}">
+            <span style="font-weight: 700;">Attended Date:</span>
+            <span class="maint-attended-date-text" style="font-weight: 600;">${escapeHtml(attendedDateVal)}</span>
+            <span style="opacity: 0.8; font-size: 0.7rem;">(Same as defect date)</span>
+            <input type="hidden" class="maint-attended-date" value="${escapeHtml(attendedDateVal)}">
         </div>
 
-        <div class="form-group" style="margin-bottom: 0.75rem;">
+        <div class="maint-field-group">
             <label>Defect Description</label>
             <textarea class="maint-desc" rows="2" placeholder="Describe defect details..." required>${escapeHtml(desc)}</textarea>
         </div>
 
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Attention Given</label>
+        <div class="maint-field-group" style="margin-bottom: 0;">
+            <label>Attention Given / Action Taken</label>
             <textarea class="maint-action" rows="2" placeholder="Action taken / rectification details...">${escapeHtml(action)}</textarea>
         </div>
     `;
@@ -2997,95 +2987,6 @@ function addMaintRemarkCard(data = {}) {
     updateMaintCount();
 }
 window.addMaintRemarkCard = addMaintRemarkCard;
-
-async function loadMaintenanceRemarks() {
-    if (!currentPassword) {
-        handleSessionExpired();
-        return;
-    }
-
-    const date = document.getElementById('maintDateInput').value.trim();
-    const rake = document.getElementById('maintRakeSelect').value.trim();
-    const train = getMaintTrainValue();
-
-    if (!date || !rake) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Missing Date or Rake',
-            text: 'Please select both Date and Rake Number before loading.',
-            background: 'var(--surface)',
-            color: 'var(--text-main)',
-            confirmButtonColor: 'var(--primary)'
-        });
-        return;
-    }
-
-    const btn = document.getElementById('maintLoadBtn');
-    const btnText = btn.querySelector('span');
-    const spinner = btn.querySelector('.spinner');
-    const statusEl = document.getElementById('maintLoadStatus');
-
-    btn.disabled = true;
-    btnText.textContent = 'Loading...';
-    spinner.classList.remove('hidden');
-    statusEl.textContent = 'Checking for existing and pending maintenance records...';
-    statusEl.style.color = '#38bdf8';
-
-    try {
-        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
-        const url = `${targetUrl}?action=get_maintenance_remarks&password=${encodeURIComponent(currentPassword)}&date=${encodeURIComponent(date)}&rake=${encodeURIComponent(rake)}&train=${encodeURIComponent(train)}`;
-        const response = await fetch(url);
-        const result = await response.json();
-
-        if (result.status === 'unauthorized') {
-            handleSessionExpired();
-            return;
-        }
-
-        const container = document.getElementById('maintEntriesContainer');
-        container.innerHTML = '';
-
-        // Render Section 2: Pending defects (from any earlier date)
-        renderPendingRemarks(result.pendingRemarks || []);
-
-        // Render Section 1: Non-pending remarks saved for this date
-        if (result.status === 'success' && result.found) {
-            if (result.basic) {
-                if (result.basic.SseName) document.getElementById('maintSseInput').value = result.basic.SseName;
-                if (result.basic.TrainNo) {
-                    setMaintTrainValue(result.basic.TrainNo);
-                }
-            }
-
-            if (result.remarks && result.remarks.length > 0) {
-                result.remarks.forEach(r => addMaintRemarkCard(r));
-                statusEl.textContent = `Loaded ${result.remarks.length} remark(s) for ${rake} on ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
-                statusEl.style.color = '#10b981';
-            } else {
-                updateMaintCount();
-                statusEl.textContent = `No defects reported for ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
-                statusEl.style.color = '#10b981';
-            }
-        } else {
-            updateMaintCount();
-            const pendingCount = (result.pendingRemarks || []).length;
-            statusEl.textContent = pendingCount > 0 
-                ? `Found ${pendingCount} pending defect(s) from earlier dates for ${rake}. Click "+ Add New Defect" to add a new remark.`
-                : `No existing records for ${rake} on ${date}. Click "+ Add New Defect" to add a remark.`;
-            statusEl.style.color = 'var(--text-muted)';
-        }
-
-        document.getElementById('maintEntriesWrapper').style.display = 'block';
-
-    } catch (err) {
-        statusEl.textContent = 'Error loading from Google Sheets: ' + (err.message || 'Network error');
-        statusEl.style.color = '#f87171';
-    } finally {
-        btn.disabled = false;
-        btnText.textContent = '🔍 Load Remarks';
-        spinner.classList.add('hidden');
-    }
-}
 window.loadMaintenanceRemarks = loadMaintenanceRemarks;
 
 async function saveMaintenanceRemarks() {

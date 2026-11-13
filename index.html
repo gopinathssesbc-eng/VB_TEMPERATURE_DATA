@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=3.0">
+    <link rel="stylesheet" href="style.css?v=3.1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -561,13 +561,13 @@
                 <section class="metadata-section">
                     <h2>Basic Details</h2>
 
-                    <div class="form-row-2">
-                        <div class="form-group">
+                    <div class="maint-form-grid">
+                        <div class="form-group" style="margin-bottom: 0;">
                             <label for="maintDateInput">Date</label>
                             <input type="text" id="maintDateInput" name="Date" placeholder="DD-MM-YYYY" required>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" style="margin-bottom: 0;">
                             <label for="maintRakeSelect">Rake No</label>
                             <select id="maintRakeSelect" name="Rake No" required onchange="handleMaintRakeChange()">
                                 <option value="">-- Select Rake --</option>
@@ -582,17 +582,17 @@
                         </div>
                     </div>
 
-                    <div class="form-row-2">
-                        <div class="form-group">
+                    <div class="maint-form-grid" style="margin-top: 0.5rem; margin-bottom: 0.75rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
                             <label for="maintTrainInput">Train No</label>
-                            <input type="text" id="maintTrainInput" list="maintTrainList" placeholder="e.g. 26651/2 (any train)" required>
+                            <input type="text" id="maintTrainInput" list="maintTrainList" placeholder="e.g. 26651/2" required>
                             <datalist id="maintTrainList">
                                 <option value="26651/2">
                                 <option value="20661/2">
                             </datalist>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" style="margin-bottom: 0;">
                             <label for="maintSseInput">SSE Name</label>
                             <input type="text" id="maintSseInput" name="SSE Name" placeholder="SSE Incharge Name" required>
                         </div>
@@ -911,7 +911,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=3.0"></script>
+    <script src="app.js?v=3.1"></script>
 </body>
 
 </html>
