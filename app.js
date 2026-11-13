@@ -3689,31 +3689,56 @@ function generateArrivalReportPdf() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const marginX = 12;
 
+    // Helper to sanitize any unusual space characters (e.g. non-breaking spaces)
+    const cleanStr = (s) => String(s || '').replace(/[\u00A0\u202F\u200B]/g, ' ');
+
+    // Cross-platform font setup: Embed Roboto TrueType font if available from pdfMake VFS.
+    // This ensures full character metrics (/Widths & /FontDescriptor) are embedded,
+    // which prevents Android / Xiaomi / Mi Doc Viewer / WPS Office from treating spaces as 0-width.
+    const hasVfsRoboto = Boolean(window.pdfMake && window.pdfMake.vfs && window.pdfMake.vfs['Roboto-Regular.ttf']);
+    let fontName = 'helvetica';
+    if (hasVfsRoboto) {
+        try {
+            doc.addFileToVFS('Roboto-Regular.ttf', window.pdfMake.vfs['Roboto-Regular.ttf']);
+            doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+            if (window.pdfMake.vfs['Roboto-Medium.ttf']) {
+                doc.addFileToVFS('Roboto-Medium.ttf', window.pdfMake.vfs['Roboto-Medium.ttf']);
+                doc.addFont('Roboto-Medium.ttf', 'Roboto', 'bold');
+            }
+            fontName = 'Roboto';
+        } catch (e) {
+            console.warn('Failed to embed Roboto in jsPDF, falling back to standard font:', e);
+            fontName = 'helvetica';
+        }
+    }
+
     // 1. Header Banner
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 24, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(fontName, 'bold');
     doc.setFontSize(13.5);
     doc.text('VANDE BHARAT ESCORTING - ARRIVAL REPORT', marginX, 11);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(fontName, 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(148, 163, 184);
-    doc.text(`SBC Coaching Depot  |  Generated: ${basic.Timestamp}`, marginX, 18);
+    doc.text(`SBC Coaching Depot  |  Generated: ${cleanStr(basic.Timestamp)}`, marginX, 18);
 
     // 2. Top Basic Details Table
     doc.autoTable({
         startY: 28,
         margin: { left: marginX, right: marginX },
         theme: 'grid',
+        styles: { font: fontName },
         head: [['Date', 'Rake No', 'Train No', 'Data Entered By']],
         body: [[
-            basic.Date || '-',
-            basic.RakeNo || '-',
-            basic.TrainNo || '-',
-            basic.DataEnteredBy || '-'
+            cleanStr(basic.Date) || '-',
+            cleanStr(basic.RakeNo) || '-',
+            cleanStr(basic.TrainNo) || '-',
+            cleanStr(basic.DataEnteredBy) || '-'
         ]],
         headStyles: {
+            font: fontName,
             fillColor: [30, 58, 138],
             textColor: 255,
             fontStyle: 'bold',
@@ -3721,6 +3746,7 @@ function generateArrivalReportPdf() {
             cellPadding: 3
         },
         bodyStyles: {
+            font: fontName,
             fontSize: 9.5,
             fontStyle: 'bold',
             textColor: [15, 23, 42],
@@ -3734,7 +3760,7 @@ function generateArrivalReportPdf() {
             doc.addPage();
             y = 16;
         }
-        doc.setFont('helvetica', 'bold');
+        doc.setFont(fontName, 'bold');
         doc.setFontSize(10.5);
         doc.setTextColor(15, 23, 42);
         doc.text(title, marginX, y);
@@ -3746,20 +3772,21 @@ function generateArrivalReportPdf() {
     const defectBody = defects.length > 0
         ? defects.map((d, i) => [
             String(i + 1),
-            d.CoachNo || '-',
-            d.Category || '-',
-            d.IssueDescription || '-'
+            cleanStr(d.CoachNo) || '-',
+            cleanStr(d.Category) || '-',
+            cleanStr(d.IssueDescription) || '-'
         ])
-        : [[{ content: 'NIL — No Defects Reported', colSpan: 4, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+        : [[{ content: 'NIL - No Defects Reported', colSpan: 4, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
 
     doc.autoTable({
         startY: sec1Y,
         margin: { left: marginX, right: marginX },
         theme: 'grid',
+        styles: { font: fontName },
         head: [['S.No', 'Coach No', 'Defect Category', 'Issue Description']],
         body: defectBody,
-        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
-        bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59], cellPadding: 2.5 },
+        headStyles: { font: fontName, fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { font: fontName, fontSize: 8.5, textColor: [30, 41, 59], cellPadding: 2.5 },
         columnStyles: {
             0: { cellWidth: 12, halign: 'center' },
             1: { cellWidth: 28 },
@@ -3773,22 +3800,23 @@ function generateArrivalReportPdf() {
     const rmBody = railMadad.length > 0
         ? railMadad.map((rm, i) => [
             String(i + 1),
-            rm.CoachNo || '-',
-            rm.RMReferenceNo || '-',
-            [rm.MainCategory, rm.SubCategory].filter(Boolean).join('\n') || '-',
-            rm.ComplaintDescription || '-',
-            rm.ActionTaken || '-'
+            cleanStr(rm.CoachNo) || '-',
+            cleanStr(rm.RMReferenceNo) || '-',
+            [cleanStr(rm.MainCategory), cleanStr(rm.SubCategory)].filter(Boolean).join('\n') || '-',
+            cleanStr(rm.ComplaintDescription) || '-',
+            cleanStr(rm.ActionTaken) || '-'
         ])
-        : [[{ content: 'NIL — No Rail Madad Complaints Reported', colSpan: 6, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+        : [[{ content: 'NIL - No Rail Madad Complaints Reported', colSpan: 6, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
 
     doc.autoTable({
         startY: sec2Y,
         margin: { left: marginX, right: marginX },
         theme: 'grid',
+        styles: { font: fontName },
         head: [['S.No', 'Coach', 'RM Ref', 'Category', 'Complaint Description', 'Action Taken']],
         body: rmBody,
-        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
-        bodyStyles: { fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
+        headStyles: { font: fontName, fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { font: fontName, fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
         columnStyles: {
             0: { cellWidth: 11, halign: 'center' },
             1: { cellWidth: 22 },
@@ -3804,25 +3832,26 @@ function generateArrivalReportPdf() {
     const detBody = detentions.length > 0
         ? detentions.map((dt, i) => [
             String(i + 1),
-            dt.CoachNo || '-',
-            dt.Station || '-',
-            `${dt.TimeFrom || '-'} - ${dt.TimeTo || '-'}\n(${dt.TotalDetention || '-'})`,
-            dt.Category || '-',
+            cleanStr(dt.CoachNo) || '-',
+            cleanStr(dt.Station) || '-',
+            `${cleanStr(dt.TimeFrom) || '-'} - ${cleanStr(dt.TimeTo) || '-'}\n(${cleanStr(dt.TotalDetention) || '-'})`,
+            cleanStr(dt.Category) || '-',
             [
-                dt.IssueDescription ? `Reason: ${dt.IssueDescription}` : '',
-                dt.ActionTaken ? `Action: ${dt.ActionTaken}` : ''
+                dt.IssueDescription ? `Reason: ${cleanStr(dt.IssueDescription)}` : '',
+                dt.ActionTaken ? `Action: ${cleanStr(dt.ActionTaken)}` : ''
             ].filter(Boolean).join('\n') || '-'
         ])
-        : [[{ content: 'NIL — No Detentions Reported', colSpan: 6, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+        : [[{ content: 'NIL - No Detentions Reported', colSpan: 6, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
 
     doc.autoTable({
         startY: sec3Y,
         margin: { left: marginX, right: marginX },
         theme: 'grid',
+        styles: { font: fontName },
         head: [['S.No', 'Coach', 'Station', 'Time (Total)', 'Category', 'Reason & Action Taken']],
         body: detBody,
-        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
-        bodyStyles: { fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
+        headStyles: { font: fontName, fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { font: fontName, fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
         columnStyles: {
             0: { cellWidth: 11, halign: 'center' },
             1: { cellWidth: 22 },
@@ -3838,16 +3867,29 @@ function generateArrivalReportPdf() {
     const pageHeight = doc.internal.pageSize.getHeight();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont(fontName, 'normal');
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
-        doc.text('VB Escorting App  •  SBC Coaching Depot', marginX, pageHeight - 8);
+        doc.text('VB Escorting App  |  SBC Coaching Depot', marginX, pageHeight - 8);
         doc.text(`Page ${i} of ${totalPages}`, pageWidth - marginX, pageHeight - 8, { align: 'right' });
     }
 
     const safeTrain = String(basic.TrainNo || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
     const fileName = `Arrival_Report_${basic.RakeNo}_${safeTrain}_${basic.Date}.pdf`;
-    const pdfBlob = doc.output('blob');
+
+    let pdfBlob;
+    if (hasVfsRoboto) {
+        pdfBlob = doc.output('blob');
+    } else {
+        // Fallback: strip buggy Type 1 font entries
+        const rawString = doc.output();
+        const patchedString = rawString.replace(/\/FirstChar 32\r?\n\/LastChar 255\r?\n/g, '');
+        const bytes = new Uint8Array(patchedString.length);
+        for (let i = 0; i < patchedString.length; i++) {
+            bytes[i] = patchedString.charCodeAt(i) & 0xff;
+        }
+        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+    }
     const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
     generatedPdfState.blob = pdfBlob;

@@ -1,12 +1,12 @@
-const CACHE_NAME = 'vb-escorting-v2.7';
+const CACHE_NAME = 'vb-escorting-v2.8';
 
 const STATIC_ASSETS = [
     './',
     './index.html',
     './style.css',
-    './style.css?v=2.7',
+    './style.css?v=2.8',
     './app.js',
-    './app.js?v=2.7',
+    './app.js?v=2.8',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
@@ -24,6 +24,7 @@ const STATIC_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'
 ];
