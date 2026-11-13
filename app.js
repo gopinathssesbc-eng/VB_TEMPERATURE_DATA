@@ -5317,6 +5317,333 @@ function generateArrivalReportPdf() {
 }
 window.generateArrivalReportPdf = generateArrivalReportPdf;
 
+function collectMaintenanceReportData() {
+    const date = document.getElementById('maintDateInput') ? document.getElementById('maintDateInput').value.trim() : '';
+    const rake = document.getElementById('maintRakeSelect') ? document.getElementById('maintRakeSelect').value.trim() : '';
+    const train = typeof getMaintTrainValue === 'function' ? getMaintTrainValue() : (document.getElementById('maintTrainInput') ? document.getElementById('maintTrainInput').value.trim() : '');
+    const sse = document.getElementById('maintSseInput') ? document.getElementById('maintSseInput').value.trim() : '';
+
+    const todayRemarks = [];
+    const container = document.getElementById('maintEntriesContainer');
+    if (container) {
+        const cards = container.querySelectorAll('.maint-entry-card');
+        cards.forEach(card => {
+            const coach = card.querySelector('.maint-coach-select') ? card.querySelector('.maint-coach-select').value : '';
+            const mainCat = card.querySelector('.maint-main-cat') ? card.querySelector('.maint-main-cat').value : '';
+            const subCatSelect = card.querySelector('.maint-sub-cat');
+            const customInput = card.querySelector('.maint-sub-cat-custom');
+            let subCat = subCatSelect ? subCatSelect.value : '';
+            if (subCat === 'Other' && customInput && customInput.value.trim()) {
+                subCat = customInput.value.trim();
+            }
+            const desc = card.querySelector('.maint-desc') ? card.querySelector('.maint-desc').value.trim() : '';
+            const action = card.querySelector('.maint-action') ? card.querySelector('.maint-action').value.trim() : '';
+            const statusSelect = card.querySelector('.maint-status-select');
+            const attentionStatus = statusSelect ? statusSelect.value : 'Attended';
+            const attendedDateVal = (attentionStatus === 'Pending') ? '' : date;
+
+            if (coach || mainCat || desc || action) {
+                todayRemarks.push({
+                    CoachNo: coach,
+                    MainCategory: mainCat,
+                    SubCategory: subCat,
+                    DefectDescription: desc,
+                    AttentionGiven: action,
+                    AttentionStatus: attentionStatus,
+                    AttendedDate: attendedDateVal
+                });
+            }
+        });
+    }
+
+    const previousPending = [];
+    const pendingCards = document.querySelectorAll('#maintPendingContainer .maint-pending-card');
+    pendingCards.forEach((pCard, idx) => {
+        const orig = (loadedPendingRemarks && loadedPendingRemarks[idx]) || {};
+        const coachSel = pCard.querySelector('.pending-coach-select');
+        const mainSel = pCard.querySelector('.pending-main-cat');
+        const subSel = pCard.querySelector('.pending-sub-cat');
+        const customSub = pCard.querySelector('.pending-sub-cat-custom');
+        const descText = pCard.querySelector('.pending-desc-text');
+        const pStatusSelect = pCard.querySelector('.pending-status-select');
+        const pAttentionText = pCard.querySelector('.pending-attention-text');
+
+        let subVal = subSel ? subSel.value : (orig.SubCategory || '');
+        if (subVal === 'Other' && customSub && customSub.value.trim()) {
+            subVal = customSub.value.trim();
+        }
+
+        const newStatus = pStatusSelect ? pStatusSelect.value : (orig.AttentionStatus || 'Pending');
+        const coachVal = coachSel ? coachSel.value : (orig.CoachNo || '');
+        const mainVal = mainSel ? mainSel.value : (orig.MainCategory || '');
+        const descVal = descText ? descText.value.trim() : (orig.DefectDescription || '');
+        const attentionGivenVal = pAttentionText ? pAttentionText.value.trim() : (orig.AttentionGiven || '');
+        const origDate = orig.OriginalDate || '';
+
+        previousPending.push({
+            OriginalDate: origDate,
+            CoachNo: coachVal,
+            MainCategory: mainVal,
+            SubCategory: subVal,
+            DefectDescription: descVal,
+            AttentionStatus: newStatus,
+            AttentionGiven: attentionGivenVal,
+            AttendedDate: (newStatus === 'Attended') ? date : ''
+        });
+    });
+
+    return {
+        basic: {
+            Date: date,
+            RakeNo: rake,
+            TrainNo: train,
+            SseName: sse,
+            Timestamp: formatToDDMMYYYY(new Date()) + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+        },
+        todayRemarks,
+        previousPending
+    };
+}
+
+function generateMaintenanceRemarksPdf() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire({
+            icon: 'error',
+            title: 'PDF Library Not Loaded',
+            text: 'Please check your internet connection and refresh the app.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const report = collectMaintenanceReportData();
+    const { basic, todayRemarks, previousPending } = report;
+
+    if (!basic.Date || !basic.RakeNo || !basic.TrainNo) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Basic Details',
+            text: 'Please select Date, Rake Number, and Train Number before generating the PDF.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 12;
+
+    const cleanStr = (s) => String(s || '').replace(/[\u00A0\u202F\u200B]/g, ' ');
+
+    const hasVfsRoboto = Boolean(window.pdfMake && window.pdfMake.vfs && window.pdfMake.vfs['Roboto-Regular.ttf']);
+    let fontName = 'helvetica';
+    if (hasVfsRoboto) {
+        try {
+            doc.addFileToVFS('Roboto-Regular.ttf', window.pdfMake.vfs['Roboto-Regular.ttf']);
+            doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+            if (window.pdfMake.vfs['Roboto-Medium.ttf']) {
+                doc.addFileToVFS('Roboto-Medium.ttf', window.pdfMake.vfs['Roboto-Medium.ttf']);
+                doc.addFont('Roboto-Medium.ttf', 'Roboto', 'bold');
+            }
+            fontName = 'Roboto';
+        } catch (e) {
+            console.warn('Failed to embed Roboto in jsPDF, falling back to standard font:', e);
+            fontName = 'helvetica';
+        }
+    }
+
+    // 1. Header Banner
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 24, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(fontName, 'bold');
+    doc.setFontSize(13);
+    doc.text('VANDE BHARAT - MAINTENANCE REMARKS REPORT', marginX, 11);
+    doc.setFont(fontName, 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`SBC Coaching Depot  |  Generated: ${cleanStr(basic.Timestamp)}`, marginX, 18);
+
+    // 2. Top Basic Details Table
+    doc.autoTable({
+        startY: 28,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        styles: { font: fontName },
+        head: [['Date', 'Rake No', 'Train No', 'SSE Incharge Name']],
+        body: [[
+            cleanStr(basic.Date) || '-',
+            cleanStr(basic.RakeNo) || '-',
+            cleanStr(basic.TrainNo) || '-',
+            cleanStr(basic.SseName) || '-'
+        ]],
+        headStyles: {
+            font: fontName,
+            fillColor: [30, 58, 138],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 9,
+            cellPadding: 3
+        },
+        bodyStyles: {
+            font: fontName,
+            fontSize: 9.5,
+            fontStyle: 'bold',
+            textColor: [15, 23, 42],
+            cellPadding: 3.5
+        }
+    });
+
+    function drawSectionTitle(title, color) {
+        let y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 50) + 8;
+        if (y > 265) {
+            doc.addPage();
+            y = 16;
+        }
+        doc.setFont(fontName, 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(...(color || [15, 23, 42]));
+        doc.text(title, marginX, y);
+        return y + 2.5;
+    }
+
+    // 3. Section 1: Today's Defect Remarks
+    const sec1Y = drawSectionTitle(`1. Today's Defect Remarks (${todayRemarks.length})`, [15, 23, 42]);
+    const todayBody = todayRemarks.length > 0
+        ? todayRemarks.map((r, i) => [
+            String(i + 1),
+            cleanStr(r.CoachNo) || '-',
+            [cleanStr(r.MainCategory), cleanStr(r.SubCategory)].filter(Boolean).join(' - ') || '-',
+            cleanStr(r.DefectDescription) || '-',
+            cleanStr(r.AttentionStatus) || 'Attended',
+            cleanStr(r.AttentionGiven) || '-',
+            cleanStr(r.AttendedDate) || '-'
+        ])
+        : [[{ content: 'NIL - No Remarks Reported for Today', colSpan: 7, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+
+    doc.autoTable({
+        startY: sec1Y,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        styles: { font: fontName },
+        head: [['S.No', 'Coach', 'Category', 'Defect Description', 'Status', 'Attention Given', 'Attended Date']],
+        body: todayBody,
+        headStyles: { font: fontName, fillColor: [30, 58, 138], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { font: fontName, fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 18 },
+            2: { cellWidth: 28 },
+            3: { cellWidth: 'auto' },
+            4: { cellWidth: 18, halign: 'center' },
+            5: { cellWidth: 36 },
+            6: { cellWidth: 20, halign: 'center' }
+        },
+        didParseCell: function(data) {
+            if (data.section === 'body' && data.column.index === 4) {
+                const txt = String(data.cell.raw || '');
+                if (txt === 'Pending') {
+                    data.cell.styles.textColor = [217, 119, 6];
+                    data.cell.styles.fontStyle = 'bold';
+                } else if (txt === 'Attended') {
+                    data.cell.styles.textColor = [16, 149, 102];
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+        }
+    });
+
+    // 4. Section 2: Pending Defects from Previous Dates
+    const sec2Y = drawSectionTitle(`2. Pending Defects - Previous Dates (${previousPending.length})`, [180, 83, 9]);
+    const pendingBody = previousPending.length > 0
+        ? previousPending.map((p, i) => [
+            String(i + 1),
+            cleanStr(p.OriginalDate) || '-',
+            cleanStr(p.CoachNo) || '-',
+            [cleanStr(p.MainCategory), cleanStr(p.SubCategory)].filter(Boolean).join(' - ') || '-',
+            cleanStr(p.DefectDescription) || '-',
+            cleanStr(p.AttentionStatus) || 'Pending',
+            cleanStr(p.AttentionGiven) || (p.AttentionStatus === 'Attended' ? `Attended on ${basic.Date}` : '-')
+        ])
+        : [[{ content: 'NIL - No Pending Defects from Previous Dates for this Rake', colSpan: 7, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 116, 139] } }]];
+
+    doc.autoTable({
+        startY: sec2Y,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        styles: { font: fontName },
+        head: [['S.No', 'Logged Date', 'Coach', 'Category', 'Defect Description', 'Status', 'Attention Given / Remarks']],
+        body: pendingBody,
+        headStyles: { font: fontName, fillColor: [180, 83, 9], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { font: fontName, fontSize: 8, textColor: [30, 41, 59], cellPadding: 2.5 },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 20, halign: 'center' },
+            2: { cellWidth: 18 },
+            3: { cellWidth: 28 },
+            4: { cellWidth: 'auto' },
+            5: { cellWidth: 18, halign: 'center' },
+            6: { cellWidth: 38 }
+        },
+        didParseCell: function(data) {
+            if (data.section === 'body' && data.column.index === 5) {
+                const txt = String(data.cell.raw || '');
+                if (txt === 'Pending') {
+                    data.cell.styles.textColor = [217, 119, 6];
+                    data.cell.styles.fontStyle = 'bold';
+                } else if (txt === 'Attended') {
+                    data.cell.styles.textColor = [16, 149, 102];
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+        }
+    });
+
+    // 5. Footer on every page
+    const totalPages = doc.internal.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont(fontName, 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('VB Escorting App  |  SBC Coaching Depot', marginX, pageHeight - 8);
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - marginX, pageHeight - 8, { align: 'right' });
+    }
+
+    const safeTrain = String(basic.TrainNo || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+    const fileName = `Maintenance_Remarks_${basic.RakeNo}_${safeTrain}_${basic.Date}.pdf`;
+
+    let pdfBlob;
+    if (hasVfsRoboto) {
+        pdfBlob = doc.output('blob');
+    } else {
+        const rawString = doc.output();
+        const patchedString = rawString.replace(/\/FirstChar 32\r?\n\/LastChar 255\r?\n/g, '');
+        const bytes = new Uint8Array(patchedString.length);
+        for (let i = 0; i < patchedString.length; i++) {
+            bytes[i] = patchedString.charCodeAt(i) & 0xff;
+        }
+        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+    }
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    generatedPdfState.blob = pdfBlob;
+    generatedPdfState.file = pdfFile;
+    generatedPdfState.fileName = fileName;
+    generatedPdfState.summaryText =
+        `VB Maintenance Remarks Report\nDate: ${basic.Date}\nRake: ${basic.RakeNo} | Train: ${basic.TrainNo}\n` +
+        `SSE: ${basic.SseName}\nToday's Defects: ${todayRemarks.length} | Previous Pending: ${previousPending.length}`;
+
+    openGeneratedPdfPreview(fileName, pdfBlob);
+}
+window.generateMaintenanceRemarksPdf = generateMaintenanceRemarksPdf;
+
 async function openGeneratedPdfPreview(fileName, pdfBlob) {
     const overlay = document.getElementById('generatedPdfOverlay');
     const titleEl = document.getElementById('generatedPdfTitle');
