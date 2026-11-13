@@ -1,6 +1,6 @@
 // Run this function ONCE inside the Apps Script editor to authorize Google Drive access
 function authorizeDriveAccess() {
-  const folder = DriveApp.getFolderById("1H-YLok0VOOUCL2KUhfMCS1oRbXlBEJee");
+  const folder = DriveApp.getFolderById("12Sm9fR3NZ1D61RtqSidMoFPhyn0HT7PH");
   Logger.log("Drive access authorized! Root folder: " + folder.getName());
 }
 

@@ -911,6 +911,33 @@ button.pdf-action-pill.share-pill:hover:not(:disabled) {
     transform: none;
 }
 
+@media (max-width: 480px) {
+    .pdf-viewer-header {
+        padding: 0.5rem 0.65rem;
+        gap: 0.35rem;
+    }
+    .pdf-header-actions {
+        gap: 0.35rem;
+    }
+    button.pdf-action-pill {
+        height: 32px;
+        padding: 0 0.55rem;
+        font-size: 0.76rem;
+        gap: 0.25rem;
+    }
+    button.pdf-action-pill svg {
+        width: 14px;
+        height: 14px;
+    }
+    button.pdf-header-icon-btn,
+    a.pdf-header-icon-btn,
+    button.pdf-close-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+    }
+}
+
 .install-menu-card {
     background: rgba(16, 185, 129, 0.12);
     border: 1px dashed var(--success);

@@ -2633,7 +2633,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ---- CONFIGURATION: paste your root Google Drive folder ID here ----
 // Get it from the folder URL: https://drive.google.com/drive/folders/FOLDER_ID_HERE
-const MANUALS_ROOT_FOLDER_ID = '1H-YLok0VOOUCL2KUhfMCS1oRbXlBEJee';
+const MANUALS_ROOT_FOLDER_ID = '12Sm9fR3NZ1D61RtqSidMoFPhyn0HT7PH';
 
 // Which Apps Script URL to call for Drive browsing (uses the same as arrival report)
 const MANUALS_WEB_APP_URL = ARRIVAL_REPORT_WEB_APP_URL;
@@ -2907,6 +2907,10 @@ if (window.pdfjsLib) {
 
 const pdfViewerState = {
     fileId: null,
+    title: '',
+    fileName: '',
+    pdfBlob: null,
+    file: null,
     pdfDoc: null,
     numPages: 0,
     zoomScale: 1.0,
@@ -2934,6 +2938,10 @@ function resetPdfViewerState() {
         pdfViewerState.pdfDoc = null;
     }
     pdfViewerState.fileId = null;
+    pdfViewerState.title = '';
+    pdfViewerState.fileName = '';
+    pdfViewerState.pdfBlob = null;
+    pdfViewerState.file = null;
     pdfViewerState.numPages = 0;
     pdfViewerState.zoomScale = 1.0;
     pdfViewerState.baseFitScale = 1.0;
@@ -2958,6 +2966,9 @@ async function openPdfViewer(fileId, title, mimeType) {
     resetPdfViewerState();
     const myToken = pdfViewerState.loadToken;
     pdfViewerState.fileId = fileId;
+    pdfViewerState.title = title || 'Manual';
+    const cleanFileName = title ? (title.toLowerCase().endsWith('.pdf') ? title : `${title}.pdf`) : 'Manual.pdf';
+    pdfViewerState.fileName = cleanFileName;
 
     const overlay = document.getElementById('pdfViewerOverlay');
     const titleEl = document.getElementById('pdfViewerTitle');
@@ -3016,6 +3027,14 @@ async function openPdfViewer(fileId, title, mimeType) {
         const bytes = new Uint8Array(len);
         for (let i = 0; i < len; i++) {
             bytes[i] = binaryStr.charCodeAt(i);
+        }
+
+        const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+        pdfViewerState.pdfBlob = pdfBlob;
+        try {
+            pdfViewerState.file = new File([pdfBlob], cleanFileName, { type: 'application/pdf' });
+        } catch (e) {
+            pdfViewerState.file = null;
         }
 
         const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
@@ -3496,6 +3515,107 @@ function closePdfViewer() {
     if (overlay) overlay.style.display = 'none';
 }
 window.closePdfViewer = closePdfViewer;
+
+function downloadCurrentManualPdf() {
+    if (!pdfViewerState.fileId && !pdfViewerState.pdfBlob) return;
+    const fileName = pdfViewerState.fileName || (pdfViewerState.title ? `${pdfViewerState.title}.pdf` : 'Manual.pdf');
+    if (pdfViewerState.pdfBlob) {
+        const url = URL.createObjectURL(pdfViewerState.pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } else if (pdfViewerState.fileId) {
+        window.open(`https://drive.google.com/uc?export=download&id=${pdfViewerState.fileId}`, '_blank');
+    }
+}
+window.downloadCurrentManualPdf = downloadCurrentManualPdf;
+
+async function shareCurrentManualPdf() {
+    if (!pdfViewerState.fileId && !pdfViewerState.file && !pdfViewerState.pdfBlob) return;
+
+    const title = pdfViewerState.title || 'Manual';
+    const fileName = pdfViewerState.fileName || `${title}.pdf`;
+    const driveUrl = pdfViewerState.fileId ? `https://drive.google.com/file/d/${pdfViewerState.fileId}/view?usp=sharing` : '';
+    const shareText = `VB Manual: ${title}${driveUrl ? '\n' + driveUrl : ''}`.trim();
+
+    // 1. Native OS share sheet with actual PDF attachment (Mobile WhatsApp, Telegram, Gmail, etc.)
+    if (pdfViewerState.file && navigator.canShare && navigator.canShare({ files: [pdfViewerState.file] })) {
+        try {
+            await navigator.share({
+                files: [pdfViewerState.file],
+                title: title,
+                text: shareText
+            });
+            return;
+        } catch (err) {
+            if (err && err.name === 'AbortError') return; // User cancelled
+            console.warn('File share failed, falling back:', err);
+        }
+    }
+
+    // 2. Web Share API URL share
+    if (navigator.share && driveUrl) {
+        try {
+            await navigator.share({
+                title: title,
+                text: `VB Manual: ${title}`,
+                url: driveUrl
+            });
+            return;
+        } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            console.warn('URL share failed, falling back to modal:', err);
+        }
+    }
+
+    // 3. Fallback modal for desktop or unsupported browsers (WhatsApp, Telegram, Email, Copy Link)
+    if (pdfViewerState.pdfBlob) {
+        downloadCurrentManualPdf();
+    }
+
+    const encodedText = encodeURIComponent(shareText);
+    const encodedSubject = encodeURIComponent(`VB Manual: ${title}`);
+
+    Swal.fire({
+        icon: 'info',
+        title: 'Share Manual',
+        html: `
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+                ${pdfViewerState.pdfBlob ? `<strong>${escapeHtml(fileName)}</strong> has been downloaded to your device. You can attach or share it via:` : `Share link to <strong>${escapeHtml(title)}</strong> via:`}
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <a href="https://wa.me/?text=${encodedText}" target="_blank" rel="noopener"
+                   style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1rem; background: #25D366; color: white; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.85rem;">
+                    WhatsApp
+                </a>
+                <a href="https://t.me/share/url?url=${encodeURIComponent(driveUrl)}&text=${encodedText}" target="_blank" rel="noopener"
+                   style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1rem; background: #0088cc; color: white; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.85rem;">
+                    Telegram
+                </a>
+                <a href="mailto:?subject=${encodedSubject}&body=${encodedText}"
+                   style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1rem; background: #64748b; color: white; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.85rem;">
+                    Email
+                </a>
+            </div>
+            ${driveUrl ? `
+                <div style="margin-top: 1rem;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${driveUrl}'); Swal.showValidationMessage('Link copied to clipboard!');" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; cursor: pointer; border-radius: 0.4rem;">
+                        📋 Copy Drive Link
+                    </button>
+                </div>
+            ` : ''}
+        `,
+        background: 'var(--card-bg)',
+        color: 'var(--text-main)',
+        confirmButtonColor: 'var(--primary)',
+        confirmButtonText: 'Done'
+    });
+}
+window.shareCurrentManualPdf = shareCurrentManualPdf;
 
 // Bind PDF Find Input events
 document.addEventListener('DOMContentLoaded', () => {
