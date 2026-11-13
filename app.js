@@ -155,6 +155,8 @@ function hideAllScreens() {
     dataEntryScreen.style.display = 'none';
     dashboardScreen.style.display = 'none';
     if (arrivalReportScreen) arrivalReportScreen.style.display = 'none';
+    const maintScreen = document.getElementById('maintenanceRemarksScreen');
+    if (maintScreen) maintScreen.style.display = 'none';
     const settingsScreen = document.getElementById('settingsScreen');
     if (settingsScreen) settingsScreen.style.display = 'none';
     const manualsScreen = document.getElementById('manualsScreen');
@@ -2210,9 +2212,6 @@ window.addEventListener('online', () => {
 populateArrivalDropdowns();
 fetchDropdownData();
 
-// ============================================================================
-// SETTINGS SCREEN & DROPDOWN CATEGORIES MANAGEMENT
-// ============================================================================
 function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -2223,6 +2222,633 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+// ============================================================================
+// MAINTENANCE REMARKS: Defect rectifications & attention given
+// ============================================================================
+const DEFAULT_MAINTENANCE_CATEGORIES = {
+    "Interior": [
+        "Passenger Seat / Recliner",
+        "Charging Socket / USB",
+        "Reading Light / Saloon Light",
+        "IC Sliding Door",
+        "Exterior Plug Door",
+        "Toilet / Wash Basin / Flush",
+        "Water Supply / Leakage",
+        "Foot Step / Vestibule",
+        "AC / Cooling / HVAC",
+        "Window Glass / Roller Blind",
+        "Others"
+    ],
+    "UG - Air": [
+        "Air Brake / BP-FP Pipe",
+        "Air Suspension / Bellow",
+        "Wheel / Axle Box / Bearing",
+        "Parking Brake / Hand Brake",
+        "Brake Pad / Disc Brake",
+        "Underframe Pipe / Hose Leakage",
+        "Safety Loop / Guard Wire",
+        "Cattle Guard / Snow Plough",
+        "Others"
+    ],
+    "Propulsion": [
+        "Pantograph / Roof Equipment",
+        "Traction Transformer",
+        "Traction Converter / Inverter",
+        "Auxiliary Converter (BUR)",
+        "Battery / Battery Charger",
+        "Traction Motor / Gear Box",
+        "TCMS / VCU / DDU Display",
+        "Master Controller / Key Switch",
+        "Line Contactor / VCB",
+        "Others"
+    ]
+};
+
+let cachedMaintenanceCategories = (() => {
+    try {
+        const stored = localStorage.getItem('vb_maint_categories');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed === 'object') return parsed;
+        }
+    } catch (e) {}
+    return JSON.parse(JSON.stringify(DEFAULT_MAINTENANCE_CATEGORIES));
+})();
+
+async function fetchMaintenanceCategories() {
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const res = await fetch(`${targetUrl}?action=get_maintenance_categories`);
+        const result = await res.json();
+        if (result && result.status === 'success' && result.categories) {
+            cachedMaintenanceCategories = result.categories;
+            try {
+                localStorage.setItem('vb_maint_categories', JSON.stringify(cachedMaintenanceCategories));
+            } catch (e) {}
+            refreshAllMaintCategoryDropdowns();
+        }
+    } catch (err) {
+        console.warn('Failed to fetch maintenance categories from sheet:', err);
+    }
+}
+
+function openMaintenanceRemarks() {
+    hideAllScreens();
+    document.body.classList.add('arrival-report-active');
+    populateMaintDropdowns();
+    clearMaintForm();
+    const wrapper = document.getElementById('maintEntriesWrapper');
+    if (wrapper) wrapper.style.display = 'none';
+    const screen = document.getElementById('maintenanceRemarksScreen');
+    if (screen) screen.style.display = 'flex';
+    window.scrollTo(0, 0);
+    fetchMaintenanceCategories();
+}
+window.openMaintenanceRemarks = openMaintenanceRemarks;
+
+function clearMaintForm() {
+    const form = document.getElementById('maintForm');
+    if (form) form.reset();
+    const dateInput = document.getElementById('maintDateInput');
+    if (dateInput) {
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        dateInput.value = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+    }
+    const otherGroup = document.getElementById('maintOtherTrainGroup');
+    if (otherGroup) otherGroup.style.display = 'none';
+    const status = document.getElementById('maintLoadStatus');
+    if (status) {
+        status.textContent = '';
+        status.className = 'load-status';
+    }
+    const saveStatus = document.getElementById('maintSaveStatus');
+    if (saveStatus) saveStatus.textContent = '';
+    const container = document.getElementById('maintEntriesContainer');
+    if (container) container.innerHTML = '';
+}
+
+function populateMaintDropdowns() {
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const trainSelect = document.getElementById('maintTrainSelect');
+
+    if (rakeSelect) {
+        const currentRake = rakeSelect.value;
+        const rakes = (cachedDropdownData.rakeNos && cachedDropdownData.rakeNos.length > 0)
+            ? cachedDropdownData.rakeNos
+            : DEFAULT_DROPDOWN_DATA.rakeNos;
+
+        let html = '<option value="">-- Select Rake --</option>';
+        rakes.forEach(r => {
+            const sel = (r === currentRake) ? 'selected' : '';
+            html += `<option value="${escapeHtml(r)}" ${sel}>${escapeHtml(r)}</option>`;
+        });
+        rakeSelect.innerHTML = html;
+        if (currentRake && rakes.includes(currentRake)) {
+            rakeSelect.value = currentRake;
+        }
+    }
+
+    if (trainSelect) {
+        const currentTrain = trainSelect.value;
+        const trains = (cachedDropdownData.trainNos && cachedDropdownData.trainNos.length > 0)
+            ? cachedDropdownData.trainNos
+            : DEFAULT_DROPDOWN_DATA.trainNos;
+
+        let html = '<option value="">-- Select Train No --</option>';
+        trains.forEach(t => {
+            const sel = (t === currentTrain) ? 'selected' : '';
+            html += `<option value="${escapeHtml(t)}" ${sel}>${escapeHtml(t)}</option>`;
+        });
+        const otherSel = (currentTrain === 'Other') ? 'selected' : '';
+        html += `<option value="Other" ${otherSel}>Other (Enter Train No)</option>`;
+        trainSelect.innerHTML = html;
+        if (currentTrain) trainSelect.value = currentTrain;
+    }
+
+    const dateInput = document.getElementById('maintDateInput');
+    if (dateInput && !dateInput._flatpickr && window.flatpickr) {
+        flatpickr(dateInput, {
+            dateFormat: 'd-m-Y',
+            allowInput: true,
+            theme: 'dark',
+            defaultDate: 'today'
+        });
+    }
+}
+
+function handleMaintRakeChange() {
+    refreshAllMaintCoachDropdowns();
+}
+window.handleMaintRakeChange = handleMaintRakeChange;
+
+function handleMaintTrainChange() {
+    const trainSel = document.getElementById('maintTrainSelect');
+    const otherGroup = document.getElementById('maintOtherTrainGroup');
+    const otherInput = document.getElementById('maintOtherTrainInput');
+    if (!trainSel || !otherGroup) return;
+
+    if (trainSel.value === 'Other') {
+        otherGroup.style.display = 'block';
+        if (otherInput) otherInput.focus();
+    } else {
+        otherGroup.style.display = 'none';
+        if (otherInput) otherInput.value = '';
+    }
+}
+window.handleMaintTrainChange = handleMaintTrainChange;
+
+function getMaintCoachesList() {
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const rake = rakeSelect ? rakeSelect.value : '';
+    if (rake && TRAIN_COACHES[rake]) {
+        return TRAIN_COACHES[rake];
+    }
+    if (rake) {
+        return ['C1', 'C2', 'E1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8'];
+    }
+    return [];
+}
+
+function buildMaintCoachOptions(selectedCoach = '') {
+    const coaches = getMaintCoachesList();
+    let html = '<option value="">-- Select Coach --</option>';
+    let found = false;
+    coaches.forEach(c => {
+        const sel = (c.toLowerCase() === (selectedCoach || '').toLowerCase()) ? 'selected' : '';
+        if (sel) found = true;
+        html += `<option value="${escapeHtml(c)}" ${sel}>${escapeHtml(c.toUpperCase())}</option>`;
+    });
+    if (selectedCoach && !found) {
+        html += `<option value="${escapeHtml(selectedCoach)}" selected>${escapeHtml(selectedCoach.toUpperCase())}</option>`;
+    }
+    return html;
+}
+
+function refreshAllMaintCoachDropdowns() {
+    const container = document.getElementById('maintEntriesContainer');
+    if (!container) return;
+    container.querySelectorAll('.maint-coach-select').forEach(sel => {
+        const current = sel.value;
+        sel.innerHTML = buildMaintCoachOptions(current);
+    });
+}
+
+function refreshAllMaintCategoryDropdowns() {
+    const container = document.getElementById('maintEntriesContainer');
+    if (!container) return;
+    container.querySelectorAll('.maint-entry-card').forEach(card => {
+        const mainCatSelect = card.querySelector('.maint-main-cat');
+        const subCatSelect = card.querySelector('.maint-sub-cat');
+        if (!mainCatSelect || !subCatSelect) return;
+
+        const currentMain = mainCatSelect.value;
+        const currentSub = subCatSelect.value;
+
+        const mainCats = Object.keys(cachedMaintenanceCategories);
+        let mainHtml = '<option value="">-- Select Main Category --</option>';
+        mainCats.forEach(cat => {
+            const sel = (cat.toLowerCase() === currentMain.toLowerCase()) ? 'selected' : '';
+            mainHtml += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
+        });
+        mainCatSelect.innerHTML = mainHtml;
+        if (currentMain) mainCatSelect.value = currentMain;
+
+        const subList = cachedMaintenanceCategories[mainCatSelect.value] || [];
+        let subHtml = '<option value="">-- Select Sub Category --</option>';
+        let isMatched = false;
+        subList.forEach(sub => {
+            const sel = (sub.toLowerCase() === currentSub.toLowerCase()) ? 'selected' : '';
+            if (sel) isMatched = true;
+            subHtml += `<option value="${escapeHtml(sub)}" ${sel}>${escapeHtml(sub)}</option>`;
+        });
+        const otherSel = (!isMatched && currentSub) || currentSub === 'Other' ? 'selected' : '';
+        subHtml += `<option value="Other" ${otherSel}>Other (Specify)</option>`;
+        subCatSelect.innerHTML = subHtml;
+    });
+}
+
+function updateMaintCount() {
+    const container = document.getElementById('maintEntriesContainer');
+    const badge = document.getElementById('maintCountBadge');
+    if (!container) return;
+    const cards = container.querySelectorAll('.maint-entry-card');
+    if (badge) {
+        badge.textContent = `${cards.length} ${cards.length === 1 ? 'entry' : 'entries'}`;
+    }
+    cards.forEach((card, idx) => {
+        const idxLabel = card.querySelector('.maint-card-index');
+        if (idxLabel) idxLabel.textContent = `Remark #${idx + 1}`;
+    });
+}
+
+function addMaintRemarkCard(data = {}) {
+    const container = document.getElementById('maintEntriesContainer');
+    if (!container) return;
+
+    const card = document.createElement('div');
+    card.className = 'maint-entry-card';
+
+    const mainCats = Object.keys(cachedMaintenanceCategories);
+    if (!mainCats.includes('Interior')) mainCats.unshift('Interior');
+    if (!mainCats.includes('UG - Air')) mainCats.splice(1, 0, 'UG - Air');
+    if (!mainCats.includes('Propulsion')) mainCats.splice(2, 0, 'Propulsion');
+
+    const selectedMainCat = data.MainCategory || (mainCats[0] || 'Interior');
+    const selectedSubCat = data.SubCategory || '';
+    const selectedCoach = data.CoachNo || '';
+    const desc = data.DefectDescription || '';
+    const action = data.AttentionGiven || '';
+
+    let mainCatOptionsHtml = '<option value="">-- Select Main Category --</option>';
+    mainCats.forEach(cat => {
+        const sel = (cat.toLowerCase() === selectedMainCat.toLowerCase()) ? 'selected' : '';
+        mainCatOptionsHtml += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
+    });
+
+    card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 0.5rem;">
+            <span class="maint-card-index" style="font-weight: 700; font-size: 0.92rem; color: #34d399;">Remark</span>
+            <button type="button" class="btn btn-danger btn-sm remove-maint-btn" style="padding: 0.25rem 0.6rem; font-size: 0.78rem;">✕ Remove</button>
+        </div>
+
+        <div class="form-row-2">
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Coach Number</label>
+                <select class="maint-coach-select" required>
+                    ${buildMaintCoachOptions(selectedCoach)}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Defect Main Category</label>
+                <select class="maint-main-cat" required>
+                    ${mainCatOptionsHtml}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.75rem;">
+            <label>Defect Sub Category</label>
+            <select class="maint-sub-cat" required>
+                <!-- Dynamically populated -->
+            </select>
+            <input type="text" class="maint-sub-cat-custom" placeholder="Specify sub-category..." style="display: none; margin-top: 0.5rem;" maxlength="100">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.75rem;">
+            <label>Defect Description</label>
+            <textarea class="maint-desc" rows="2" placeholder="Describe defect details..." required>${escapeHtml(desc)}</textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Attention Given</label>
+            <textarea class="maint-action" rows="2" placeholder="Action taken / rectification details..." required>${escapeHtml(action)}</textarea>
+        </div>
+    `;
+
+    const mainCatSelect = card.querySelector('.maint-main-cat');
+    const subCatSelect = card.querySelector('.maint-sub-cat');
+    const customInput = card.querySelector('.maint-sub-cat-custom');
+    const removeBtn = card.querySelector('.remove-maint-btn');
+
+    function updateSubCategories(currentSub = '') {
+        const mainCat = mainCatSelect.value;
+        const subList = cachedMaintenanceCategories[mainCat] || [];
+        let html = '<option value="">-- Select Sub Category --</option>';
+        let isMatched = false;
+        subList.forEach(sub => {
+            const sel = (sub.toLowerCase() === (currentSub || '').toLowerCase()) ? 'selected' : '';
+            if (sel) isMatched = true;
+            html += `<option value="${escapeHtml(sub)}" ${sel}>${escapeHtml(sub)}</option>`;
+        });
+        const otherSel = (!isMatched && currentSub && currentSub !== '') || currentSub === 'Other' || currentSub === 'Others' ? 'selected' : '';
+        html += `<option value="Other" ${otherSel}>Other (Specify)</option>`;
+        subCatSelect.innerHTML = html;
+
+        if (otherSel) {
+            customInput.style.display = 'block';
+            if (currentSub && currentSub !== 'Other' && currentSub !== 'Others') {
+                customInput.value = currentSub;
+            }
+        } else {
+            customInput.style.display = 'none';
+        }
+    }
+
+    mainCatSelect.addEventListener('change', () => {
+        updateSubCategories();
+    });
+
+    subCatSelect.addEventListener('change', () => {
+        if (subCatSelect.value === 'Other') {
+            customInput.style.display = 'block';
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+            customInput.value = '';
+        }
+    });
+
+    removeBtn.addEventListener('click', () => {
+        card.remove();
+        updateMaintCount();
+    });
+
+    updateSubCategories(selectedSubCat);
+    container.appendChild(card);
+    updateMaintCount();
+}
+window.addMaintRemarkCard = addMaintRemarkCard;
+
+async function loadMaintenanceRemarks() {
+    if (!currentPassword) {
+        handleSessionExpired();
+        return;
+    }
+
+    const date = document.getElementById('maintDateInput').value.trim();
+    const rake = document.getElementById('maintRakeSelect').value.trim();
+    let train = document.getElementById('maintTrainSelect').value.trim();
+    if (train === 'Other') {
+        train = document.getElementById('maintOtherTrainInput').value.trim();
+    }
+
+    if (!date || !rake) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Date or Rake',
+            text: 'Please select both Date and Rake Number before loading.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const btn = document.getElementById('maintLoadBtn');
+    const btnText = btn.querySelector('span');
+    const spinner = btn.querySelector('.spinner');
+    const statusEl = document.getElementById('maintLoadStatus');
+
+    btn.disabled = true;
+    btnText.textContent = 'Loading...';
+    spinner.classList.remove('hidden');
+    statusEl.textContent = 'Checking for existing maintenance records in Google Sheets...';
+    statusEl.style.color = '#38bdf8';
+
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const url = `${targetUrl}?action=get_maintenance_remarks&password=${encodeURIComponent(currentPassword)}&date=${encodeURIComponent(date)}&rake=${encodeURIComponent(rake)}&train=${encodeURIComponent(train)}`;
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (result.status === 'unauthorized') {
+            handleSessionExpired();
+            return;
+        }
+
+        const container = document.getElementById('maintEntriesContainer');
+        container.innerHTML = '';
+
+        if (result.status === 'success' && result.found) {
+            if (result.basic) {
+                if (result.basic.SseName) document.getElementById('maintSseInput').value = result.basic.SseName;
+                if (result.basic.TrainNo) {
+                    const trainSel = document.getElementById('maintTrainSelect');
+                    trainSel.value = result.basic.TrainNo;
+                    if (!trainSel.value) {
+                        trainSel.value = 'Other';
+                        document.getElementById('maintOtherTrainGroup').style.display = 'block';
+                        document.getElementById('maintOtherTrainInput').value = result.basic.TrainNo;
+                    }
+                }
+            }
+
+            if (result.remarks && result.remarks.length > 0) {
+                result.remarks.forEach(r => addMaintRemarkCard(r));
+                statusEl.textContent = `Loaded ${result.remarks.length} existing maintenance remark(s) for ${rake} on ${date}.`;
+                statusEl.style.color = '#10b981';
+            } else {
+                addMaintRemarkCard();
+                statusEl.textContent = `Existing report found with no defects. You can add new remarks.`;
+                statusEl.style.color = '#10b981';
+            }
+        } else {
+            addMaintRemarkCard();
+            statusEl.textContent = `No existing records found for ${rake} on ${date}. Enter new remarks below.`;
+            statusEl.style.color = 'var(--text-muted)';
+        }
+
+        document.getElementById('maintEntriesWrapper').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('maintEntriesWrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    } catch (err) {
+        statusEl.textContent = 'Error loading from Google Sheets: ' + (err.message || 'Network error');
+        statusEl.style.color = '#f87171';
+        document.getElementById('maintEntriesWrapper').style.display = 'block';
+        if (document.getElementById('maintEntriesContainer').children.length === 0) {
+            addMaintRemarkCard();
+        }
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = '🔍 Load Remarks';
+        spinner.classList.add('hidden');
+    }
+}
+window.loadMaintenanceRemarks = loadMaintenanceRemarks;
+
+async function saveMaintenanceRemarks() {
+    if (!currentPassword) {
+        handleSessionExpired();
+        return;
+    }
+
+    const date = document.getElementById('maintDateInput').value.trim();
+    const rake = document.getElementById('maintRakeSelect').value.trim();
+    let train = document.getElementById('maintTrainSelect').value.trim();
+    if (train === 'Other') {
+        train = document.getElementById('maintOtherTrainInput').value.trim();
+    }
+    const sse = document.getElementById('maintSseInput').value.trim();
+
+    if (!date || !rake || !train || !sse) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Incomplete Basic Details',
+            text: 'Please fill in Date, Rake No, Train No, and SSE Name.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const container = document.getElementById('maintEntriesContainer');
+    const cards = container.querySelectorAll('.maint-entry-card');
+    const remarks = [];
+
+    let hasInvalid = false;
+    cards.forEach(card => {
+        const coach = card.querySelector('.maint-coach-select').value;
+        const mainCat = card.querySelector('.maint-main-cat').value;
+        const subCatSelect = card.querySelector('.maint-sub-cat');
+        const customInput = card.querySelector('.maint-sub-cat-custom');
+        let subCat = subCatSelect.value;
+        if (subCat === 'Other' && customInput) {
+            subCat = customInput.value.trim() || 'Other';
+        }
+        const desc = card.querySelector('.maint-desc').value.trim();
+        const action = card.querySelector('.maint-action').value.trim();
+
+        if (coach || mainCat || desc || action) {
+            if (!coach || !mainCat || !subCat || !desc || !action) {
+                hasInvalid = true;
+            }
+            remarks.push({
+                CoachNo: coach,
+                MainCategory: mainCat,
+                SubCategory: subCat,
+                DefectDescription: desc,
+                AttentionGiven: action
+            });
+        }
+    });
+
+    if (hasInvalid) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Incomplete Remark Entries',
+            text: 'Please make sure all entered remarks have Coach, Main Category, Sub Category, Description, and Attention Given filled in.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const btn = document.getElementById('maintSubmitBtn');
+    const btnText = btn.querySelector('span');
+    const spinner = btn.querySelector('.spinner');
+    const statusEl = document.getElementById('maintSaveStatus');
+
+    btn.disabled = true;
+    btnText.textContent = 'Saving to Google Sheets...';
+    spinner.classList.remove('hidden');
+    statusEl.textContent = 'Saving remarks to Google Sheet "Maintenance Remarks"...';
+    statusEl.style.color = '#38bdf8';
+
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const payload = {
+        action: 'save_maintenance_remarks',
+        password: currentPassword,
+        basic: {
+            Date: date,
+            RakeNo: rake,
+            TrainNo: train,
+            SseName: sse,
+            Timestamp: timestamp
+        },
+        remarks: remarks
+    };
+
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (result.status === 'unauthorized') {
+            handleSessionExpired();
+            return;
+        }
+
+        if (result.status === 'success') {
+            statusEl.textContent = `✓ Successfully saved ${remarks.length} remark(s) to Google Sheets!`;
+            statusEl.style.color = '#10b981';
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Saved Successfully',
+                text: `${remarks.length} maintenance remark(s) synced to "Maintenance Remarks" Google Sheet!`,
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: 'var(--primary)'
+            });
+        } else {
+            throw new Error(result.message || 'Unknown save error');
+        }
+    } catch (err) {
+        statusEl.textContent = 'Error saving to Google Sheets: ' + (err.message || 'Network error');
+        statusEl.style.color = '#f87171';
+        Swal.fire({
+            icon: 'error',
+            title: 'Save Failed',
+            text: err.message || 'Failed to sync to Google Sheets.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = '💾 Save Maintenance Remarks';
+        spinner.classList.add('hidden');
+    }
+}
+window.saveMaintenanceRemarks = saveMaintenanceRemarks;
+
+// Initialize Maintenance Categories
+fetchMaintenanceCategories();
+
+// ============================================================================
+// SETTINGS SCREEN & DROPDOWN CATEGORIES MANAGEMENT
+// ============================================================================
 let currentSettingsPassword = "";
 let settingsEditState = {
     activeCategory: 'mainCategories',
@@ -2230,6 +2856,8 @@ let settingsEditState = {
     subCategories: [],
     defectCategories: [],
     detentionCategories: [],
+    maintenanceCategories: {},
+    selectedMaintMainCat: 'Interior',
     hasUnsavedChanges: false
 };
 
@@ -2257,6 +2885,12 @@ const CATEGORY_CONFIG = {
         subtitle: 'Values stored in "drop down data" sheet (Column F)',
         placeholder: 'e.g. Air Brake, Plug door, Undergear...',
         cacheKey: 'detentionCategories'
+    },
+    maintenanceCategories: {
+        title: 'Maintenance Defect Sub Category',
+        subtitle: 'Values stored in "Maintenance Categories" sheet',
+        placeholder: 'e.g. Passenger Seat, AC Blower, Brake Disc...',
+        cacheKey: 'maintenanceCategories'
     }
 };
 
@@ -2323,6 +2957,11 @@ function initSettingsState() {
     settingsEditState.subCategories = [...(cachedDropdownData.subCategories || DEFAULT_DROPDOWN_DATA.subCategories)];
     settingsEditState.defectCategories = [...(cachedDropdownData.defectCategories || DEFAULT_DROPDOWN_DATA.defectCategories)];
     settingsEditState.detentionCategories = [...(cachedDropdownData.detentionCategories || DEFAULT_DROPDOWN_DATA.detentionCategories)];
+    settingsEditState.maintenanceCategories = JSON.parse(JSON.stringify(cachedMaintenanceCategories || DEFAULT_MAINTENANCE_CATEGORIES));
+    const mainKeys = Object.keys(settingsEditState.maintenanceCategories);
+    if (!settingsEditState.selectedMaintMainCat || !settingsEditState.maintenanceCategories[settingsEditState.selectedMaintMainCat]) {
+        settingsEditState.selectedMaintMainCat = mainKeys.length > 0 ? mainKeys[0] : 'Interior';
+    }
     settingsEditState.hasUnsavedChanges = false;
 }
 
@@ -2331,6 +2970,61 @@ function switchSettingsTab(catKey) {
     settingsEditState.activeCategory = catKey;
     renderSettingsView();
 }
+window.switchSettingsTab = switchSettingsTab;
+
+function populateMaintSettingsMainSelect() {
+    const select = document.getElementById('maintSettingsMainSelect');
+    if (!select) return;
+    const cats = Object.keys(settingsEditState.maintenanceCategories || {});
+    if (cats.length === 0) {
+        cats.push('Interior', 'UG - Air', 'Propulsion');
+    }
+    const currentVal = settingsEditState.selectedMaintMainCat || cats[0];
+    select.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}" ${c === currentVal ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+    settingsEditState.selectedMaintMainCat = select.value;
+}
+
+function handleMaintSettingsMainCatChange() {
+    const select = document.getElementById('maintSettingsMainSelect');
+    if (!select) return;
+    settingsEditState.selectedMaintMainCat = select.value;
+    renderSettingsView();
+}
+window.handleMaintSettingsMainCatChange = handleMaintSettingsMainCatChange;
+
+async function addNewMainCategoryPrompt() {
+    const { value: newCat } = await Swal.fire({
+        title: 'Add Defect Main Category',
+        text: 'Enter the name of the new defect main category:',
+        input: 'text',
+        inputPlaceholder: 'e.g. Electrical, HVAC, Pantry...',
+        showCancelButton: true,
+        confirmButtonText: 'Add Category',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#10b981',
+        background: 'var(--surface)',
+        color: 'var(--text-main)',
+        inputValidator: (value) => {
+            if (!value || !value.trim()) return 'Main Category name cannot be empty';
+            const trimmed = value.trim();
+            const existing = Object.keys(settingsEditState.maintenanceCategories || {});
+            if (existing.some(k => k.toLowerCase() === trimmed.toLowerCase())) {
+                return `Category "${trimmed}" already exists`;
+            }
+        }
+    });
+
+    if (newCat && newCat.trim()) {
+        const trimmed = newCat.trim();
+        if (!settingsEditState.maintenanceCategories[trimmed]) {
+            settingsEditState.maintenanceCategories[trimmed] = [];
+        }
+        settingsEditState.selectedMaintMainCat = trimmed;
+        settingsEditState.hasUnsavedChanges = true;
+        renderSettingsView();
+    }
+}
+window.addNewMainCategoryPrompt = addNewMainCategoryPrompt;
 
 function renderSettingsView() {
     const activeCat = settingsEditState.activeCategory;
@@ -2347,6 +3041,7 @@ function renderSettingsView() {
     });
 
     // Update header & count
+    const parentBox = document.getElementById('maintCategoryParentBox');
     const titleEl = document.getElementById('currentCategoryTitle');
     const subEl = document.getElementById('currentCategorySubtitle');
     const inputEl = document.getElementById('newCategoryInput');
@@ -2354,14 +3049,30 @@ function renderSettingsView() {
     const listEl = document.getElementById('categoryItemsList');
     const statusEl = document.getElementById('settingsSaveStatus');
 
-    if (titleEl) titleEl.textContent = config.title;
-    if (subEl) subEl.textContent = config.subtitle;
-    if (inputEl) {
-        inputEl.placeholder = config.placeholder;
-        inputEl.value = '';
+    let items = [];
+
+    if (activeCat === 'maintenanceCategories') {
+        if (parentBox) parentBox.style.display = 'block';
+        populateMaintSettingsMainSelect();
+        const mainCat = settingsEditState.selectedMaintMainCat;
+        items = (settingsEditState.maintenanceCategories && settingsEditState.maintenanceCategories[mainCat]) || [];
+        if (titleEl) titleEl.textContent = `Defect Sub Category (${mainCat})`;
+        if (subEl) subEl.textContent = `Subcategories for "${mainCat}" stored in "Maintenance Categories" sheet`;
+        if (inputEl) {
+            inputEl.placeholder = `New subcategory under ${mainCat}...`;
+            inputEl.value = '';
+        }
+    } else {
+        if (parentBox) parentBox.style.display = 'none';
+        items = settingsEditState[activeCat] || [];
+        if (titleEl) titleEl.textContent = config.title;
+        if (subEl) subEl.textContent = config.subtitle;
+        if (inputEl) {
+            inputEl.placeholder = config.placeholder;
+            inputEl.value = '';
+        }
     }
 
-    const items = settingsEditState[activeCat] || [];
     if (countEl) {
         countEl.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
     }
@@ -2400,10 +3111,13 @@ function renderSettingsView() {
         if (settingsEditState.hasUnsavedChanges) {
             statusEl.innerHTML = '<span style="color: #fbbf24; font-weight: 600;">● Unsaved changes in categories</span>';
         } else {
-            statusEl.innerHTML = '<span style="color: var(--text-muted);">Synced with Google Sheet "drop down data"</span>';
+            statusEl.innerHTML = activeCat === 'maintenanceCategories'
+                ? '<span style="color: var(--text-muted);">Synced with Google Sheet "Maintenance Categories"</span>'
+                : '<span style="color: var(--text-muted);">Synced with Google Sheet "drop down data"</span>';
         }
     }
 }
+window.renderSettingsView = renderSettingsView;
 
 function addCurrentCategoryItem() {
     const inputEl = document.getElementById('newCategoryInput');
@@ -2422,7 +3136,16 @@ function addCurrentCategoryItem() {
     }
 
     const activeCat = settingsEditState.activeCategory;
-    const list = settingsEditState[activeCat];
+    let list;
+    if (activeCat === 'maintenanceCategories') {
+        const mainCat = settingsEditState.selectedMaintMainCat;
+        if (!settingsEditState.maintenanceCategories[mainCat]) {
+            settingsEditState.maintenanceCategories[mainCat] = [];
+        }
+        list = settingsEditState.maintenanceCategories[mainCat];
+    } else {
+        list = settingsEditState[activeCat];
+    }
 
     if (list.some(item => item.trim().toLowerCase() === val.toLowerCase())) {
         Swal.fire({
@@ -2441,10 +3164,17 @@ function addCurrentCategoryItem() {
     inputEl.value = '';
     renderSettingsView();
 }
+window.addCurrentCategoryItem = addCurrentCategoryItem;
 
 async function editCategoryItem(index) {
     const activeCat = settingsEditState.activeCategory;
-    const list = settingsEditState[activeCat];
+    let list;
+    if (activeCat === 'maintenanceCategories') {
+        const mainCat = settingsEditState.selectedMaintMainCat;
+        list = settingsEditState.maintenanceCategories[mainCat] || [];
+    } else {
+        list = settingsEditState[activeCat];
+    }
     if (index < 0 || index >= list.length) return;
 
     const currentText = list[index];
@@ -2486,10 +3216,17 @@ async function editCategoryItem(index) {
         renderSettingsView();
     }
 }
+window.editCategoryItem = editCategoryItem;
 
 async function deleteCategoryItem(index) {
     const activeCat = settingsEditState.activeCategory;
-    const list = settingsEditState[activeCat];
+    let list;
+    if (activeCat === 'maintenanceCategories') {
+        const mainCat = settingsEditState.selectedMaintMainCat;
+        list = settingsEditState.maintenanceCategories[mainCat] || [];
+    } else {
+        list = settingsEditState[activeCat];
+    }
     if (index < 0 || index >= list.length) return;
 
     const currentText = list[index];
@@ -2512,6 +3249,7 @@ async function deleteCategoryItem(index) {
         renderSettingsView();
     }
 }
+window.deleteCategoryItem = deleteCategoryItem;
 
 async function saveCategoriesToSheet() {
     if (!currentSettingsPassword) {
@@ -2529,79 +3267,131 @@ async function saveCategoriesToSheet() {
 
     try {
         const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
-        const payload = {
-            action: "save_dropdown_categories",
-            password: currentPassword,
-            settingsPassword: currentSettingsPassword,
-            mainCategories: settingsEditState.mainCategories,
-            subCategories: settingsEditState.subCategories,
-            defectCategories: settingsEditState.defectCategories,
-            detentionCategories: settingsEditState.detentionCategories
-        };
 
-        const response = await fetch(targetUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8'
-            },
-            body: JSON.stringify(payload)
-        });
+        if (settingsEditState.activeCategory === 'maintenanceCategories') {
+            const payload = {
+                action: "save_maintenance_categories",
+                password: currentPassword,
+                settingsPassword: currentSettingsPassword,
+                categories: settingsEditState.maintenanceCategories
+            };
 
-        const result = await response.json();
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify(payload)
+            });
 
-        if (result && result.status === "success") {
-            cachedDropdownData.mainCategories = [...settingsEditState.mainCategories];
-            cachedDropdownData.subCategories = [...settingsEditState.subCategories];
-            cachedDropdownData.defectCategories = [...settingsEditState.defectCategories];
-            cachedDropdownData.detentionCategories = [...settingsEditState.detentionCategories];
+            const result = await response.json();
 
-            try {
-                localStorage.setItem(DROPDOWN_CACHE_KEY, JSON.stringify(cachedDropdownData));
-            } catch (e) {
-                console.warn('LocalStorage save error:', e);
+            if (result && result.status === "success") {
+                cachedMaintenanceCategories = JSON.parse(JSON.stringify(settingsEditState.maintenanceCategories));
+                try {
+                    localStorage.setItem('vb_maint_categories', JSON.stringify(cachedMaintenanceCategories));
+                } catch (e) {}
+
+                refreshAllMaintCategoryDropdowns();
+                settingsEditState.hasUnsavedChanges = false;
+                renderSettingsView();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Saved Successfully!',
+                    text: 'Maintenance categories updated in "Maintenance Categories" sheet and applied across the app.',
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: '#10b981'
+                });
+            } else if (result && result.status === "unauthorized") {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Unauthorized',
+                    text: result.message || 'Incorrect Settings password (from cell A3 in "pass" sheet).',
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: '#ef4444'
+                });
+                currentSettingsPassword = "";
+            } else {
+                throw new Error(result.message || 'Unknown save error');
             }
-
-            populateArrivalDropdowns();
-            refreshRailMadadDropdowns();
-            refreshDefectDropdowns();
-            refreshDetentionDropdowns();
-
-            settingsEditState.hasUnsavedChanges = false;
-            renderSettingsView();
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Saved Successfully!',
-                text: 'Categories updated in "drop down data" sheet and applied across the app.',
-                background: 'var(--surface)',
-                color: 'var(--text-main)',
-                confirmButtonColor: '#f59e0b'
-            });
-        } else if (result && result.status === "unauthorized") {
-            Swal.fire({
-                icon: 'error',
-                title: 'Unauthorized',
-                text: result.message || 'Incorrect Settings password (from cell A3 in "pass" sheet).',
-                background: 'var(--surface)',
-                color: 'var(--text-main)',
-                confirmButtonColor: '#ef4444'
-            });
-            currentSettingsPassword = "";
         } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Save Failed',
-                text: result.message || 'Could not update categories in Google Sheet.',
-                background: 'var(--surface)',
-                color: 'var(--text-main)',
-                confirmButtonColor: '#ef4444'
+            const payload = {
+                action: "save_dropdown_categories",
+                password: currentPassword,
+                settingsPassword: currentSettingsPassword,
+                mainCategories: settingsEditState.mainCategories,
+                subCategories: settingsEditState.subCategories,
+                defectCategories: settingsEditState.defectCategories,
+                detentionCategories: settingsEditState.detentionCategories
+            };
+
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify(payload)
             });
+
+            const result = await response.json();
+
+            if (result && result.status === "success") {
+                cachedDropdownData.mainCategories = [...settingsEditState.mainCategories];
+                cachedDropdownData.subCategories = [...settingsEditState.subCategories];
+                cachedDropdownData.defectCategories = [...settingsEditState.defectCategories];
+                cachedDropdownData.detentionCategories = [...settingsEditState.detentionCategories];
+
+                try {
+                    localStorage.setItem(DROPDOWN_CACHE_KEY, JSON.stringify(cachedDropdownData));
+                } catch (e) {
+                    console.warn('LocalStorage save error:', e);
+                }
+
+                populateArrivalDropdowns();
+                refreshRailMadadDropdowns();
+                refreshDefectDropdowns();
+                refreshDetentionDropdowns();
+
+                settingsEditState.hasUnsavedChanges = false;
+                renderSettingsView();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Saved Successfully!',
+                    text: 'Categories updated in "drop down data" sheet and applied across the app.',
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: '#f59e0b'
+                });
+            } else if (result && result.status === "unauthorized") {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Unauthorized',
+                    text: result.message || 'Incorrect Settings password (from cell A3 in "pass" sheet).',
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: '#ef4444'
+                });
+                currentSettingsPassword = "";
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Save Failed',
+                    text: result.message || 'Could not update categories in Google Sheet.',
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: '#ef4444'
+                });
+            }
         }
     } catch (err) {
         Swal.fire({
             icon: 'error',
             title: 'Network Error',
-            text: 'Failed to communicate with Google Sheets: ' + (err.message || 'Network error'),
+            text: 'Could not connect to Google Sheets: ' + (err.message || 'Unknown network error'),
             background: 'var(--surface)',
             color: 'var(--text-main)',
             confirmButtonColor: '#ef4444'
@@ -2612,6 +3402,8 @@ async function saveCategoriesToSheet() {
         if (spinner) spinner.classList.add('hidden');
     }
 }
+window.saveCategoriesToSheet = saveCategoriesToSheet;
+
 
 // Enter key binding for adding items in settings
 document.addEventListener('DOMContentLoaded', () => {

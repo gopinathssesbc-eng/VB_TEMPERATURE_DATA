@@ -240,6 +240,21 @@ h1 {
     border-color: #38bdf8;
 }
 
+.maintenance-menu-card {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.4);
+}
+
+.maintenance-menu-card:hover {
+    background: rgba(16, 185, 129, 0.25);
+    border-color: #34d399;
+}
+
+.icon-maintenance {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
 .dashboards-menu-card {
     background: rgba(139, 92, 246, 0.15);
     border-color: rgba(139, 92, 246, 0.4);
@@ -1800,8 +1815,22 @@ input.alert-orange {
 
 @media (min-width: 580px) {
     .settings-tabs {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     }
+}
+
+.maint-entry-card {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+    transition: border-color 0.2s ease;
+}
+
+.maint-entry-card:hover {
+    border-color: rgba(52, 211, 153, 0.4);
 }
 
 .settings-tab-btn {

@@ -304,6 +304,92 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
+  // =========================================================================
+  // 2. GET MAINTENANCE CATEGORIES: Reads from "Maintenance Categories" sheet
+  // =========================================================================
+  if (e && e.parameter && e.parameter.action === "get_maintenance_categories") {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = getSheetCaseInsensitive(ss, "Maintenance Categories");
+
+    const defaultCategories = {
+      "Interior": [
+        "Passenger Seat / Recliner",
+        "Charging Socket / USB",
+        "Reading Light / Saloon Light",
+        "IC Sliding Door",
+        "Exterior Plug Door",
+        "Toilet / Wash Basin / Flush",
+        "Water Supply / Leakage",
+        "Foot Step / Vestibule",
+        "AC / Cooling / HVAC",
+        "Window Glass / Roller Blind",
+        "Others"
+      ],
+      "UG - Air": [
+        "Air Brake / BP-FP Pipe",
+        "Air Suspension / Bellow",
+        "Wheel / Axle Box / Bearing",
+        "Parking Brake / Hand Brake",
+        "Brake Pad / Disc Brake",
+        "Underframe Pipe / Hose Leakage",
+        "Safety Loop / Guard Wire",
+        "Cattle Guard / Snow Plough",
+        "Others"
+      ],
+      "Propulsion": [
+        "Pantograph / Roof Equipment",
+        "Traction Transformer",
+        "Traction Converter / Inverter",
+        "Auxiliary Converter (BUR)",
+        "Battery / Battery Charger",
+        "Traction Motor / Gear Box",
+        "TCMS / VCU / DDU Display",
+        "Master Controller / Key Switch",
+        "Line Contactor / VCB",
+        "Others"
+      ]
+    };
+
+    if (!sheet) {
+      sheet = ss.insertSheet("Maintenance Categories");
+      sheet.appendRow(["Main Category", "Sub Category"]);
+      Object.keys(defaultCategories).forEach(mainCat => {
+        defaultCategories[mainCat].forEach(subCat => {
+          sheet.appendRow([mainCat, subCat]);
+        });
+      });
+      SpreadsheetApp.flush();
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        categories: defaultCategories
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        categories: defaultCategories
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const categories = {};
+    for (let i = 1; i < data.length; i++) {
+      const mainCat = String(data[i][0] || "").trim();
+      const subCat = String(data[i][1] || "").trim();
+      if (!mainCat) continue;
+      if (!categories[mainCat]) categories[mainCat] = [];
+      if (subCat && !categories[mainCat].includes(subCat)) {
+        categories[mainCat].push(subCat);
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      categories: Object.keys(categories).length > 0 ? categories : defaultCategories
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   const providedPassword = (e && e.parameter) ? e.parameter.password : "";
   
   if (!checkPassword(providedPassword)) {
@@ -454,6 +540,69 @@ function doGet(e) {
   }
 
   // =========================================================================
+  // 2. MAINTENANCE REMARKS GET: Load existing maintenance records for Date + Rake
+  // =========================================================================
+  if (e.parameter.action === "get_maintenance_remarks") {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const queryDate = formatDateCell(e.parameter.date);
+    const queryRake = String(e.parameter.rake || "").trim();
+
+    let found = false;
+    let basic = { Date: queryDate, RakeNo: queryRake, TrainNo: "", SseName: "" };
+    let remarks = [];
+
+    const sheet = getSheetCaseInsensitive(ss, "Maintenance Remarks");
+    if (sheet) {
+      const data = sheet.getDataRange().getValues();
+      if (data.length > 1) {
+        const headers = data[0].map(h => String(h || "").trim().toLowerCase());
+        const dateIdx = headers.findIndex(h => h === "date");
+        const rakeIdx = headers.findIndex(h => h.includes("rake"));
+        const trainIdx = headers.findIndex(h => h.includes("train"));
+        const sseIdx = headers.findIndex(h => h.includes("sse") || h.includes("name"));
+        const coachIdx = headers.findIndex(h => h.includes("coach"));
+        const mainCatIdx = headers.findIndex(h => h.includes("main"));
+        const subCatIdx = headers.findIndex(h => h.includes("sub"));
+        const descIdx = headers.findIndex(h => h.includes("desc"));
+        const actionIdx = headers.findIndex(h => h.includes("attention") || h.includes("action"));
+
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          const rowDate = formatDateCell(row[dateIdx]);
+          const rowRake = String(row[rakeIdx] || "").trim();
+
+          if (rowDate === queryDate && (!queryRake || rowRake.toLowerCase() === queryRake.toLowerCase())) {
+            found = true;
+            if (!basic.TrainNo && trainIdx !== -1) basic.TrainNo = String(row[trainIdx] || "").trim();
+            if (!basic.SseName && sseIdx !== -1) basic.SseName = String(row[sseIdx] || "").trim();
+
+            const coachVal = coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "";
+            const mainVal = mainCatIdx !== -1 ? String(row[mainCatIdx] || "").trim() : "";
+            const subVal = subCatIdx !== -1 ? String(row[subCatIdx] || "").trim() : "";
+            const descVal = descIdx !== -1 ? String(row[descIdx] || "").trim() : "";
+            const actVal = actionIdx !== -1 ? String(row[actionIdx] || "").trim() : "";
+
+            remarks.push({
+              CoachNo: coachVal,
+              MainCategory: mainVal,
+              SubCategory: subVal,
+              DefectDescription: descVal,
+              AttentionGiven: actVal
+            });
+          }
+        }
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      found: found,
+      basic: basic,
+      remarks: remarks
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // =========================================================================
   // 3. STANDARD TEMPERATURE DATA GET
   // =========================================================================
   const trainName = e.parameter.train;
@@ -521,6 +670,51 @@ function doPost(e) {
           message: "Incorrect Settings password"
         })).setMimeType(ContentService.MimeType.JSON);
       }
+    }
+
+    // =========================================================================
+    // SAVE MAINTENANCE CATEGORIES: Admin save for category/subcategory mappings
+    // =========================================================================
+    if (request.action === "save_maintenance_categories") {
+      const settingsPass = request.settingsPassword || request.password || "";
+      if (!checkSettingsPassword(settingsPass)) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "unauthorized",
+          message: "Incorrect Settings password (from cell A3 in 'pass' sheet)"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      let sheet = getSheetCaseInsensitive(ss, "Maintenance Categories");
+      if (!sheet) {
+        sheet = ss.insertSheet("Maintenance Categories");
+      }
+
+      sheet.clearContents();
+      sheet.appendRow(["Main Category", "Sub Category"]);
+
+      const categories = request.categories || {};
+      const rows = [];
+      Object.keys(categories).forEach(mainCat => {
+        const subCats = categories[mainCat] || [];
+        if (subCats.length === 0) {
+          rows.push([mainCat, ""]);
+        } else {
+          subCats.forEach(sub => {
+            rows.push([mainCat, sub]);
+          });
+        }
+      });
+
+      if (rows.length > 0) {
+        sheet.getRange(2, 1, rows.length, 2).setValues(rows);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Maintenance categories updated successfully in 'Maintenance Categories' sheet",
+        categories: categories
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (request.action === "save_dropdown_categories") {
@@ -789,6 +983,88 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         message: "Saved successfully to 3 Google Sheets (Arrival Report, Rail Madad, Detentions)"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =========================================================================
+    // 2. SAVE MAINTENANCE REMARKS: Saves records to "Maintenance Remarks" sheet
+    // =========================================================================
+    if (request.action === "save_maintenance_remarks") {
+      const basic = request.basic || {};
+      const dateStr = formatDateCell(basic.Date);
+      const rakeStr = String(basic.RakeNo || "").trim();
+      const trainStr = String(basic.TrainNo || "").trim();
+      const sseStr = String(basic.SseName || "").trim();
+      const timestamp = String(basic.Timestamp || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss"));
+      const remarks = request.remarks || [];
+
+      let sheet = getSheetCaseInsensitive(ss, "Maintenance Remarks");
+      const headers = [
+        "Timestamp", "Date", "Rake No", "Train No", "SSE Name",
+        "Coach No", "Defect Main Category", "Defect Sub Category",
+        "Defect Description", "Attention Given"
+      ];
+
+      if (!sheet) {
+        sheet = ss.insertSheet("Maintenance Remarks");
+        sheet.appendRow(headers);
+        SpreadsheetApp.flush();
+      } else if (sheet.getDataRange().getValues().length === 0) {
+        sheet.appendRow(headers);
+      }
+
+      // Clear existing records for this Date + Rake
+      const data = sheet.getDataRange().getValues();
+      if (data.length > 1) {
+        const sheetHeaders = data[0].map(h => String(h || "").trim().toLowerCase());
+        const dateIdx = sheetHeaders.findIndex(h => h === "date");
+        const rakeIdx = sheetHeaders.findIndex(h => h.includes("rake"));
+        if (dateIdx !== -1 && rakeIdx !== -1) {
+          for (let i = data.length - 1; i >= 1; i--) {
+            const rowDate = formatDateCell(data[i][dateIdx]);
+            const rowRake = String(data[i][rakeIdx] || "").trim();
+            if (rowDate === dateStr && rowRake.toLowerCase() === rakeStr.toLowerCase()) {
+              sheet.deleteRow(i + 1);
+            }
+          }
+        }
+      }
+
+      // Append new remarks
+      if (remarks.length > 0) {
+        remarks.forEach(rem => {
+          sheet.appendRow([
+            timestamp,
+            dateStr,
+            rakeStr,
+            trainStr,
+            sseStr,
+            rem.CoachNo || "",
+            rem.MainCategory || "",
+            rem.SubCategory || "",
+            rem.DefectDescription || "",
+            rem.AttentionGiven || ""
+          ]);
+        });
+      } else {
+        sheet.appendRow([
+          timestamp,
+          dateStr,
+          rakeStr,
+          trainStr,
+          sseStr,
+          "NIL",
+          "",
+          "",
+          "No Maintenance Remarks Reported",
+          ""
+        ]);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: `Saved ${remarks.length} maintenance remarks for ${rakeStr} on ${dateStr}`,
+        count: remarks.length
       })).setMimeType(ContentService.MimeType.JSON);
     }
 

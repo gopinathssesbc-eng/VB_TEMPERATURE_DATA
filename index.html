@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.9">
+    <link rel="stylesheet" href="style.css?v=2.10">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -120,6 +120,20 @@
                 <div class="menu-card-content">
                     <span class="menu-card-title">Arrival Report</span>
                     <span class="menu-card-subtitle">Defects, Rail Madad & Detentions</span>
+                </div>
+                <div class="menu-card-arrow">›</div>
+            </button>
+
+            <!-- 3. Maintenance Remarks -->
+            <button type="button" class="menu-card maintenance-menu-card" id="btnMaintenanceRemarks" onclick="openMaintenanceRemarks()">
+                <div class="menu-card-icon icon-maintenance">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                </div>
+                <div class="menu-card-content">
+                    <span class="menu-card-title">Maintenance Remarks</span>
+                    <span class="menu-card-subtitle">Log defect rectification & attention given</span>
                 </div>
                 <div class="menu-card-arrow">›</div>
             </button>
@@ -532,6 +546,104 @@
     </main>
     </div>
 
+    <!-- Maintenance Remarks Screen -->
+    <div class="container screen" id="maintenanceRemarksScreen" style="display: none;">
+        <header class="arrival-header">
+            <button type="button" class="back-btn arrival-back-btn" onclick="backToMenu()">← Back</button>
+            <h1 class="arrival-title">Maintenance Remarks</h1>
+            <div id="maintStatus" class="status-indicator arrival-status" style="display: none;"></div>
+            <div style="width: 50px;"></div>
+        </header>
+
+        <main>
+            <form id="maintForm" onsubmit="event.preventDefault();">
+                <!-- Section 0: Basic Details -->
+                <section class="metadata-section">
+                    <h2>Basic Details</h2>
+
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="maintDateInput">Date</label>
+                            <input type="text" id="maintDateInput" name="Date" placeholder="DD-MM-YYYY" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="maintRakeSelect">Rake No</label>
+                            <select id="maintRakeSelect" name="Rake No" required onchange="handleMaintRakeChange()">
+                                <option value="">-- Select Rake --</option>
+                                <option value="IC2008">IC2008</option>
+                                <option value="IC2015">IC2015</option>
+                                <option value="IC2021">IC2021</option>
+                                <option value="IC2006">IC2006</option>
+                                <option value="IC2029">IC2029</option>
+                                <option value="IC2058">IC2058</option>
+                                <option value="IC2059">IC2059</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="maintTrainSelect">Train No</label>
+                            <select id="maintTrainSelect" name="Train No" required onchange="handleMaintTrainChange()">
+                                <option value="">-- Select Train No --</option>
+                                <option value="26651/2">26651/2</option>
+                                <option value="20661/2">20661/2</option>
+                                <option value="Other">Other (Enter Train No)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="maintSseInput">SSE Name</label>
+                            <input type="text" id="maintSseInput" name="SSE Name" placeholder="SSE Incharge Name" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="maintOtherTrainGroup" style="display: none;">
+                        <label for="maintOtherTrainInput">Specify Train Number</label>
+                        <input type="text" id="maintOtherTrainInput" placeholder="e.g. 20631">
+                    </div>
+
+                    <button type="button" id="maintLoadBtn" class="load-btn" onclick="loadMaintenanceRemarks()">
+                        <span>🔍 Load Remarks</span>
+                        <div class="spinner hidden" style="width: 1.1rem; height: 1.1rem; border-width: 2px;"></div>
+                    </button>
+                    <div id="maintLoadStatus" class="load-status"></div>
+                </section>
+
+                <!-- Section 1: Remarks Entries (Revealed after clicking Load) -->
+                <div id="maintEntriesWrapper" style="display: none;">
+                    <section class="metadata-section" style="margin-top: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h2 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">Defect & Maintenance Remarks</h2>
+                            <span id="maintCountBadge" class="section-count-badge">0 entries</span>
+                        </div>
+
+                        <div id="maintEntriesContainer">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <button type="button" class="btn btn-secondary add-entry-btn" id="addMaintRemarkBtn" onclick="addMaintRemarkCard()" style="margin-top: 0.75rem;">
+                            + Add Maintenance Remark
+                        </button>
+                    </section>
+
+                    <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <button type="button" id="maintSubmitBtn" class="save-btn" onclick="saveMaintenanceRemarks()">
+                            <span>💾 Save Maintenance Remarks</span>
+                            <div class="spinner hidden"></div>
+                        </button>
+                        <div id="maintSaveStatus" style="text-align: center; font-size: 0.88rem; font-weight: 500;"></div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 1.5rem; padding-bottom: 1rem;">
+                    <button type="button" class="back-btn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
     <!-- Dashboard Screen -->
     <div class="container screen" id="dashboardScreen" style="display: none;">
         <header class="arrival-header">
@@ -578,6 +690,9 @@
                 <button type="button" class="settings-tab-btn" id="tab-detentionCategories" onclick="switchSettingsTab('detentionCategories')">
                     Detention Category
                 </button>
+                <button type="button" class="settings-tab-btn" id="tab-maintenanceCategories" onclick="switchSettingsTab('maintenanceCategories')">
+                    Maintenance Categories
+                </button>
             </div>
 
             <!-- Category Section Card -->
@@ -588,6 +703,19 @@
                         <span id="currentCategorySubtitle" class="settings-category-subtitle">Values stored in "drop down data" sheet (Column C)</span>
                     </div>
                     <span id="categoryItemCount" class="category-count-badge">0 items</span>
+                </div>
+
+                <!-- Subcategory Parent Selector (only visible when Maintenance Categories tab is active) -->
+                <div id="maintCategoryParentBox" style="display: none; margin-bottom: 1rem; padding: 0.85rem; background: rgba(30, 41, 59, 0.6); border-radius: 0.5rem; border: 1px solid var(--border);">
+                    <label for="maintSettingsMainSelect" style="display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">Defect Main Category</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                        <select id="maintSettingsMainSelect" class="settings-input" style="flex: 1; min-width: 160px;" onchange="handleMaintSettingsMainCatChange()">
+                            <option value="Interior">Interior</option>
+                            <option value="UG - Air">UG - Air</option>
+                            <option value="Propulsion">Propulsion</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addNewMainCategoryPrompt()" style="white-space: nowrap; padding: 0.45rem 0.75rem; font-size: 0.82rem;">+ Add Main Category</button>
+                    </div>
                 </div>
 
                 <!-- Add Item Form -->
@@ -770,7 +898,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.9"></script>
+    <script src="app.js?v=2.10"></script>
 </body>
 
 </html>
