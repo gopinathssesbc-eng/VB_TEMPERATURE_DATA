@@ -32,11 +32,11 @@ const STATIONS = {
     "IC2015": ["SBC", "ERS"]
 };
 const DEFAULT_STAFF_TOKENS = [
-    "921", "305", "935", "958", "733", "464", "792", "384", "705", "924",
-    "269", "758", "858", "591", "638", "485", "412", "981", "973", "534",
-    "992", "334", "261", "878", "429", "446", "295", "990", "941", "490",
-    "796", "909", "294", "755", "839", "314", "274", "980", "469", "330",
-    "744", "2005", "407", "222", "361", "272"
+    "222", "261", "269", "272", "274", "294", "295", "305", "314", "330",
+    "334", "361", "384", "407", "412", "429", "446", "464", "469", "485",
+    "490", "534", "591", "638", "705", "733", "744", "755", "758", "792",
+    "796", "839", "858", "878", "909", "921", "924", "935", "941", "958",
+    "973", "980", "981", "990", "992", "2005"
 ];
 
 const TOKENS = {
@@ -1043,6 +1043,9 @@ function openDataEntry() {
     hideAllScreens();
     clearForm();
     dataEntryScreen.style.display = 'flex';
+    if (trainSelect && trainSelect.value) {
+        populateTechnicianSelect(trainSelect.value);
+    }
 }
 
 function openArrivalReport() {
@@ -1345,6 +1348,19 @@ trainSelect.addEventListener('change', (e) => {
         coachesContainer.innerHTML = '';
     }
 });
+
+if (technicianSelect) {
+    technicianSelect.addEventListener('focus', () => {
+        if (trainSelect && trainSelect.value && technicianSelect.options.length <= 1) {
+            populateTechnicianSelect(trainSelect.value);
+        }
+    });
+    technicianSelect.addEventListener('mousedown', () => {
+        if (trainSelect && trainSelect.value && technicianSelect.options.length <= 1) {
+            populateTechnicianSelect(trainSelect.value);
+        }
+    });
+}
 
 // Toggle Password Visibility
 if (togglePasswordBtn) {
@@ -3534,6 +3550,12 @@ function initSettingsState() {
     settingsEditState.defectCategories = [...(cachedDropdownData.defectCategories || DEFAULT_DROPDOWN_DATA.defectCategories)];
     settingsEditState.detentionCategories = [...(cachedDropdownData.detentionCategories || DEFAULT_DROPDOWN_DATA.detentionCategories)];
     settingsEditState.staffTokens = [...(cachedDropdownData.staffTokens || DEFAULT_DROPDOWN_DATA.staffTokens || DEFAULT_STAFF_TOKENS)];
+    settingsEditState.staffTokens.sort((a, b) => {
+        const numA = parseInt(a, 10);
+        const numB = parseInt(b, 10);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return String(a).localeCompare(String(b));
+    });
     settingsEditState.maintenanceCategories = JSON.parse(JSON.stringify(cachedMaintenanceCategories || DEFAULT_MAINTENANCE_CATEGORIES));
     const mainKeys = Object.keys(settingsEditState.maintenanceCategories);
     if (!settingsEditState.selectedMaintMainCat || !settingsEditState.maintenanceCategories[settingsEditState.selectedMaintMainCat]) {
@@ -3737,6 +3759,14 @@ function addCurrentCategoryItem() {
     }
 
     list.push(val);
+    if (activeCat === 'staffTokens') {
+        settingsEditState.staffTokens.sort((a, b) => {
+            const numA = parseInt(a, 10);
+            const numB = parseInt(b, 10);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return String(a).localeCompare(String(b));
+        });
+    }
     settingsEditState.hasUnsavedChanges = true;
     inputEl.value = '';
     renderSettingsView();
@@ -3789,6 +3819,14 @@ async function editCategoryItem(index) {
         }
 
         list[index] = trimmed;
+        if (activeCat === 'staffTokens') {
+            settingsEditState.staffTokens.sort((a, b) => {
+                const numA = parseInt(a, 10);
+                const numB = parseInt(b, 10);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return String(a).localeCompare(String(b));
+            });
+        }
         settingsEditState.hasUnsavedChanges = true;
         renderSettingsView();
     }
