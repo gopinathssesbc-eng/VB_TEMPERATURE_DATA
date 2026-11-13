@@ -305,88 +305,98 @@ function doGet(e) {
   }
 
   // =========================================================================
-  // 2. GET MAINTENANCE CATEGORIES: Reads from "Maintenance Categories" sheet
+  // 2. GET MAINTENANCE CATEGORIES: Reads from "drop down data" (Columns G, H, I, J...)
   // =========================================================================
   if (e && e.parameter && e.parameter.action === "get_maintenance_categories") {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = getSheetCaseInsensitive(ss, "Maintenance Categories");
-
     const defaultCategories = {
-      "Interior": [
-        "Passenger Seat / Recliner",
-        "Charging Socket / USB",
-        "Reading Light / Saloon Light",
-        "IC Sliding Door",
-        "Exterior Plug Door",
-        "Toilet / Wash Basin / Flush",
-        "Water Supply / Leakage",
-        "Foot Step / Vestibule",
-        "AC / Cooling / HVAC",
-        "Window Glass / Roller Blind",
-        "Others"
+      "UG- Air": [
+        "Damper", "Wheel", "Spring", "Drain Pipe", "Traction centre",
+        "CTRB", "Control arm", "Nose Cone", "Others"
       ],
-      "UG - Air": [
-        "Air Brake / BP-FP Pipe",
-        "Air Suspension / Bellow",
-        "Wheel / Axle Box / Bearing",
-        "Parking Brake / Hand Brake",
-        "Brake Pad / Disc Brake",
-        "Underframe Pipe / Hose Leakage",
-        "Safety Loop / Guard Wire",
-        "Cattle Guard / Snow Plough",
-        "Others"
+      "Interior": [
+        "Roller Blinder", "IC door", "Seat recliner", "Seat snack table",
+        "Seat accessory-other", "Plug door", "Vaccum toilet", "PVC floor",
+        "Window glass", "Toilet door/lock", "Toilet- shower gun/tap",
+        "Commode lid cover", "Mirror", "PAPIS", "FDS", "ICD", "Others"
       ],
       "Propulsion": [
-        "Pantograph / Roof Equipment",
-        "Traction Transformer",
-        "Traction Converter / Inverter",
-        "Auxiliary Converter (BUR)",
-        "Battery / Battery Charger",
-        "Traction Motor / Gear Box",
-        "TCMS / VCU / DDU Display",
-        "Master Controller / Key Switch",
-        "Line Contactor / VCB",
-        "Others"
+        "Panto- carbon strip", "Panto-Other", "Transformer- Breather",
+        "Transformer-Other", "Driver cab buttons/ accessories", "Horn",
+        "Wiper", "Driver - sunviser", "Had light", "Flasher light",
+        "Marker light, red, green", "Signal exchange light",
+        "Traction motor", "LTC", "CT/PT", "Others"
       ]
     };
 
-    if (!sheet) {
-      sheet = ss.insertSheet("Maintenance Categories");
-      sheet.appendRow(["Main Category", "Sub Category"]);
-      Object.keys(defaultCategories).forEach(mainCat => {
-        defaultCategories[mainCat].forEach(subCat => {
-          sheet.appendRow([mainCat, subCat]);
-        });
-      });
-      SpreadsheetApp.flush();
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "success",
-        categories: defaultCategories
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
+    let categories = {};
 
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "success",
-        categories: defaultCategories
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
+    // 1. Read from "drop down data" sheet (Columns G, H, I, J...)
+    const dropSheet = getSheetCaseInsensitive(ss, "drop down data");
+    if (dropSheet) {
+      const dropData = dropSheet.getDataRange().getValues();
+      if (dropData.length > 1) {
+        const row0 = dropData[0].map(h => String(h || "").trim());
+        const row0Lower = row0.map(h => h.toLowerCase());
 
-    const categories = {};
-    for (let i = 1; i < data.length; i++) {
-      const mainCat = String(data[i][0] || "").trim();
-      const subCat = String(data[i][1] || "").trim();
-      if (!mainCat) continue;
-      if (!categories[mainCat]) categories[mainCat] = [];
-      if (subCat && !categories[mainCat].includes(subCat)) {
-        categories[mainCat].push(subCat);
+        let maintDefectCol = row0Lower.findIndex(h => h.includes("maint") && h.includes("defect"));
+        if (maintDefectCol === -1 && row0.length > 6) {
+          maintDefectCol = 6; // Column G
+        }
+
+        if (maintDefectCol !== -1 && maintDefectCol < row0.length) {
+          // Read main categories from Column G rows 2..
+          for (let r = 1; r < dropData.length; r++) {
+            const mCat = String(dropData[r][maintDefectCol] || "").trim();
+            if (mCat && !categories[mCat]) {
+              categories[mCat] = [];
+            }
+          }
+
+          // Read subcategories from columns to the right of maintDefectCol
+          for (let c = maintDefectCol + 1; c < dropData[0].length; c++) {
+            const mainCatName = String(dropData[1] ? dropData[1][c] : "").trim();
+            if (!mainCatName) continue;
+
+            if (!categories[mainCatName]) {
+              categories[mainCatName] = [];
+            }
+
+            for (let r = 2; r < dropData.length; r++) {
+              const subItem = String(dropData[r][c] || "").trim();
+              if (subItem && !categories[mainCatName].includes(subItem)) {
+                categories[mainCatName].push(subItem);
+              }
+            }
+          }
+        }
       }
+    }
+
+    // 2. Fallback to "Maintenance Categories" sheet if drop down data had no categories
+    if (Object.keys(categories).length === 0) {
+      const maintSheet = getSheetCaseInsensitive(ss, "Maintenance Categories");
+      if (maintSheet) {
+        const mData = maintSheet.getDataRange().getValues();
+        for (let i = 1; i < mData.length; i++) {
+          const mainCat = String(mData[i][0] || "").trim();
+          const subCat = String(mData[i][1] || "").trim();
+          if (!mainCat) continue;
+          if (!categories[mainCat]) categories[mainCat] = [];
+          if (subCat && !categories[mainCat].includes(subCat)) {
+            categories[mainCat].push(subCat);
+          }
+        }
+      }
+    }
+
+    if (Object.keys(categories).length === 0) {
+      categories = defaultCategories;
     }
 
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      categories: Object.keys(categories).length > 0 ? categories : defaultCategories
+      categories: categories
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -540,7 +550,7 @@ function doGet(e) {
   }
 
   // =========================================================================
-  // 2. MAINTENANCE REMARKS GET: Load existing maintenance records for Date + Rake
+  // 2. MAINTENANCE REMARKS GET: Load existing records for Date + Rake & Pending defects
   // =========================================================================
   if (e.parameter.action === "get_maintenance_remarks") {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -550,6 +560,7 @@ function doGet(e) {
     let found = false;
     let basic = { Date: queryDate, RakeNo: queryRake, TrainNo: "", SseName: "" };
     let remarks = [];
+    let pendingRemarks = [];
 
     const sheet = getSheetCaseInsensitive(ss, "Maintenance Remarks");
     if (sheet) {
@@ -559,36 +570,70 @@ function doGet(e) {
         const dateIdx = headers.findIndex(h => h === "date");
         const rakeIdx = headers.findIndex(h => h.includes("rake"));
         const trainIdx = headers.findIndex(h => h.includes("train"));
-        const sseIdx = headers.findIndex(h => h.includes("sse") || h.includes("name"));
+        const sseIdx = headers.findIndex(h => h.includes("sse") || (h.includes("name") && !h.includes("cat")));
         const coachIdx = headers.findIndex(h => h.includes("coach"));
         const mainCatIdx = headers.findIndex(h => h.includes("main"));
         const subCatIdx = headers.findIndex(h => h.includes("sub"));
         const descIdx = headers.findIndex(h => h.includes("desc"));
-        const actionIdx = headers.findIndex(h => h.includes("attention") || h.includes("action"));
+        const actionIdx = headers.findIndex(h => h.includes("attention given") || (h.includes("attention") && !h.includes("status")) || h.includes("action"));
+        const statusIdx = headers.findIndex(h => h.includes("status"));
+        const attendedDateIdx = headers.findIndex(h => h.includes("attended date") || (h.includes("attended") && h.includes("date")));
+        const idIdx = headers.findIndex(h => h.includes("defect id") || h === "id");
 
         for (let i = 1; i < data.length; i++) {
           const row = data[i];
           const rowDate = formatDateCell(row[dateIdx]);
           const rowRake = String(row[rakeIdx] || "").trim();
+          const coachVal = coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "";
+          const mainVal = mainCatIdx !== -1 ? String(row[mainCatIdx] || "").trim() : "";
+          const subVal = subCatIdx !== -1 ? String(row[subCatIdx] || "").trim() : "";
+          const descVal = descIdx !== -1 ? String(row[descIdx] || "").trim() : "";
+          const actVal = actionIdx !== -1 ? String(row[actionIdx] || "").trim() : "";
+          const statusVal = statusIdx !== -1 ? String(row[statusIdx] || "").trim() : "Attended";
+          const attDateVal = attendedDateIdx !== -1 ? formatDateCell(row[attendedDateIdx]) : "";
+          const rowTrain = trainIdx !== -1 ? String(row[trainIdx] || "").trim() : "";
+          const rowSse = sseIdx !== -1 ? String(row[sseIdx] || "").trim() : "";
+          const defectId = idIdx !== -1 ? String(row[idIdx] || "").trim() : ("ROW_" + (i + 1));
 
-          if (rowDate === queryDate && (!queryRake || rowRake.toLowerCase() === queryRake.toLowerCase())) {
-            found = true;
-            if (!basic.TrainNo && trainIdx !== -1) basic.TrainNo = String(row[trainIdx] || "").trim();
-            if (!basic.SseName && sseIdx !== -1) basic.SseName = String(row[sseIdx] || "").trim();
+          if (!queryRake || rowRake.toLowerCase() === queryRake.toLowerCase()) {
+            if (coachVal && coachVal !== "NIL") {
+              const isPending = (statusVal.toLowerCase() === "pending");
 
-            const coachVal = coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "";
-            const mainVal = mainCatIdx !== -1 ? String(row[mainCatIdx] || "").trim() : "";
-            const subVal = subCatIdx !== -1 ? String(row[subCatIdx] || "").trim() : "";
-            const descVal = descIdx !== -1 ? String(row[descIdx] || "").trim() : "";
-            const actVal = actionIdx !== -1 ? String(row[actionIdx] || "").trim() : "";
+              if (rowDate === queryDate) {
+                // Defect reported on THIS DATE: Always kept in Section 1 for this date
+                found = true;
+                if (!basic.TrainNo && rowTrain) basic.TrainNo = rowTrain;
+                if (!basic.SseName && rowSse) basic.SseName = rowSse;
 
-            remarks.push({
-              CoachNo: coachVal,
-              MainCategory: mainVal,
-              SubCategory: subVal,
-              DefectDescription: descVal,
-              AttentionGiven: actVal
-            });
+                remarks.push({
+                  CoachNo: coachVal,
+                  MainCategory: mainVal,
+                  SubCategory: subVal,
+                  DefectDescription: descVal,
+                  AttentionGiven: actVal,
+                  AttentionStatus: isPending ? "Pending" : "Attended",
+                  AttendedDate: isPending ? "" : rowDate,
+                  DefectId: defectId,
+                  RowNumber: i + 1
+                });
+              } else if (isPending) {
+                // Defect reported on an EARLIER date and still Pending: shows in Section 2 (Pending Defects)
+                pendingRemarks.push({
+                  RowNumber: i + 1,
+                  DefectId: defectId,
+                  OriginalDate: rowDate,
+                  TrainNo: rowTrain,
+                  SseName: rowSse,
+                  CoachNo: coachVal,
+                  MainCategory: mainVal,
+                  SubCategory: subVal,
+                  DefectDescription: descVal,
+                  AttentionGiven: actVal,
+                  AttentionStatus: "Pending",
+                  AttendedDate: ""
+                });
+              }
+            }
           }
         }
       }
@@ -598,7 +643,8 @@ function doGet(e) {
       status: "success",
       found: found,
       basic: basic,
-      remarks: remarks
+      remarks: remarks,
+      pendingRemarks: pendingRemarks
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -673,7 +719,7 @@ function doPost(e) {
     }
 
     // =========================================================================
-    // SAVE MAINTENANCE CATEGORIES: Admin save for category/subcategory mappings
+    // SAVE MAINTENANCE CATEGORIES: Admin save to "drop down data" (Col G, H, I...) & sync
     // =========================================================================
     if (request.action === "save_maintenance_categories") {
       const settingsPass = request.settingsPassword || request.password || "";
@@ -685,34 +731,68 @@ function doPost(e) {
       }
 
       const ss = SpreadsheetApp.getActiveSpreadsheet();
-      let sheet = getSheetCaseInsensitive(ss, "Maintenance Categories");
-      if (!sheet) {
-        sheet = ss.insertSheet("Maintenance Categories");
-      }
-
-      sheet.clearContents();
-      sheet.appendRow(["Main Category", "Sub Category"]);
-
       const categories = request.categories || {};
-      const rows = [];
-      Object.keys(categories).forEach(mainCat => {
-        const subCats = categories[mainCat] || [];
-        if (subCats.length === 0) {
-          rows.push([mainCat, ""]);
-        } else {
-          subCats.forEach(sub => {
-            rows.push([mainCat, sub]);
-          });
-        }
-      });
+      const mainCatNames = Object.keys(categories);
 
-      if (rows.length > 0) {
-        sheet.getRange(2, 1, rows.length, 2).setValues(rows);
+      // 1. Update "drop down data" sheet columns G, H, I, J...
+      let dropSheet = getSheetCaseInsensitive(ss, "drop down data");
+      if (dropSheet) {
+        let dropData = dropSheet.getDataRange().getValues();
+        let headers = dropData.length > 0 ? dropData[0].map(h => String(h || "").trim()) : [];
+        let headersLower = headers.map(h => h.toLowerCase());
+
+        let maintDefectCol = headersLower.findIndex(h => h.includes("maint") && h.includes("defect"));
+        if (maintDefectCol === -1) {
+          maintDefectCol = Math.max(headers.length, 6);
+          dropSheet.getRange(1, maintDefectCol + 1).setValue("Maintenance defect category");
+        }
+
+        const maxRows = Math.max(dropSheet.getMaxRows(), 40);
+        const lastCol = Math.max(dropSheet.getLastColumn(), maintDefectCol + mainCatNames.length + 3);
+        if (lastCol >= maintDefectCol + 1) {
+          dropSheet.getRange(2, maintDefectCol + 1, maxRows - 1, lastCol - maintDefectCol).clearContent();
+        }
+
+        // Set Main Category Column (Col G)
+        dropSheet.getRange(1, maintDefectCol + 1).setValue("Maintenance defect category");
+        if (mainCatNames.length > 0) {
+          const colMatrix = mainCatNames.map(name => [name]);
+          dropSheet.getRange(2, maintDefectCol + 1, colMatrix.length, 1).setValues(colMatrix);
+        }
+
+        // Set Subcategory Columns (Col H, Col I, Col J...)
+        mainCatNames.forEach((mainName, idx) => {
+          const targetCol = maintDefectCol + 1 + idx;
+          dropSheet.getRange(1, targetCol + 1).setValue("Maintenence sub category");
+          dropSheet.getRange(2, targetCol + 1).setValue(mainName);
+
+          const subList = categories[mainName] || [];
+          if (subList.length > 0) {
+            const subMatrix = subList.map(item => [item]);
+            dropSheet.getRange(3, targetCol + 1, subMatrix.length, 1).setValues(subMatrix);
+          }
+        });
+        SpreadsheetApp.flush();
       }
+
+      // 2. Also keep "Maintenance Categories" sheet synced as secondary table
+      let maintSheet = getSheetCaseInsensitive(ss, "Maintenance Categories");
+      if (!maintSheet) {
+        maintSheet = ss.insertSheet("Maintenance Categories");
+      }
+      maintSheet.clearContents();
+      maintSheet.appendRow(["Main Category", "Sub Category"]);
+      mainCatNames.forEach(mainName => {
+        const subList = categories[mainName] || [];
+        subList.forEach(subItem => {
+          maintSheet.appendRow([mainName, subItem]);
+        });
+      });
+      SpreadsheetApp.flush();
 
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Maintenance categories updated successfully in 'Maintenance Categories' sheet",
+        message: "Maintenance categories updated successfully in 'drop down data' sheet",
         categories: categories
       })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -987,7 +1067,7 @@ function doPost(e) {
     }
 
     // =========================================================================
-    // 2. SAVE MAINTENANCE REMARKS: Saves records to "Maintenance Remarks" sheet
+    // 2. SAVE MAINTENANCE REMARKS: Saves new remarks & updates pending defects
     // =========================================================================
     if (request.action === "save_maintenance_remarks") {
       const basic = request.basic || {};
@@ -997,32 +1077,117 @@ function doPost(e) {
       const sseStr = String(basic.SseName || "").trim();
       const timestamp = String(basic.Timestamp || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss"));
       const remarks = request.remarks || [];
+      const pendingUpdates = request.pendingUpdates || [];
 
       let sheet = getSheetCaseInsensitive(ss, "Maintenance Remarks");
-      const headers = [
+      const requiredHeaders = [
         "Timestamp", "Date", "Rake No", "Train No", "SSE Name",
         "Coach No", "Defect Main Category", "Defect Sub Category",
-        "Defect Description", "Attention Given"
+        "Defect Description", "Attention Given", "Attention Status", "Attended Date", "Defect Id"
       ];
 
       if (!sheet) {
         sheet = ss.insertSheet("Maintenance Remarks");
-        sheet.appendRow(headers);
+        sheet.appendRow(requiredHeaders);
         SpreadsheetApp.flush();
       } else if (sheet.getDataRange().getValues().length === 0) {
-        sheet.appendRow(headers);
+        sheet.appendRow(requiredHeaders);
+        SpreadsheetApp.flush();
+      } else {
+        // Ensure "Attention Status", "Attended Date" and "Defect Id" exist in headers
+        let currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(h => String(h || "").trim());
+        let currentHeadersLower = currentHeaders.map(h => h.toLowerCase());
+        if (currentHeadersLower.findIndex(h => h.includes("status")) === -1) {
+          sheet.getRange(1, currentHeaders.length + 1).setValue("Attention Status");
+          currentHeaders.push("Attention Status");
+          currentHeadersLower.push("attention status");
+        }
+        if (currentHeadersLower.findIndex(h => h.includes("attended date") || (h.includes("attended") && h.includes("date"))) === -1) {
+          sheet.getRange(1, currentHeaders.length + 1).setValue("Attended Date");
+          currentHeaders.push("Attended Date");
+          currentHeadersLower.push("attended date");
+        }
+        if (currentHeadersLower.findIndex(h => h.includes("defect id") || h === "id") === -1) {
+          sheet.getRange(1, currentHeaders.length + 1).setValue("Defect Id");
+          currentHeaders.push("Defect Id");
+          currentHeadersLower.push("defect id");
+        }
+        SpreadsheetApp.flush();
       }
 
-      // Clear existing records for this Date + Rake
-      const data = sheet.getDataRange().getValues();
-      if (data.length > 1) {
-        const sheetHeaders = data[0].map(h => String(h || "").trim().toLowerCase());
+      // 1. Process Pending Updates (updates fields, status & attended date)
+      if (pendingUpdates.length > 0) {
+        const fullData = sheet.getDataRange().getValues();
+        const headerRow = fullData[0].map(h => String(h || "").trim().toLowerCase());
+        const coachColIdx = headerRow.findIndex(h => h.includes("coach"));
+        const mainCatColIdx = headerRow.findIndex(h => h.includes("main"));
+        const subCatColIdx = headerRow.findIndex(h => h.includes("sub"));
+        const descColIdx = headerRow.findIndex(h => h.includes("desc"));
+        const actionColIdx = headerRow.findIndex(h => h.includes("attention given") || (h.includes("attention") && !h.includes("status")) || h.includes("action"));
+        const statusColIdx = headerRow.findIndex(h => h.includes("status"));
+        const attendedDateColIdx = headerRow.findIndex(h => h.includes("attended date") || (h.includes("attended") && h.includes("date")));
+        const idColIdx = headerRow.findIndex(h => h.includes("defect id") || h === "id");
+
+        pendingUpdates.forEach(upd => {
+          let targetRowIndex = -1;
+
+          // Check by RowNumber if valid
+          if (upd.RowNumber && upd.RowNumber > 1 && upd.RowNumber <= fullData.length) {
+            targetRowIndex = upd.RowNumber;
+          }
+
+          // Fallback search by DefectId
+          if (targetRowIndex === -1 && upd.DefectId) {
+            for (let r = 1; r < fullData.length; r++) {
+              const rId = idColIdx !== -1 ? String(fullData[r][idColIdx] || "").trim() : "";
+              if (rId === upd.DefectId) {
+                targetRowIndex = r + 1;
+                break;
+              }
+            }
+          }
+
+          if (targetRowIndex !== -1) {
+            if (coachColIdx !== -1 && upd.CoachNo !== undefined) {
+              sheet.getRange(targetRowIndex, coachColIdx + 1).setValue(upd.CoachNo);
+            }
+            if (mainCatColIdx !== -1 && upd.MainCategory !== undefined) {
+              sheet.getRange(targetRowIndex, mainCatColIdx + 1).setValue(upd.MainCategory);
+            }
+            if (subCatColIdx !== -1 && upd.SubCategory !== undefined) {
+              sheet.getRange(targetRowIndex, subCatColIdx + 1).setValue(upd.SubCategory);
+            }
+            if (descColIdx !== -1 && upd.DefectDescription !== undefined) {
+              sheet.getRange(targetRowIndex, descColIdx + 1).setValue(upd.DefectDescription);
+            }
+            if (actionColIdx !== -1 && upd.AttentionGiven !== undefined) {
+              sheet.getRange(targetRowIndex, actionColIdx + 1).setValue(upd.AttentionGiven);
+            }
+            if (statusColIdx !== -1 && upd.AttentionStatus !== undefined) {
+              sheet.getRange(targetRowIndex, statusColIdx + 1).setValue(upd.AttentionStatus);
+            }
+            if (attendedDateColIdx !== -1) {
+              if (upd.AttentionStatus === "Attended") {
+                sheet.getRange(targetRowIndex, attendedDateColIdx + 1).setValue(upd.AttendedDate || dateStr);
+              } else {
+                sheet.getRange(targetRowIndex, attendedDateColIdx + 1).setValue("");
+              }
+            }
+          }
+        });
+        SpreadsheetApp.flush();
+      }
+
+      // 2. Clear existing records for this Date + Rake
+      const dataAfter = sheet.getDataRange().getValues();
+      if (dataAfter.length > 1) {
+        const sheetHeaders = dataAfter[0].map(h => String(h || "").trim().toLowerCase());
         const dateIdx = sheetHeaders.findIndex(h => h === "date");
         const rakeIdx = sheetHeaders.findIndex(h => h.includes("rake"));
         if (dateIdx !== -1 && rakeIdx !== -1) {
-          for (let i = data.length - 1; i >= 1; i--) {
-            const rowDate = formatDateCell(data[i][dateIdx]);
-            const rowRake = String(data[i][rakeIdx] || "").trim();
+          for (let i = dataAfter.length - 1; i >= 1; i--) {
+            const rowDate = formatDateCell(dataAfter[i][dateIdx]);
+            const rowRake = String(dataAfter[i][rakeIdx] || "").trim();
             if (rowDate === dateStr && rowRake.toLowerCase() === rakeStr.toLowerCase()) {
               sheet.deleteRow(i + 1);
             }
@@ -1030,44 +1195,66 @@ function doPost(e) {
         }
       }
 
-      // Append new remarks
+      // 3. Append new remarks for this Date + Rake
+      const finalHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(h => String(h || "").trim().toLowerCase());
+
+      function buildMaintRow(item, genId) {
+        if (finalHeaders.length === 0) {
+          const isPend = (item.AttentionStatus === "Pending");
+          const attDate = isPend ? "" : dateStr;
+          return [
+            timestamp, dateStr, rakeStr, trainStr, sseStr,
+            item.CoachNo || "", item.MainCategory || "", item.SubCategory || "",
+            item.DefectDescription || "", item.AttentionGiven || "", item.AttentionStatus || "Attended",
+            attDate, genId
+          ];
+        }
+        const row = new Array(finalHeaders.length).fill("");
+        finalHeaders.forEach((h, col) => {
+          if (h.includes("time")) row[col] = timestamp;
+          else if (h === "date" || h === "defect date" || (h.includes("date") && !h.includes("attended"))) row[col] = dateStr;
+          else if (h.includes("rake")) row[col] = rakeStr;
+          else if (h.includes("train")) row[col] = trainStr;
+          else if (h.includes("sse") || (h.includes("name") && !h.includes("cat"))) row[col] = sseStr;
+          else if (h.includes("coach")) row[col] = item.CoachNo || "";
+          else if (h.includes("main")) row[col] = item.MainCategory || "";
+          else if (h.includes("sub")) row[col] = item.SubCategory || "";
+          else if (h.includes("desc")) row[col] = item.DefectDescription || "";
+          else if (h.includes("attention given") || (h.includes("attention") && !h.includes("status")) || h.includes("action")) row[col] = item.AttentionGiven || "";
+          else if (h.includes("status")) row[col] = item.AttentionStatus || "Attended";
+          else if (h.includes("attended") && h.includes("date")) {
+            row[col] = (item.AttentionStatus === "Pending") ? "" : dateStr;
+          }
+          else if (h.includes("defect id") || h === "id") row[col] = genId;
+        });
+        return row;
+      }
+
       if (remarks.length > 0) {
-        remarks.forEach(rem => {
-          sheet.appendRow([
-            timestamp,
-            dateStr,
-            rakeStr,
-            trainStr,
-            sseStr,
-            rem.CoachNo || "",
-            rem.MainCategory || "",
-            rem.SubCategory || "",
-            rem.DefectDescription || "",
-            rem.AttentionGiven || ""
-          ]);
+        remarks.forEach((rem, rIdx) => {
+          const genId = rem.DefectId || ("DEF_" + new Date().getTime() + "_" + rIdx);
+          sheet.appendRow(buildMaintRow(rem, genId));
         });
       } else {
-        sheet.appendRow([
-          timestamp,
-          dateStr,
-          rakeStr,
-          trainStr,
-          sseStr,
-          "NIL",
-          "",
-          "",
-          "No Maintenance Remarks Reported",
-          ""
-        ]);
+        const nilRem = {
+          CoachNo: "NIL",
+          MainCategory: "",
+          SubCategory: "",
+          DefectDescription: "No Maintenance Remarks Reported",
+          AttentionGiven: "",
+          AttentionStatus: "Attended",
+          AttendedDate: dateStr
+        };
+        sheet.appendRow(buildMaintRow(nilRem, "NIL"));
       }
 
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: `Saved ${remarks.length} maintenance remarks for ${rakeStr} on ${dateStr}`,
-        count: remarks.length
+        message: `Saved ${remarks.length} remark(s) and updated ${pendingUpdates.length} pending defect(s) for ${rakeStr} on ${dateStr}`,
+        count: remarks.length,
+        pendingUpdated: pendingUpdates.length
       })).setMimeType(ContentService.MimeType.JSON);
     }
-
     // =========================================================================
     // 2. STANDARD TEMPERATURE DATA POST
     // =========================================================================

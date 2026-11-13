@@ -2226,40 +2226,52 @@ function escapeHtml(str) {
 // MAINTENANCE REMARKS: Defect rectifications & attention given
 // ============================================================================
 const DEFAULT_MAINTENANCE_CATEGORIES = {
-    "Interior": [
-        "Passenger Seat / Recliner",
-        "Charging Socket / USB",
-        "Reading Light / Saloon Light",
-        "IC Sliding Door",
-        "Exterior Plug Door",
-        "Toilet / Wash Basin / Flush",
-        "Water Supply / Leakage",
-        "Foot Step / Vestibule",
-        "AC / Cooling / HVAC",
-        "Window Glass / Roller Blind",
+    "UG- Air": [
+        "Damper",
+        "Wheel",
+        "Spring",
+        "Drain Pipe",
+        "Traction centre",
+        "CTRB",
+        "Control arm",
+        "Nose Cone",
         "Others"
     ],
-    "UG - Air": [
-        "Air Brake / BP-FP Pipe",
-        "Air Suspension / Bellow",
-        "Wheel / Axle Box / Bearing",
-        "Parking Brake / Hand Brake",
-        "Brake Pad / Disc Brake",
-        "Underframe Pipe / Hose Leakage",
-        "Safety Loop / Guard Wire",
-        "Cattle Guard / Snow Plough",
+    "Interior": [
+        "Roller Blinder",
+        "IC door",
+        "Seat recliner",
+        "Seat snack table",
+        "Seat accessory-other",
+        "Plug door",
+        "Vaccum toilet",
+        "PVC floor",
+        "Window glass",
+        "Toilet door/lock",
+        "Toilet- shower gun/tap",
+        "Commode lid cover",
+        "Mirror",
+        "PAPIS",
+        "FDS",
+        "ICD",
         "Others"
     ],
     "Propulsion": [
-        "Pantograph / Roof Equipment",
-        "Traction Transformer",
-        "Traction Converter / Inverter",
-        "Auxiliary Converter (BUR)",
-        "Battery / Battery Charger",
-        "Traction Motor / Gear Box",
-        "TCMS / VCU / DDU Display",
-        "Master Controller / Key Switch",
-        "Line Contactor / VCB",
+        "Panto- carbon strip",
+        "Panto-Other",
+        "Transformer- Breather",
+        "Transformer-Other",
+        "Driver cab buttons/ accessories",
+        "Horn",
+        "Wiper",
+        "Driver - sunviser",
+        "Had light",
+        "Flasher light",
+        "Marker light, red, green",
+        "Signal exchange light",
+        "Traction motor",
+        "LTC",
+        "CT/PT",
         "Others"
     ]
 };
@@ -2366,16 +2378,60 @@ function populateMaintDropdowns() {
         if (currentTrain) trainSelect.value = currentTrain;
     }
 
+    const trainList = document.getElementById('maintTrainList');
+    if (trainList) {
+        const trains = (cachedDropdownData.trainNos && cachedDropdownData.trainNos.length > 0)
+            ? cachedDropdownData.trainNos
+            : DEFAULT_DROPDOWN_DATA.trainNos;
+        trainList.innerHTML = trains.map(t => `<option value="${escapeHtml(t)}">`).join('');
+    }
+
     const dateInput = document.getElementById('maintDateInput');
     if (dateInput && !dateInput._flatpickr && window.flatpickr) {
         flatpickr(dateInput, {
             dateFormat: 'd-m-Y',
             allowInput: true,
             theme: 'dark',
-            defaultDate: 'today'
+            defaultDate: 'today',
+            onChange: [handleMaintDateChange]
+        });
+        dateInput.addEventListener('change', handleMaintDateChange);
+        dateInput.addEventListener('input', handleMaintDateChange);
+    }
+}
+
+function handleMaintDateChange() {
+    const dateInput = document.getElementById('maintDateInput');
+    const newDate = dateInput ? dateInput.value.trim() : '';
+    if (!newDate) return;
+
+    // Update Section 1 attended cards so attended date always equals reporting date
+    const container = document.getElementById('maintEntriesContainer');
+    if (container) {
+        container.querySelectorAll('.maint-entry-card').forEach(card => {
+            const statusSelect = card.querySelector('.maint-status-select');
+            const attendedDateInput = card.querySelector('.maint-attended-date');
+            if (statusSelect && statusSelect.value === 'Attended' && attendedDateInput) {
+                attendedDateInput.value = newDate;
+            }
+        });
+    }
+
+    // Update Section 2 attended cards
+    const pContainer = document.getElementById('maintPendingContainer');
+    if (pContainer) {
+        pContainer.querySelectorAll('.maint-pending-card').forEach((card, idx) => {
+            const pStatus = card.querySelector('.pending-status-select');
+            const pDateInput = card.querySelector('.pending-attended-date');
+            const pBadge = document.getElementById(`pendingAttendedBadge_${idx}`);
+            if (pStatus && pStatus.value === 'Attended') {
+                if (pDateInput) pDateInput.value = newDate;
+                if (pBadge) pBadge.textContent = '✓ Resolving on ' + newDate;
+            }
         });
     }
 }
+window.handleMaintDateChange = handleMaintDateChange;
 
 function handleMaintRakeChange() {
     refreshAllMaintCoachDropdowns();
@@ -2413,7 +2469,9 @@ function getMaintCoachesList() {
 function buildMaintCoachOptions(selectedCoach = '') {
     const coaches = getMaintCoachesList();
     let html = '<option value="">-- Select Coach --</option>';
-    let found = false;
+    const isAllCoach = (selectedCoach || '').toLowerCase() === 'all coach' || (selectedCoach || '').toLowerCase() === 'all coaches';
+    html += `<option value="All Coach" ${isAllCoach ? 'selected' : ''}>All Coach</option>`;
+    let found = isAllCoach;
     coaches.forEach(c => {
         const sel = (c.toLowerCase() === (selectedCoach || '').toLowerCase()) ? 'selected' : '';
         if (sel) found = true;
@@ -2425,13 +2483,53 @@ function buildMaintCoachOptions(selectedCoach = '') {
     return html;
 }
 
+function getMaintTrainValue() {
+    const input = document.getElementById('maintTrainInput');
+    if (input && input.value.trim()) return input.value.trim();
+    const select = document.getElementById('maintTrainSelect');
+    if (select) {
+        if (select.value === 'Other') {
+            const other = document.getElementById('maintOtherTrainInput');
+            return other ? other.value.trim() : '';
+        }
+        return select.value.trim();
+    }
+    return '';
+}
+
+function setMaintTrainValue(val) {
+    const input = document.getElementById('maintTrainInput');
+    if (input) input.value = val || '';
+    const select = document.getElementById('maintTrainSelect');
+    if (select) {
+        select.value = val || '';
+        if (val && !select.value) {
+            select.value = 'Other';
+            const grp = document.getElementById('maintOtherTrainGroup');
+            if (grp) grp.style.display = 'block';
+            const other = document.getElementById('maintOtherTrainInput');
+            if (other) other.value = val;
+        }
+    }
+}
+
 function refreshAllMaintCoachDropdowns() {
+    // Refresh Section 1 Coach Dropdowns
     const container = document.getElementById('maintEntriesContainer');
-    if (!container) return;
-    container.querySelectorAll('.maint-coach-select').forEach(sel => {
-        const current = sel.value;
-        sel.innerHTML = buildMaintCoachOptions(current);
-    });
+    if (container) {
+        container.querySelectorAll('.maint-coach-select').forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = buildMaintCoachOptions(current);
+        });
+    }
+    // Refresh Section 2 Coach Dropdowns
+    const pContainer = document.getElementById('maintPendingContainer');
+    if (pContainer) {
+        pContainer.querySelectorAll('.pending-coach-select').forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = buildMaintCoachOptions(current);
+        });
+    }
 }
 
 function refreshAllMaintCategoryDropdowns() {
@@ -2468,6 +2566,255 @@ function refreshAllMaintCategoryDropdowns() {
     });
 }
 
+let loadedPendingRemarks = [];
+
+function handleMaintStatusChange(selectEl) {
+    const card = selectEl.closest('.maint-entry-card');
+    if (!card) return;
+    const dateInput = card.querySelector('.maint-attended-date');
+    const badge = card.querySelector('.maint-attended-badge');
+    const basicDateInput = document.getElementById('maintDateInput');
+    const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+
+    if (selectEl.value === 'Pending') {
+        card.classList.add('is-pending');
+        if (dateInput) {
+            dateInput.value = '';
+            dateInput.style.color = 'var(--text-muted)';
+            dateInput.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+        }
+        if (badge) {
+            badge.textContent = '⚠️ Pending (Empty until attended)';
+            badge.style.color = '#fbbf24';
+        }
+    } else {
+        card.classList.remove('is-pending');
+        if (dateInput) {
+            dateInput.value = basicDate;
+            dateInput.style.color = '#34d399';
+            dateInput.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+        }
+        if (badge) {
+            badge.textContent = '✓ Attended on this date';
+            badge.style.color = '#34d399';
+        }
+    }
+}
+window.handleMaintStatusChange = handleMaintStatusChange;
+
+function renderPendingRemarks(pendingList = []) {
+    const container = document.getElementById('maintPendingContainer');
+    const countBadge = document.getElementById('maintPendingCountBadge');
+    if (!container) return;
+
+    loadedPendingRemarks = pendingList || [];
+    if (countBadge) {
+        countBadge.textContent = `${loadedPendingRemarks.length} pending`;
+        if (loadedPendingRemarks.length > 0) {
+            countBadge.style.background = 'rgba(245, 158, 11, 0.25)';
+            countBadge.style.color = '#fbbf24';
+        } else {
+            countBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+            countBadge.style.color = '#34d399';
+        }
+    }
+
+    if (loadedPendingRemarks.length === 0) {
+        container.innerHTML = '<div class="pending-empty-box">✓ No pending defects for this rake from earlier dates.</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    const mainCats = Object.keys(cachedMaintenanceCategories);
+    if (mainCats.length === 0) {
+        mainCats.push('UG- Air', 'Interior', 'Propulsion');
+    }
+
+    const basicDateInput = document.getElementById('maintDateInput');
+    const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+
+    loadedPendingRemarks.forEach((item, idx) => {
+        const card = document.createElement('div');
+        const isAttended = (item.AttentionStatus === 'Attended');
+        card.className = 'maint-pending-card' + (isAttended ? ' status-attended' : '');
+        card.id = `pendingCard_${idx}`;
+
+        let mainCatOptionsHtml = '<option value="">-- Select Main Category --</option>';
+        mainCats.forEach(cat => {
+            const sel = (item.MainCategory && cat.toLowerCase() === item.MainCategory.toLowerCase()) ? 'selected' : '';
+            mainCatOptionsHtml += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
+        });
+
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(245, 158, 11, 0.25); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="pending-meta-tag ${isAttended ? 'attended' : ''}" id="pendingBadge_${idx}">
+                        ${isAttended ? '✓ ATTENDED (Resolved Today)' : '⚠️ PENDING DEFECT'}
+                    </span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">
+                        Logged on: <strong style="color: #fbbf24;">${escapeHtml(item.OriginalDate)}</strong> ${item.TrainNo ? `(Train: ${escapeHtml(item.TrainNo)})` : ''}
+                    </span>
+                </div>
+                <span id="pendingHint_${idx}" style="font-size: 0.78rem; color: ${isAttended ? '#34d399' : '#38bdf8'}; font-style: italic;">
+                    ${isAttended ? '✓ Marked Attended (shifts to Section 1 upon clicking Save)' : 'Select Attended below to resolve on this date'}
+                </span>
+            </div>
+
+            <div class="form-row-2">
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>Coach Number</label>
+                    <select class="pending-coach-select maint-coach-select" required>
+                        ${buildMaintCoachOptions(item.CoachNo)}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>Defect Main Category</label>
+                    <select class="pending-main-cat maint-main-cat" required>
+                        ${mainCatOptionsHtml}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row-2">
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>Defect Sub Category</label>
+                    <select class="pending-sub-cat maint-sub-cat" required>
+                        <!-- Populated dynamically -->
+                    </select>
+                    <input type="text" class="pending-sub-cat-custom maint-sub-cat-custom" placeholder="Specify sub-category..." style="display: none; margin-top: 0.5rem;" maxlength="100">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label style="font-weight: 700; color: #fbbf24;">Attention Status</label>
+                    <select class="pending-status-select" onchange="handlePendingStatusToggle(${idx}, this)" style="background: rgba(15, 23, 42, 0.85); font-weight: 600;">
+                        <option value="Pending" ${!isAttended ? 'selected' : ''}>Pending (Still Unresolved)</option>
+                        <option value="Attended" ${isAttended ? 'selected' : ''}>Attended (Resolved Today)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label style="margin: 0; font-size: 0.85rem; font-weight: 600;">Attended Date</label>
+                    <span id="pendingAttendedBadge_${idx}" style="font-size: 0.72rem; font-weight: 600; color: ${isAttended ? '#34d399' : '#fbbf24'};">
+                        ${isAttended ? ('✓ Resolving on ' + escapeHtml(basicDate)) : '⚠️ Pending (Empty until attended)'}
+                    </span>
+                </div>
+                <input type="text" class="pending-attended-date" id="pendingAttendedDate_${idx}" value="${isAttended ? escapeHtml(basicDate) : ''}" placeholder="— (Empty while pending)" readonly style="background: rgba(15, 23, 42, 0.55); font-weight: 600; color: ${isAttended ? '#34d399' : 'var(--text-muted)'}; border-color: ${isAttended ? 'rgba(16, 185, 129, 0.35)' : 'rgba(148, 163, 184, 0.2)'};">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Defect Description</label>
+                <textarea class="pending-desc-text" rows="2" placeholder="Describe defect details..." required>${escapeHtml(item.DefectDescription || '')}</textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Attention Given</label>
+                <textarea class="pending-attention-text" rows="2" placeholder="Action taken / rectification details today...">${escapeHtml(item.AttentionGiven || '')}</textarea>
+            </div>
+        `;
+
+        const mainCatSelect = card.querySelector('.pending-main-cat');
+        const subCatSelect = card.querySelector('.pending-sub-cat');
+        const customInput = card.querySelector('.pending-sub-cat-custom');
+
+        function updatePendingSubCategories(currentSub = '') {
+            const mainCat = mainCatSelect.value;
+            if (!mainCat) {
+                subCatSelect.innerHTML = '<option value="">-- Select Sub Category --</option>';
+                customInput.style.display = 'none';
+                return;
+            }
+            const subList = cachedMaintenanceCategories[mainCat] || [];
+            let html = '<option value="">-- Select Sub Category --</option>';
+            let isMatched = false;
+            subList.forEach(sub => {
+                const sel = (sub.toLowerCase() === (currentSub || '').toLowerCase()) ? 'selected' : '';
+                if (sel) isMatched = true;
+                html += `<option value="${escapeHtml(sub)}" ${sel}>${escapeHtml(sub)}</option>`;
+            });
+            const otherSel = (!isMatched && currentSub && currentSub !== '') || currentSub === 'Other' || currentSub === 'Others' ? 'selected' : '';
+            html += `<option value="Other" ${otherSel}>Other (Specify)</option>`;
+            subCatSelect.innerHTML = html;
+
+            if (otherSel) {
+                customInput.style.display = 'block';
+                if (currentSub && currentSub !== 'Other' && currentSub !== 'Others') {
+                    customInput.value = currentSub;
+                }
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+
+        mainCatSelect.addEventListener('change', () => {
+            updatePendingSubCategories();
+        });
+
+        subCatSelect.addEventListener('change', () => {
+            if (subCatSelect.value === 'Other') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        });
+
+        updatePendingSubCategories(item.SubCategory);
+        container.appendChild(card);
+    });
+}
+window.renderPendingRemarks = renderPendingRemarks;
+
+function handlePendingStatusToggle(idx, selectEl) {
+    const card = document.getElementById(`pendingCard_${idx}`);
+    const badge = document.getElementById(`pendingBadge_${idx}`);
+    const hint = document.getElementById(`pendingHint_${idx}`);
+    const attendedInput = document.getElementById(`pendingAttendedDate_${idx}`);
+    const attendedBadge = document.getElementById(`pendingAttendedBadge_${idx}`);
+    const basicDateInput = document.getElementById('maintDateInput');
+    const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+    if (!card || !badge) return;
+
+    if (selectEl.value === 'Attended') {
+        card.classList.add('status-attended');
+        badge.textContent = '✓ ATTENDED (Resolved Today)';
+        badge.className = 'pending-meta-tag attended';
+        if (hint) {
+            hint.textContent = '✓ Marked Attended (shifts to Section 1 upon clicking Save)';
+            hint.style.color = '#34d399';
+        }
+        if (attendedInput) {
+            attendedInput.value = basicDate;
+            attendedInput.style.color = '#34d399';
+            attendedInput.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+        }
+        if (attendedBadge) {
+            attendedBadge.textContent = '✓ Resolving on ' + basicDate;
+            attendedBadge.style.color = '#34d399';
+        }
+    } else {
+        card.classList.remove('status-attended');
+        badge.textContent = '⚠️ PENDING DEFECT';
+        badge.className = 'pending-meta-tag';
+        if (hint) {
+            hint.textContent = 'Select Attended below to resolve on this date';
+            hint.style.color = '#38bdf8';
+        }
+        if (attendedInput) {
+            attendedInput.value = '';
+            attendedInput.style.color = 'var(--text-muted)';
+            attendedInput.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+        }
+        if (attendedBadge) {
+            attendedBadge.textContent = '⚠️ Pending (Empty until attended)';
+            attendedBadge.style.color = '#fbbf24';
+        }
+    }
+}
+window.handlePendingStatusToggle = handlePendingStatusToggle;
+
 function updateMaintCount() {
     const container = document.getElementById('maintEntriesContainer');
     const badge = document.getElementById('maintCountBadge');
@@ -2480,36 +2827,62 @@ function updateMaintCount() {
         const idxLabel = card.querySelector('.maint-card-index');
         if (idxLabel) idxLabel.textContent = `Remark #${idx + 1}`;
     });
+
+    const emptyNotice = document.getElementById('maintEmptyNotice');
+    if (cards.length === 0) {
+        if (!emptyNotice) {
+            container.innerHTML = '<div class="pending-empty-box" id="maintEmptyNotice" style="margin-bottom: 0;">No defects added for this date. Click "+ Add New Defect" below to add one.</div>';
+        }
+    } else {
+        if (emptyNotice) emptyNotice.remove();
+    }
 }
 
 function addMaintRemarkCard(data = {}) {
     const container = document.getElementById('maintEntriesContainer');
     if (!container) return;
 
+    const emptyNotice = document.getElementById('maintEmptyNotice');
+    if (emptyNotice) emptyNotice.remove();
+
     const card = document.createElement('div');
-    card.className = 'maint-entry-card';
+    const currentStatus = data.AttentionStatus || 'Attended';
+    const isPending = (currentStatus === 'Pending');
+    card.className = 'maint-entry-card' + (isPending ? ' is-pending' : '');
+
+    if (data.OrigRowNumber) card.dataset.origRow = data.OrigRowNumber;
+    if (data.DefectId) card.dataset.defectId = data.DefectId;
+    if (data.OriginalDate) card.dataset.origDate = data.OriginalDate;
 
     const mainCats = Object.keys(cachedMaintenanceCategories);
-    if (!mainCats.includes('Interior')) mainCats.unshift('Interior');
-    if (!mainCats.includes('UG - Air')) mainCats.splice(1, 0, 'UG - Air');
-    if (!mainCats.includes('Propulsion')) mainCats.splice(2, 0, 'Propulsion');
+    if (mainCats.length === 0) {
+        mainCats.push('UG- Air', 'Interior', 'Propulsion');
+    }
 
-    const selectedMainCat = data.MainCategory || (mainCats[0] || 'Interior');
+    const basicDateInput = document.getElementById('maintDateInput');
+    const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+
+    const selectedMainCat = data.MainCategory || '';
     const selectedSubCat = data.SubCategory || '';
     const selectedCoach = data.CoachNo || '';
     const desc = data.DefectDescription || '';
     const action = data.AttentionGiven || '';
+    const attendedDateVal = isPending ? '' : (basicDate || data.AttendedDate);
+    const origTag = data.OriginalDate ? `<span class="pending-meta-tag attended" style="font-size: 0.72rem; padding: 0.15rem 0.5rem; margin-left: 0.5rem;">Shifted from ${escapeHtml(data.OriginalDate)}</span>` : '';
 
     let mainCatOptionsHtml = '<option value="">-- Select Main Category --</option>';
     mainCats.forEach(cat => {
-        const sel = (cat.toLowerCase() === selectedMainCat.toLowerCase()) ? 'selected' : '';
+        const sel = (selectedMainCat && cat.toLowerCase() === selectedMainCat.toLowerCase()) ? 'selected' : '';
         mainCatOptionsHtml += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
     });
 
     card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 0.5rem;">
-            <span class="maint-card-index" style="font-weight: 700; font-size: 0.92rem; color: #34d399;">Remark</span>
-            <button type="button" class="btn btn-danger btn-sm remove-maint-btn" style="padding: 0.25rem 0.6rem; font-size: 0.78rem;">✕ Remove</button>
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem;">
+                <span class="maint-card-index" style="font-weight: 700; font-size: 0.92rem; color: #34d399;">Remark</span>
+                ${origTag}
+            </div>
+            <button type="button" class="btn btn-danger btn-sm remove-maint-btn" style="padding: 0.25rem 0.65rem; font-size: 0.78rem; width: auto !important; margin: 0; min-width: 70px; flex: 0 0 auto;">✕ Remove</button>
         </div>
 
         <div class="form-row-2">
@@ -2527,12 +2900,32 @@ function addMaintRemarkCard(data = {}) {
             </div>
         </div>
 
+        <div class="form-row-2">
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Defect Sub Category</label>
+                <select class="maint-sub-cat" required>
+                    <!-- Dynamically populated -->
+                </select>
+                <input type="text" class="maint-sub-cat-custom" placeholder="Specify sub-category..." style="display: none; margin-top: 0.5rem;" maxlength="100">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Attention Status</label>
+                <select class="maint-status-select" required onchange="handleMaintStatusChange(this)">
+                    <option value="Attended" ${currentStatus === 'Attended' ? 'selected' : ''}>Attended (Resolved)</option>
+                    <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending (Unresolved)</option>
+                </select>
+            </div>
+        </div>
+
         <div class="form-group" style="margin-bottom: 0.75rem;">
-            <label>Defect Sub Category</label>
-            <select class="maint-sub-cat" required>
-                <!-- Dynamically populated -->
-            </select>
-            <input type="text" class="maint-sub-cat-custom" placeholder="Specify sub-category..." style="display: none; margin-top: 0.5rem;" maxlength="100">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <label style="margin: 0; font-size: 0.85rem; font-weight: 600;">Attended Date</label>
+                <span class="maint-attended-badge" style="font-size: 0.72rem; font-weight: 600; color: ${isPending ? '#fbbf24' : '#34d399'};">
+                    ${isPending ? '⚠️ Pending (Empty until attended)' : '✓ Attended on this date'}
+                </span>
+            </div>
+            <input type="text" class="maint-attended-date" value="${escapeHtml(attendedDateVal)}" placeholder="— (Empty while pending)" readonly style="background: rgba(15, 23, 42, 0.55); font-weight: 600; color: ${isPending ? 'var(--text-muted)' : '#34d399'}; border-color: ${isPending ? 'rgba(148, 163, 184, 0.2)' : 'rgba(16, 185, 129, 0.35)'};">
         </div>
 
         <div class="form-group" style="margin-bottom: 0.75rem;">
@@ -2542,7 +2935,7 @@ function addMaintRemarkCard(data = {}) {
 
         <div class="form-group" style="margin-bottom: 0;">
             <label>Attention Given</label>
-            <textarea class="maint-action" rows="2" placeholder="Action taken / rectification details..." required>${escapeHtml(action)}</textarea>
+            <textarea class="maint-action" rows="2" placeholder="Action taken / rectification details...">${escapeHtml(action)}</textarea>
         </div>
     `;
 
@@ -2553,6 +2946,11 @@ function addMaintRemarkCard(data = {}) {
 
     function updateSubCategories(currentSub = '') {
         const mainCat = mainCatSelect.value;
+        if (!mainCat) {
+            subCatSelect.innerHTML = '<option value="">-- Select Sub Category --</option>';
+            customInput.style.display = 'none';
+            return;
+        }
         const subList = cachedMaintenanceCategories[mainCat] || [];
         let html = '<option value="">-- Select Sub Category --</option>';
         let isMatched = false;
@@ -2608,10 +3006,7 @@ async function loadMaintenanceRemarks() {
 
     const date = document.getElementById('maintDateInput').value.trim();
     const rake = document.getElementById('maintRakeSelect').value.trim();
-    let train = document.getElementById('maintTrainSelect').value.trim();
-    if (train === 'Other') {
-        train = document.getElementById('maintOtherTrainInput').value.trim();
-    }
+    const train = getMaintTrainValue();
 
     if (!date || !rake) {
         Swal.fire({
@@ -2633,7 +3028,7 @@ async function loadMaintenanceRemarks() {
     btn.disabled = true;
     btnText.textContent = 'Loading...';
     spinner.classList.remove('hidden');
-    statusEl.textContent = 'Checking for existing maintenance records in Google Sheets...';
+    statusEl.textContent = 'Checking for existing and pending maintenance records...';
     statusEl.style.color = '#38bdf8';
 
     try {
@@ -2650,46 +3045,41 @@ async function loadMaintenanceRemarks() {
         const container = document.getElementById('maintEntriesContainer');
         container.innerHTML = '';
 
+        // Render Section 2: Pending defects (from any earlier date)
+        renderPendingRemarks(result.pendingRemarks || []);
+
+        // Render Section 1: Non-pending remarks saved for this date
         if (result.status === 'success' && result.found) {
             if (result.basic) {
                 if (result.basic.SseName) document.getElementById('maintSseInput').value = result.basic.SseName;
                 if (result.basic.TrainNo) {
-                    const trainSel = document.getElementById('maintTrainSelect');
-                    trainSel.value = result.basic.TrainNo;
-                    if (!trainSel.value) {
-                        trainSel.value = 'Other';
-                        document.getElementById('maintOtherTrainGroup').style.display = 'block';
-                        document.getElementById('maintOtherTrainInput').value = result.basic.TrainNo;
-                    }
+                    setMaintTrainValue(result.basic.TrainNo);
                 }
             }
 
             if (result.remarks && result.remarks.length > 0) {
                 result.remarks.forEach(r => addMaintRemarkCard(r));
-                statusEl.textContent = `Loaded ${result.remarks.length} existing maintenance remark(s) for ${rake} on ${date}.`;
+                statusEl.textContent = `Loaded ${result.remarks.length} remark(s) for ${rake} on ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
                 statusEl.style.color = '#10b981';
             } else {
-                addMaintRemarkCard();
-                statusEl.textContent = `Existing report found with no defects. You can add new remarks.`;
+                updateMaintCount();
+                statusEl.textContent = `No defects reported for ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
                 statusEl.style.color = '#10b981';
             }
         } else {
-            addMaintRemarkCard();
-            statusEl.textContent = `No existing records found for ${rake} on ${date}. Enter new remarks below.`;
+            updateMaintCount();
+            const pendingCount = (result.pendingRemarks || []).length;
+            statusEl.textContent = pendingCount > 0 
+                ? `Found ${pendingCount} pending defect(s) from earlier dates for ${rake}. Click "+ Add New Defect" to add a new remark.`
+                : `No existing records for ${rake} on ${date}. Click "+ Add New Defect" to add a remark.`;
             statusEl.style.color = 'var(--text-muted)';
         }
 
         document.getElementById('maintEntriesWrapper').style.display = 'block';
-        setTimeout(() => {
-            document.getElementById('maintEntriesWrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
+
     } catch (err) {
         statusEl.textContent = 'Error loading from Google Sheets: ' + (err.message || 'Network error');
         statusEl.style.color = '#f87171';
-        document.getElementById('maintEntriesWrapper').style.display = 'block';
-        if (document.getElementById('maintEntriesContainer').children.length === 0) {
-            addMaintRemarkCard();
-        }
     } finally {
         btn.disabled = false;
         btnText.textContent = '🔍 Load Remarks';
@@ -2706,10 +3096,7 @@ async function saveMaintenanceRemarks() {
 
     const date = document.getElementById('maintDateInput').value.trim();
     const rake = document.getElementById('maintRakeSelect').value.trim();
-    let train = document.getElementById('maintTrainSelect').value.trim();
-    if (train === 'Other') {
-        train = document.getElementById('maintOtherTrainInput').value.trim();
-    }
+    const train = getMaintTrainValue();
     const sse = document.getElementById('maintSseInput').value.trim();
 
     if (!date || !rake || !train || !sse) {
@@ -2727,6 +3114,7 @@ async function saveMaintenanceRemarks() {
     const container = document.getElementById('maintEntriesContainer');
     const cards = container.querySelectorAll('.maint-entry-card');
     const remarks = [];
+    const pendingUpdates = [];
 
     let hasInvalid = false;
     cards.forEach(card => {
@@ -2734,6 +3122,11 @@ async function saveMaintenanceRemarks() {
         const mainCat = card.querySelector('.maint-main-cat').value;
         const subCatSelect = card.querySelector('.maint-sub-cat');
         const customInput = card.querySelector('.maint-sub-cat-custom');
+        const statusSelect = card.querySelector('.maint-status-select');
+        const attentionStatus = statusSelect ? statusSelect.value : 'Attended';
+        const attendedInput = card.querySelector('.maint-attended-date');
+        const attendedDateVal = (attentionStatus === 'Pending') ? '' : date;
+
         let subCat = subCatSelect.value;
         if (subCat === 'Other' && customInput) {
             subCat = customInput.value.trim() || 'Other';
@@ -2742,7 +3135,7 @@ async function saveMaintenanceRemarks() {
         const action = card.querySelector('.maint-action').value.trim();
 
         if (coach || mainCat || desc || action) {
-            if (!coach || !mainCat || !subCat || !desc || !action) {
+            if (!coach || !mainCat || !subCat || !desc) {
                 hasInvalid = true;
             }
             remarks.push({
@@ -2750,22 +3143,124 @@ async function saveMaintenanceRemarks() {
                 MainCategory: mainCat,
                 SubCategory: subCat,
                 DefectDescription: desc,
-                AttentionGiven: action
+                AttentionGiven: action,
+                AttentionStatus: attentionStatus,
+                AttendedDate: attendedDateVal,
+                DefectId: card.dataset.defectId || '',
+                OrigRowNumber: card.dataset.origRow ? parseInt(card.dataset.origRow) : null,
+                OriginalDate: card.dataset.origDate || ''
             });
+
+            // If this card was previously shifted from an earlier pending defect, mark original row as Attended
+            if (card.dataset.origRow) {
+                pendingUpdates.push({
+                    RowNumber: parseInt(card.dataset.origRow),
+                    DefectId: card.dataset.defectId || '',
+                    CoachNo: coach,
+                    MainCategory: mainCat,
+                    SubCategory: subCat,
+                    DefectDescription: desc,
+                    AttentionGiven: action + ' (Attended on ' + date + ' by ' + sse + ')',
+                    AttentionStatus: 'Attended',
+                    AttendedDate: date
+                });
+            }
         }
     });
 
     if (hasInvalid) {
         Swal.fire({
             icon: 'warning',
-            title: 'Incomplete Remark Entries',
-            text: 'Please make sure all entered remarks have Coach, Main Category, Sub Category, Description, and Attention Given filled in.',
+            title: 'Incomplete Defect Entries',
+            text: 'Please make sure all entered remarks have Coach, Main Category, Sub Category, and Defect Description filled in.',
             background: 'var(--surface)',
             color: 'var(--text-main)',
             confirmButtonColor: 'var(--primary)'
         });
         return;
     }
+
+    // Process Section 2: Pending defects cards
+    const pendingCards = document.querySelectorAll('#maintPendingContainer .maint-pending-card');
+    const newlyAttendedFromPending = [];
+    const remainingPendingItems = [];
+
+    pendingCards.forEach((pCard, idx) => {
+        const orig = loadedPendingRemarks[idx];
+        if (!orig) return;
+        const coachSel = pCard.querySelector('.pending-coach-select');
+        const mainSel = pCard.querySelector('.pending-main-cat');
+        const subSel = pCard.querySelector('.pending-sub-cat');
+        const customSub = pCard.querySelector('.pending-sub-cat-custom');
+        const descText = pCard.querySelector('.pending-desc-text');
+        const pStatusSelect = pCard.querySelector('.pending-status-select');
+        const pAttentionText = pCard.querySelector('.pending-attention-text');
+
+        let subVal = subSel ? subSel.value : orig.SubCategory;
+        if (subVal === 'Other' && customSub && customSub.value.trim()) {
+            subVal = customSub.value.trim();
+        }
+
+        const newStatus = pStatusSelect ? pStatusSelect.value : 'Pending';
+        const coachVal = coachSel ? coachSel.value : orig.CoachNo;
+        const mainVal = mainSel ? mainSel.value : orig.MainCategory;
+        const descVal = descText ? descText.value.trim() : orig.DefectDescription;
+        const attentionGivenVal = pAttentionText ? pAttentionText.value.trim() : (orig.AttentionGiven || '');
+
+        if (newStatus === 'Attended') {
+            // Marked Attended! Will be recorded in Section 1 for today and updated in Google Sheets
+            const attendedItem = {
+                CoachNo: coachVal,
+                MainCategory: mainVal,
+                SubCategory: subVal,
+                DefectDescription: descVal,
+                AttentionGiven: attentionGivenVal,
+                AttentionStatus: 'Attended',
+                AttendedDate: date,
+                DefectId: orig.DefectId || '',
+                OrigRowNumber: orig.RowNumber,
+                OriginalDate: orig.OriginalDate
+            };
+            remarks.push(attendedItem);
+            newlyAttendedFromPending.push(attendedItem);
+
+            pendingUpdates.push({
+                RowNumber: orig.RowNumber,
+                DefectId: orig.DefectId,
+                CoachNo: coachVal,
+                MainCategory: mainVal,
+                SubCategory: subVal,
+                DefectDescription: descVal,
+                AttentionGiven: attentionGivenVal + ' (Attended on ' + date + ' by ' + sse + ')',
+                AttentionStatus: 'Attended',
+                AttendedDate: date
+            });
+        } else {
+            // Remains Pending
+            remainingPendingItems.push({
+                ...orig,
+                CoachNo: coachVal,
+                MainCategory: mainVal,
+                SubCategory: subVal,
+                DefectDescription: descVal,
+                AttentionGiven: attentionGivenVal,
+                AttentionStatus: 'Pending',
+                AttendedDate: ''
+            });
+
+            pendingUpdates.push({
+                RowNumber: orig.RowNumber,
+                DefectId: orig.DefectId,
+                CoachNo: coachVal,
+                MainCategory: mainVal,
+                SubCategory: subVal,
+                DefectDescription: descVal,
+                AttentionGiven: attentionGivenVal,
+                AttentionStatus: 'Pending',
+                AttendedDate: ''
+            });
+        }
+    });
 
     const btn = document.getElementById('maintSubmitBtn');
     const btnText = btn.querySelector('span');
@@ -2775,7 +3270,7 @@ async function saveMaintenanceRemarks() {
     btn.disabled = true;
     btnText.textContent = 'Saving to Google Sheets...';
     spinner.classList.remove('hidden');
-    statusEl.textContent = 'Saving remarks to Google Sheet "Maintenance Remarks"...';
+    statusEl.textContent = 'Saving remarks and pending updates to Google Sheets...';
     statusEl.style.color = '#38bdf8';
 
     const now = new Date();
@@ -2792,7 +3287,8 @@ async function saveMaintenanceRemarks() {
             SseName: sse,
             Timestamp: timestamp
         },
-        remarks: remarks
+        remarks: remarks,
+        pendingUpdates: pendingUpdates
     };
 
     try {
@@ -2810,13 +3306,25 @@ async function saveMaintenanceRemarks() {
         }
 
         if (result.status === 'success') {
-            statusEl.textContent = `✓ Successfully saved ${remarks.length} remark(s) to Google Sheets!`;
+            // ONLY AFTER SAVE: shift attended pending defect cards into Section 1 on screen
+            if (newlyAttendedFromPending.length > 0) {
+                newlyAttendedFromPending.forEach(item => {
+                    addMaintRemarkCard(item);
+                });
+                loadedPendingRemarks = remainingPendingItems;
+                renderPendingRemarks(loadedPendingRemarks);
+            }
+
+            statusEl.textContent = `✓ Successfully saved ${remarks.length} remark(s) & updated pending defects!`;
             statusEl.style.color = '#10b981';
 
             Swal.fire({
                 icon: 'success',
                 title: 'Saved Successfully',
-                text: `${remarks.length} maintenance remark(s) synced to "Maintenance Remarks" Google Sheet!`,
+                html: `
+                    <p style="margin: 0.3rem 0;">${remarks.length} remark(s) saved for <strong>${date}</strong>.</p>
+                    ${newlyAttendedFromPending.length > 0 ? `<p style="margin: 0.3rem 0; color: #34d399;">✓ ${newlyAttendedFromPending.length} resolved defect(s) shifted to Section 1.</p>` : ''}
+                `,
                 background: 'var(--surface)',
                 color: 'var(--text-main)',
                 confirmButtonColor: 'var(--primary)'

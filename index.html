@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=2.10">
+    <link rel="stylesheet" href="style.css?v=3.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -69,7 +69,7 @@
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div
                 style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v2.0
+                v 3.0
             </div>
         </div>
     </div>
@@ -326,7 +326,7 @@
         </main>
         <div
             style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v2.0
+            v 3.0
         </div>
     </div>
 
@@ -584,24 +584,18 @@
 
                     <div class="form-row-2">
                         <div class="form-group">
-                            <label for="maintTrainSelect">Train No</label>
-                            <select id="maintTrainSelect" name="Train No" required onchange="handleMaintTrainChange()">
-                                <option value="">-- Select Train No --</option>
-                                <option value="26651/2">26651/2</option>
-                                <option value="20661/2">20661/2</option>
-                                <option value="Other">Other (Enter Train No)</option>
-                            </select>
+                            <label for="maintTrainInput">Train No</label>
+                            <input type="text" id="maintTrainInput" list="maintTrainList" placeholder="e.g. 26651/2 (any train)" required>
+                            <datalist id="maintTrainList">
+                                <option value="26651/2">
+                                <option value="20661/2">
+                            </datalist>
                         </div>
 
                         <div class="form-group">
                             <label for="maintSseInput">SSE Name</label>
                             <input type="text" id="maintSseInput" name="SSE Name" placeholder="SSE Incharge Name" required>
                         </div>
-                    </div>
-
-                    <div class="form-group" id="maintOtherTrainGroup" style="display: none;">
-                        <label for="maintOtherTrainInput">Specify Train Number</label>
-                        <input type="text" id="maintOtherTrainInput" placeholder="e.g. 20631">
                     </div>
 
                     <button type="button" id="maintLoadBtn" class="load-btn" onclick="loadMaintenanceRemarks()">
@@ -611,11 +605,15 @@
                     <div id="maintLoadStatus" class="load-status"></div>
                 </section>
 
-                <!-- Section 1: Remarks Entries (Revealed after clicking Load) -->
+                <!-- Sections Revealed after clicking Load -->
                 <div id="maintEntriesWrapper" style="display: none;">
+                    <!-- Section 1: Add New Defect -->
                     <section class="metadata-section" style="margin-top: 1.25rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <h2 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">Defect & Maintenance Remarks</h2>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.05rem; color: var(--text-main);">1. Add New Defect</h2>
+                                <p style="margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-muted);">Enter new defect remarks and set attention status</p>
+                            </div>
                             <span id="maintCountBadge" class="section-count-badge">0 entries</span>
                         </div>
 
@@ -624,8 +622,23 @@
                         </div>
 
                         <button type="button" class="btn btn-secondary add-entry-btn" id="addMaintRemarkBtn" onclick="addMaintRemarkCard()" style="margin-top: 0.75rem;">
-                            + Add Maintenance Remark
+                            + Add New Defect
                         </button>
+                    </section>
+
+                    <!-- Section 2: Pending Defects from Previous Dates -->
+                    <section class="metadata-section" id="maintPendingSection" style="margin-top: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.05rem; color: #fbbf24;">2. Pending Defects (Previous Dates)</h2>
+                                <p style="margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-muted);">Defects marked pending for this rake on earlier dates</p>
+                            </div>
+                            <span id="maintPendingCountBadge" class="section-count-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">0 pending</span>
+                        </div>
+
+                        <div id="maintPendingContainer">
+                            <!-- Populated dynamically -->
+                        </div>
                     </section>
 
                     <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
@@ -751,7 +764,7 @@
             </div>
         </main>
         <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v2.0
+            v 3.0
         </div>
     </div>
 
@@ -898,7 +911,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=2.10"></script>
+    <script src="app.js?v=3.0"></script>
 </body>
 
 </html>
