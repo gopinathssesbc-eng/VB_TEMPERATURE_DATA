@@ -3035,8 +3035,31 @@ async function loadMaintenanceRemarks() {
         const container = document.getElementById('maintEntriesContainer');
         container.innerHTML = '';
 
-        // Render Section 2: Pending defects (from any earlier date)
-        renderPendingRemarks(result.pendingRemarks || []);
+        function parseMaintDateToTs(dStr) {
+            if (!dStr) return null;
+            const parts = String(dStr).trim().split(/[-/]/);
+            if (parts.length === 3) {
+                let d = parseInt(parts[0], 10);
+                let m = parseInt(parts[1], 10);
+                let y = parseInt(parts[2], 10);
+                if (d > 1000) { const temp = d; d = y; y = temp; }
+                return new Date(Date.UTC(y, m - 1, d)).getTime();
+            }
+            const p = new Date(dStr).getTime();
+            return isNaN(p) ? null : p;
+        }
+
+        const selectedDateTs = parseMaintDateToTs(date);
+        const filteredPending = (result.pendingRemarks || []).filter(item => {
+            const origTs = parseMaintDateToTs(item.OriginalDate);
+            if (selectedDateTs !== null && origTs !== null) {
+                return origTs < selectedDateTs; // Strictly earlier dates only!
+            }
+            return false;
+        });
+
+        // Render Section 2: Pending defects (strictly from earlier dates)
+        renderPendingRemarks(filteredPending);
 
         // Render Section 1: Non-pending remarks saved for this date
         if (result.status === 'success' && result.found) {
@@ -3049,16 +3072,16 @@ async function loadMaintenanceRemarks() {
 
             if (result.remarks && result.remarks.length > 0) {
                 result.remarks.forEach(r => addMaintRemarkCard(r));
-                statusEl.textContent = `Loaded ${result.remarks.length} remark(s) for ${rake} on ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
+                statusEl.textContent = `Loaded ${result.remarks.length} remark(s) for ${rake} on ${date}. (${filteredPending.length} pending from earlier dates)`;
                 statusEl.style.color = '#10b981';
             } else {
                 updateMaintCount();
-                statusEl.textContent = `No defects reported for ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
+                statusEl.textContent = `No defects reported for ${date}. (${filteredPending.length} pending from earlier dates)`;
                 statusEl.style.color = '#10b981';
             }
         } else {
             updateMaintCount();
-            const pendingCount = (result.pendingRemarks || []).length;
+            const pendingCount = filteredPending.length;
             statusEl.textContent = pendingCount > 0 
                 ? `Found ${pendingCount} pending defect(s) from earlier dates for ${rake}. Click "+ Add New Defect" to add a new remark.`
                 : `No existing records for ${rake} on ${date}. Click "+ Add New Defect" to add a remark.`;

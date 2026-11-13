@@ -562,6 +562,22 @@ function doGet(e) {
     let remarks = [];
     let pendingRemarks = [];
 
+    function parseDateToTs(dStr) {
+      if (!dStr) return null;
+      const parts = String(dStr).trim().split(/[-/]/);
+      if (parts.length === 3) {
+        let d = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        let y = parseInt(parts[2], 10);
+        if (d > 1000) { const temp = d; d = y; y = temp; }
+        return new Date(y, m - 1, d).getTime();
+      }
+      const p = new Date(dStr).getTime();
+      return isNaN(p) ? null : p;
+    }
+
+    const queryTs = parseDateToTs(queryDate);
+
     const sheet = getSheetCaseInsensitive(ss, "Maintenance Remarks");
     if (sheet) {
       const data = sheet.getDataRange().getValues();
@@ -595,11 +611,14 @@ function doGet(e) {
           const rowSse = sseIdx !== -1 ? String(row[sseIdx] || "").trim() : "";
           const defectId = idIdx !== -1 ? String(row[idIdx] || "").trim() : ("ROW_" + (i + 1));
 
+          const rowTs = parseDateToTs(rowDate);
+
           if (!queryRake || rowRake.toLowerCase() === queryRake.toLowerCase()) {
             if (coachVal && coachVal !== "NIL") {
               const isPending = (statusVal.toLowerCase() === "pending");
+              const isSameDate = (rowDate === queryDate) || (rowTs !== null && queryTs !== null && rowTs === queryTs);
 
-              if (rowDate === queryDate) {
+              if (isSameDate) {
                 // Defect reported on THIS DATE: Always kept in Section 1 for this date
                 found = true;
                 if (!basic.TrainNo && rowTrain) basic.TrainNo = rowTrain;
@@ -616,8 +635,8 @@ function doGet(e) {
                   DefectId: defectId,
                   RowNumber: i + 1
                 });
-              } else if (isPending) {
-                // Defect reported on an EARLIER date and still Pending: shows in Section 2 (Pending Defects)
+              } else if (isPending && rowTs !== null && queryTs !== null && rowTs < queryTs) {
+                // ONLY defects reported on an EARLIER date (rowTs < queryTs) and still Pending show in Section 2
                 pendingRemarks.push({
                   RowNumber: i + 1,
                   DefectId: defectId,
