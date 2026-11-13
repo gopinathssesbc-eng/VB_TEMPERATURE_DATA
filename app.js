@@ -2987,6 +2987,95 @@ function addMaintRemarkCard(data = {}) {
     updateMaintCount();
 }
 window.addMaintRemarkCard = addMaintRemarkCard;
+
+async function loadMaintenanceRemarks() {
+    if (!currentPassword) {
+        handleSessionExpired();
+        return;
+    }
+
+    const date = document.getElementById('maintDateInput').value.trim();
+    const rake = document.getElementById('maintRakeSelect').value.trim();
+    const train = getMaintTrainValue();
+
+    if (!date || !rake) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Date or Rake',
+            text: 'Please select both Date and Rake Number before loading.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const btn = document.getElementById('maintLoadBtn');
+    const btnText = btn.querySelector('span');
+    const spinner = btn.querySelector('.spinner');
+    const statusEl = document.getElementById('maintLoadStatus');
+
+    btn.disabled = true;
+    btnText.textContent = 'Loading...';
+    spinner.classList.remove('hidden');
+    statusEl.textContent = 'Checking for existing and pending maintenance records...';
+    statusEl.style.color = '#38bdf8';
+
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const url = `${targetUrl}?action=get_maintenance_remarks&password=${encodeURIComponent(currentPassword)}&date=${encodeURIComponent(date)}&rake=${encodeURIComponent(rake)}&train=${encodeURIComponent(train)}`;
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (result.status === 'unauthorized') {
+            handleSessionExpired();
+            return;
+        }
+
+        const container = document.getElementById('maintEntriesContainer');
+        container.innerHTML = '';
+
+        // Render Section 2: Pending defects (from any earlier date)
+        renderPendingRemarks(result.pendingRemarks || []);
+
+        // Render Section 1: Non-pending remarks saved for this date
+        if (result.status === 'success' && result.found) {
+            if (result.basic) {
+                if (result.basic.SseName) document.getElementById('maintSseInput').value = result.basic.SseName;
+                if (result.basic.TrainNo) {
+                    setMaintTrainValue(result.basic.TrainNo);
+                }
+            }
+
+            if (result.remarks && result.remarks.length > 0) {
+                result.remarks.forEach(r => addMaintRemarkCard(r));
+                statusEl.textContent = `Loaded ${result.remarks.length} remark(s) for ${rake} on ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
+                statusEl.style.color = '#10b981';
+            } else {
+                updateMaintCount();
+                statusEl.textContent = `No defects reported for ${date}. (${(result.pendingRemarks || []).length} pending from earlier dates)`;
+                statusEl.style.color = '#10b981';
+            }
+        } else {
+            updateMaintCount();
+            const pendingCount = (result.pendingRemarks || []).length;
+            statusEl.textContent = pendingCount > 0 
+                ? `Found ${pendingCount} pending defect(s) from earlier dates for ${rake}. Click "+ Add New Defect" to add a new remark.`
+                : `No existing records for ${rake} on ${date}. Click "+ Add New Defect" to add a remark.`;
+            statusEl.style.color = 'var(--text-muted)';
+        }
+
+        document.getElementById('maintEntriesWrapper').style.display = 'block';
+
+    } catch (err) {
+        statusEl.textContent = 'Error loading from Google Sheets: ' + (err.message || 'Network error');
+        statusEl.style.color = '#f87171';
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = '🔍 Load Remarks';
+        spinner.classList.add('hidden');
+    }
+}
 window.loadMaintenanceRemarks = loadMaintenanceRemarks;
 
 async function saveMaintenanceRemarks() {
