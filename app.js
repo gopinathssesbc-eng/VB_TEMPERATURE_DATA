@@ -3575,6 +3575,7 @@ function openSettingsScreen() {
         settingsScreen.style.display = 'flex';
         initSettingsState();
         renderSettingsView();
+        refreshManualsCacheStats();
     }
 }
 
@@ -4075,6 +4076,170 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// ============================================================================
+// INDEXEDDB OFFLINE STORAGE FOR MANUALS & PDFS
+// ============================================================================
+const MANUALS_CACHE_DB_NAME = 'VB_Manuals_Cache_v1';
+const MANUALS_CACHE_STORE = 'manuals';
+
+function openManualsCacheDB() {
+    return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+            reject(new Error('IndexedDB not supported'));
+            return;
+        }
+        const request = indexedDB.open(MANUALS_CACHE_DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(MANUALS_CACHE_STORE)) {
+                db.createObjectStore(MANUALS_CACHE_STORE, { keyPath: 'fileId' });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function getCachedManual(fileId) {
+    try {
+        const db = await openManualsCacheDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(MANUALS_CACHE_STORE, 'readonly');
+            const store = tx.objectStore(MANUALS_CACHE_STORE);
+            const req = store.get(fileId);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    } catch (e) {
+        console.warn('Error reading from IndexedDB manual cache:', e);
+        return null;
+    }
+}
+
+async function saveCachedManual(fileId, fileName, mimeType, arrayBuffer, size) {
+    try {
+        const db = await openManualsCacheDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(MANUALS_CACHE_STORE, 'readwrite');
+            const store = tx.objectStore(MANUALS_CACHE_STORE);
+            const record = {
+                fileId: fileId,
+                fileName: fileName,
+                mimeType: mimeType,
+                bytes: arrayBuffer,
+                size: size || (arrayBuffer ? arrayBuffer.byteLength : 0),
+                cachedAt: Date.now()
+            };
+            const req = store.put(record);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.warn('Error saving to IndexedDB manual cache:', e);
+    }
+}
+
+async function deleteCachedManual(fileId) {
+    try {
+        const db = await openManualsCacheDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(MANUALS_CACHE_STORE, 'readwrite');
+            const store = tx.objectStore(MANUALS_CACHE_STORE);
+            const req = store.delete(fileId);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(false);
+        });
+    } catch (e) {
+        return false;
+    }
+}
+
+async function getAllCachedManuals() {
+    try {
+        const db = await openManualsCacheDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(MANUALS_CACHE_STORE, 'readonly');
+            const store = tx.objectStore(MANUALS_CACHE_STORE);
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+        });
+    } catch (e) {
+        return [];
+    }
+}
+
+async function clearAllCachedManuals() {
+    try {
+        const db = await openManualsCacheDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(MANUALS_CACHE_STORE, 'readwrite');
+            const store = tx.objectStore(MANUALS_CACHE_STORE);
+            const req = store.clear();
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(false);
+        });
+    } catch (e) {
+        return false;
+    }
+}
+
+async function refreshManualsCacheStats() {
+    const countBadge = document.getElementById('manualsCacheCountBadge');
+    const sizeText = document.getElementById('manualsCacheSizeText');
+    if (!countBadge && !sizeText) return;
+
+    const list = await getAllCachedManuals();
+    const totalBytes = list.reduce((acc, item) => acc + (item.size || 0), 0);
+    const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+
+    if (countBadge) countBadge.textContent = `${list.length} ${list.length === 1 ? 'file' : 'files'}`;
+    if (sizeText) sizeText.textContent = `Total cached offline: ${list.length} files (${totalMB} MB)`;
+}
+window.refreshManualsCacheStats = refreshManualsCacheStats;
+
+async function promptClearManualsCache() {
+    const list = await getAllCachedManuals();
+    if (list.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'No Cached Manuals',
+            text: 'There are currently no manuals stored in offline cache.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const { isConfirmed } = await Swal.fire({
+        title: 'Clear Offline Manuals?',
+        text: `This will remove ${list.length} cached PDF(s) from this device storage. They will be downloaded again from Google Drive when opened.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Clear Storage',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: 'rgba(255, 255, 255, 0.15)',
+        background: 'var(--surface)',
+        color: 'var(--text-main)'
+    });
+
+    if (isConfirmed) {
+        await clearAllCachedManuals();
+        refreshManualsCacheStats();
+        Swal.fire({
+            icon: 'success',
+            title: 'Storage Cleared',
+            text: 'Offline manuals cache has been emptied.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+    }
+}
+window.promptClearManualsCache = promptClearManualsCache;
+
 // ============================================================
 // MANUALS SCREEN — Google Drive File Browser with Search
 // ============================================================
@@ -4148,18 +4313,27 @@ async function fetchAndRenderFolder(folderId) {
         renderManualsError('Root folder not configured. Please set MANUALS_ROOT_FOLDER_ID in app.js.');
         return;
     }
-    renderManualsLoading();
+    const cacheKey = 'manuals_folder_' + folderId;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+        try {
+            renderFolderContents(JSON.parse(cached));
+        } catch (e) {}
+    } else {
+        renderManualsLoading();
+    }
     try {
         const url = `${MANUALS_WEB_APP_URL}?action=list_drive_folder&folderId=${encodeURIComponent(folderId)}`;
         const resp = await fetch(url);
         const data = await resp.json();
         if (data.status !== 'success') {
-            renderManualsError(data.message || 'Failed to load folder.');
+            if (!cached) renderManualsError(data.message || 'Failed to load folder.');
             return;
         }
+        try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) {}
         renderFolderContents(data);
     } catch (err) {
-        renderManualsError('Network error: ' + err.message);
+        if (!cached) renderManualsError('Network error: ' + err.message);
     }
 }
 
@@ -4387,6 +4561,7 @@ function resetPdfViewerState() {
     }
     pdfViewerState.fileId = null;
     pdfViewerState.title = '';
+    pdfViewerState.mimeType = '';
     pdfViewerState.fileName = '';
     pdfViewerState.pdfBlob = null;
     pdfViewerState.file = null;
@@ -4408,6 +4583,11 @@ function resetPdfViewerState() {
     const findInput = document.getElementById('pdfFindInput');
     if (findInput) findInput.value = '';
     updatePdfSearchUI();
+
+    const offlineBadge = document.getElementById('pdfOfflineBadge');
+    if (offlineBadge) offlineBadge.style.display = 'none';
+    const refreshBtn = document.getElementById('pdfRefreshBtn');
+    if (refreshBtn) refreshBtn.style.display = 'none';
 }
 
 async function openPdfViewer(fileId, title, mimeType) {
@@ -4415,6 +4595,7 @@ async function openPdfViewer(fileId, title, mimeType) {
     const myToken = pdfViewerState.loadToken;
     pdfViewerState.fileId = fileId;
     pdfViewerState.title = title || 'Manual';
+    pdfViewerState.mimeType = mimeType || 'application/pdf';
     const cleanFileName = title ? (title.toLowerCase().endsWith('.pdf') ? title : `${title}.pdf`) : 'Manual.pdf';
     pdfViewerState.fileName = cleanFileName;
 
@@ -4428,6 +4609,8 @@ async function openPdfViewer(fileId, title, mimeType) {
     const jsContainer = document.getElementById('pdfJsContainer');
     const bottomControls = document.getElementById('pdfBottomControls');
     const iframe = document.getElementById('pdfIframe');
+    const offlineBadge = document.getElementById('pdfOfflineBadge');
+    const refreshBtn = document.getElementById('pdfRefreshBtn');
 
     if (titleEl) titleEl.textContent = title || 'File';
     if (extLink) extLink.href = `https://drive.google.com/file/d/${fileId}/view`;
@@ -4452,29 +4635,48 @@ async function openPdfViewer(fileId, title, mimeType) {
     }
     if (searchBar) searchBar.style.display = 'flex';
     if (loadingEl) loadingEl.style.display = 'flex';
-    if (loadingText) loadingText.textContent = 'Loading PDF...';
+    if (loadingText) loadingText.textContent = 'Checking local cache...';
 
     try {
-        const url = `${MANUALS_WEB_APP_URL}?action=get_drive_file&fileId=${encodeURIComponent(fileId)}`;
-        const resp = await fetch(url);
-        const result = await resp.json();
+        let bytes = null;
+        let fromCache = false;
 
+        // 1. Check local persistent IndexedDB storage first (Instant offline access)
+        const cached = await getCachedManual(fileId);
         if (myToken !== pdfViewerState.loadToken) return;
 
-        if (result.status !== 'success' || !result.data) {
-            // Too large (>20 MB) or error -> seamless fallback to Drive preview
-            openFallbackDrivePreview(fileId);
-            return;
-        }
+        if (cached && cached.bytes) {
+            bytes = new Uint8Array(cached.bytes);
+            fromCache = true;
+            if (loadingText) loadingText.textContent = '⚡ Loading instantly from offline storage...';
+        } else {
+            if (loadingText) loadingText.textContent = 'Downloading PDF from Google Drive...';
+            const url = `${MANUALS_WEB_APP_URL}?action=get_drive_file&fileId=${encodeURIComponent(fileId)}`;
+            const resp = await fetch(url);
+            const result = await resp.json();
 
-        if (loadingText) loadingText.textContent = 'Preparing pages & text search...';
+            if (myToken !== pdfViewerState.loadToken) return;
 
-        // Decode Base64 to Uint8Array
-        const binaryStr = atob(result.data);
-        const len = binaryStr.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binaryStr.charCodeAt(i);
+            if (result.status !== 'success' || !result.data) {
+                // Too large (>20 MB) or error -> seamless fallback to Drive preview
+                openFallbackDrivePreview(fileId);
+                return;
+            }
+
+            if (loadingText) loadingText.textContent = 'Saving for offline & preparing pages...';
+
+            // Decode Base64 to Uint8Array
+            const binaryStr = atob(result.data);
+            const len = binaryStr.length;
+            bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+            }
+
+            // Save to IndexedDB asynchronously so it's instantly available next time & offline
+            saveCachedManual(fileId, cleanFileName, mimeType || 'application/pdf', bytes.buffer, bytes.length)
+                .then(() => refreshManualsCacheStats())
+                .catch(e => console.warn('Could not save PDF to IndexedDB cache:', e));
         }
 
         const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
@@ -4495,6 +4697,9 @@ async function openPdfViewer(fileId, title, mimeType) {
         pdfViewerState.numPages = pdf.numPages;
         pdfViewerState.isPdfJsMode = true;
 
+        if (offlineBadge) offlineBadge.style.display = fromCache ? 'inline-flex' : 'none';
+        if (refreshBtn) refreshBtn.style.display = 'flex';
+
         if (loadingEl) loadingEl.style.display = 'none';
         if (jsContainer) jsContainer.style.display = 'block';
         if (bottomControls) bottomControls.style.display = 'flex';
@@ -4512,6 +4717,32 @@ async function openPdfViewer(fileId, title, mimeType) {
     }
 }
 window.openPdfViewer = openPdfViewer;
+
+async function forceRefreshCurrentPdf() {
+    if (!pdfViewerState.fileId) return;
+    const fileId = pdfViewerState.fileId;
+    const title = pdfViewerState.title;
+    const mimeType = pdfViewerState.mimeType || 'application/pdf';
+
+    const refreshBtn = document.getElementById('pdfRefreshBtn');
+    if (refreshBtn) {
+        refreshBtn.classList.add('spinning');
+    }
+
+    try {
+        await deleteCachedManual(fileId);
+        refreshManualsCacheStats();
+    } catch (e) {
+        console.warn('Failed to delete cache before reload:', e);
+    }
+
+    await openPdfViewer(fileId, title, mimeType);
+
+    if (refreshBtn) {
+        refreshBtn.classList.remove('spinning');
+    }
+}
+window.forceRefreshCurrentPdf = forceRefreshCurrentPdf;
 
 function openFallbackDrivePreview(fileId) {
     pdfViewerState.isPdfJsMode = false;
