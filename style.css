@@ -2302,3 +2302,28 @@ input.alert-orange {
     color: var(--text-muted);
     min-height: 1.2rem;
 }
+
+/* Android Hardware Back Exit Toast */
+.android-exit-toast {
+    position: fixed;
+    bottom: 2.25rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(24px);
+    background: rgba(15, 23, 42, 0.95);
+    color: #f8fafc;
+    padding: 0.7rem 1.4rem;
+    border-radius: 9999px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    z-index: 99999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.android-exit-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}

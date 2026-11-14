@@ -155,6 +155,168 @@ const arrivalDatePicker = flatpickr("#arrivalDateInput", {
     }
 });
 
+// ============================================================================
+// ANDROID HARDWARE BACK BUTTON & NAVIGATION HISTORY MANAGER
+// ============================================================================
+let appNavDepth = 0;
+let isNavigatingBack = false;
+let lastBackPressTime = 0;
+
+function pushNavState(state) {
+    if (isNavigatingBack) return;
+    try {
+        history.pushState(state || { t: Date.now() }, '');
+        appNavDepth++;
+    } catch (e) {
+        console.warn('History pushState failed:', e);
+    }
+}
+
+function initAppHistory() {
+    try {
+        history.replaceState({ screen: 'menu_base' }, '');
+        history.pushState({ screen: 'menu_root' }, '');
+        appNavDepth = 0;
+    } catch (e) {
+        console.warn('initAppHistory failed:', e);
+    }
+}
+
+function showExitToast(message = 'Press back again to exit') {
+    let toast = document.getElementById('androidExitToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'androidExitToast';
+        toast.className = 'android-exit-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2000);
+}
+
+function doClosePdfViewer() {
+    if (typeof resetPdfViewerState === 'function') resetPdfViewerState();
+    const overlay = document.getElementById('pdfViewerOverlay');
+    const iframe = document.getElementById('pdfIframe');
+    if (iframe) iframe.src = '';
+    if (overlay) overlay.style.display = 'none';
+}
+
+function doCloseGeneratedPdfPreview() {
+    const overlay = document.getElementById('generatedPdfOverlay');
+    const iframe = document.getElementById('generatedPdfIframe');
+    const pagesContainer = document.getElementById('generatedPdfPagesContainer');
+    if (iframe) iframe.src = '';
+    if (pagesContainer) pagesContainer.innerHTML = '';
+    if (overlay) overlay.style.display = 'none';
+    if (typeof generatedPdfState !== 'undefined') {
+        generatedPdfState.blob = null;
+        generatedPdfState.file = null;
+    }
+}
+
+function doBackToMenu() {
+    hideAllScreens();
+    if (menuScreen) menuScreen.style.display = 'flex';
+}
+
+function handleAppBack() {
+    // 1. Close SweetAlert modal if open
+    if (window.Swal && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
+        Swal.close();
+        try { history.pushState({ screen: 'retained' }, ''); } catch (e) {}
+        return true;
+    }
+
+    // 2. Close Generated PDF Preview overlay if open
+    const genPdfOverlay = document.getElementById('generatedPdfOverlay');
+    if (genPdfOverlay && genPdfOverlay.style.display !== 'none') {
+        doCloseGeneratedPdfPreview();
+        return true;
+    }
+
+    // 3. Close Manuals PDF Viewer overlay if open
+    const pdfOverlay = document.getElementById('pdfViewerOverlay');
+    if (pdfOverlay && pdfOverlay.style.display !== 'none') {
+        doClosePdfViewer();
+        return true;
+    }
+
+    // 4. Handle Troubleshooting Manuals folder navigation
+    const manualsScreen = document.getElementById('manualsScreen');
+    if (manualsScreen && manualsScreen.style.display !== 'none') {
+        if (typeof manualsBrowserState !== 'undefined' && manualsBrowserState.searchMode) {
+            manualsBrowserState.searchMode = false;
+            const searchInput = document.getElementById('manualsSearchInput');
+            if (searchInput) searchInput.value = '';
+            const currentFolder = manualsBrowserState.stack && manualsBrowserState.stack[manualsBrowserState.stack.length - 1];
+            if (currentFolder) fetchAndRenderFolder(currentFolder.id);
+            try { history.pushState({ screen: 'manualsFolder' }, ''); } catch (e) {}
+            return true;
+        }
+        if (typeof manualsBrowserState !== 'undefined' && manualsBrowserState.stack && manualsBrowserState.stack.length > 1) {
+            manualsBrowserState.stack.pop();
+            const prev = manualsBrowserState.stack[manualsBrowserState.stack.length - 1];
+            if (prev) fetchAndRenderFolder(prev.id);
+            return true;
+        }
+        // At root of manuals -> go back to menu
+        doBackToMenu();
+        return true;
+    }
+
+    // 5. Any active sub-screen -> go back to menu
+    const dataEntryScreen = document.getElementById('dataEntryScreen');
+    const arrivalReportScreen = document.getElementById('arrivalReportScreen');
+    const maintScreen = document.getElementById('maintenanceRemarksScreen');
+    const dashboardScreen = document.getElementById('dashboardScreen');
+    const settingsScreen = document.getElementById('settingsScreen');
+
+    const isSubScreenActive = (
+        (dataEntryScreen && dataEntryScreen.style.display !== 'none') ||
+        (arrivalReportScreen && arrivalReportScreen.style.display !== 'none') ||
+        (maintScreen && maintScreen.style.display !== 'none') ||
+        (dashboardScreen && dashboardScreen.style.display !== 'none') ||
+        (settingsScreen && settingsScreen.style.display !== 'none')
+    );
+
+    if (isSubScreenActive) {
+        doBackToMenu();
+        return true;
+    }
+
+    // 6. On Main Menu screen
+    const menuScreen = document.getElementById('menuScreen');
+    if (menuScreen && menuScreen.style.display !== 'none') {
+        const list = document.getElementById('rakeDashboardsList');
+        if (list && list.style.display === 'flex') {
+            toggleRakeDashboards();
+            try { history.pushState({ screen: 'menu_root' }, ''); } catch (e) {}
+            return true;
+        }
+        // Truly at root menu
+        return false;
+    }
+
+    return false;
+}
+
+function triggerAppBack() {
+    if (isNavigatingBack) return;
+    isNavigatingBack = true;
+    setTimeout(() => { isNavigatingBack = false; }, 250);
+
+    if (appNavDepth > 0) {
+        window.history.back();
+    } else {
+        handleAppBack();
+    }
+}
+
 // Navigation Functions
 function hideAllScreens() {
     document.body.classList.remove('arrival-report-active');
@@ -169,30 +331,58 @@ function hideAllScreens() {
     if (settingsScreen) settingsScreen.style.display = 'none';
     const manualsScreen = document.getElementById('manualsScreen');
     if (manualsScreen) manualsScreen.style.display = 'none';
-    const pdfOverlay = document.getElementById('pdfViewerOverlay');
-    if (pdfOverlay) {
-        if (typeof closePdfViewer === 'function') {
-            closePdfViewer();
-        } else {
-            pdfOverlay.style.display = 'none';
-            const iframe = document.getElementById('pdfIframe');
-            if (iframe) iframe.src = '';
-        }
-    }
-    const genPdfOverlay = document.getElementById('generatedPdfOverlay');
-    if (genPdfOverlay) {
-        if (typeof closeGeneratedPdfPreview === 'function') {
-            closeGeneratedPdfPreview();
-        } else {
-            genPdfOverlay.style.display = 'none';
-        }
-    }
+    doClosePdfViewer();
+    doCloseGeneratedPdfPreview();
 }
 
 function backToMenu() {
-    hideAllScreens();
-    menuScreen.style.display = 'flex';
+    triggerAppBack();
 }
+window.backToMenu = backToMenu;
+
+function manualsGoBack() {
+    triggerAppBack();
+}
+window.manualsGoBack = manualsGoBack;
+
+// Native Popstate Listener for Android Back Button & Gestures
+window.addEventListener('popstate', (e) => {
+    // If password modal is active (user not logged in yet), allow native behavior
+    const passwordModal = document.getElementById('passwordModal');
+    if (passwordModal && passwordModal.style.display !== 'none' && !document.body.classList.contains('logged-in')) {
+        return;
+    }
+
+    if (appNavDepth > 0) {
+        appNavDepth--;
+    }
+
+    const handled = handleAppBack();
+
+    if (!handled) {
+        // User is at root Main Menu: Double-tap to exit pattern
+        const now = Date.now();
+        if (now - lastBackPressTime < 2000) {
+            // Second back press within 2s -> Allow app to close
+            lastBackPressTime = 0;
+            window.history.back();
+        } else {
+            // First back press -> Show toast & re-arm guard entry
+            lastBackPressTime = now;
+            showExitToast('Press back again to exit');
+            try {
+                history.pushState({ screen: 'menu_root' }, '');
+            } catch (err) {}
+        }
+    }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    const passwordModal = document.getElementById('passwordModal');
+    if (!passwordModal || passwordModal.style.display === 'none' || document.body.classList.contains('logged-in')) {
+        initAppHistory();
+    }
+});
 
 function toggleRakeDashboards() {
     const list = document.getElementById('rakeDashboardsList');
@@ -1041,6 +1231,7 @@ function clearArrivalForm() {
 }
 
 function openDataEntry() {
+    pushNavState({ screen: 'dataEntry' });
     hideAllScreens();
     clearForm();
     dataEntryScreen.style.display = 'flex';
@@ -1050,6 +1241,7 @@ function openDataEntry() {
 }
 
 function openArrivalReport() {
+    pushNavState({ screen: 'arrivalReport' });
     hideAllScreens();
     document.body.classList.add('arrival-report-active');
     populateArrivalDropdowns();
@@ -1067,6 +1259,7 @@ function updateArrivalStatus(text, type) {
 }
 
 async function openDashboard(train) {
+    pushNavState({ screen: 'dashboard', train: train });
     hideAllScreens();
     dashboardScreen.style.display = 'flex';
     dashboardTitle.textContent = `${train} Dashboard`;
@@ -1493,6 +1686,7 @@ passwordForm.addEventListener('submit', async (e) => {
             document.body.classList.add('logged-in');
             hideAllScreens();
             menuScreen.style.display = 'flex'; // Go to menu instead of data entry
+            initAppHistory();
             fetchDropdownData(); // Sync latest dropdown data from Google Sheets in background
         } else {
             passwordError.textContent = result.message || "Incorrect password. Try again.";
@@ -2392,6 +2586,7 @@ if (maintScreenEl) {
 }
 
 function openMaintenanceRemarks() {
+    pushNavState({ screen: 'maintenanceRemarks' });
     isMaintenanceRemarksSaved = false;
     hideAllScreens();
     document.body.classList.add('arrival-report-active');
@@ -3569,6 +3764,7 @@ async function openSettingsPrompt() {
 }
 
 function openSettingsScreen() {
+    pushNavState({ screen: 'settings' });
     hideAllScreens();
     const settingsScreen = document.getElementById('settingsScreen');
     if (settingsScreen) {
@@ -4260,6 +4456,7 @@ const manualsBrowserState = {
 
 // --- Open / Close ---
 function openManualsScreen() {
+    pushNavState({ screen: 'manuals' });
     hideAllScreens();
     const manualsScreen = document.getElementById('manualsScreen');
     if (manualsScreen) {
@@ -4278,6 +4475,7 @@ window.openManualsScreen = openManualsScreen;
 // --- Folder navigation ---
 function loadFolder(folderId, folderName, isRoot) {
     if (!isRoot) {
+        pushNavState({ screen: 'manualsFolder', folderId: folderId });
         manualsBrowserState.stack.push({ id: folderId, name: folderName });
     } else {
         manualsBrowserState.stack = [{ id: folderId, name: folderName }];
@@ -4288,22 +4486,7 @@ function loadFolder(folderId, folderName, isRoot) {
 window.loadFolder = loadFolder;
 
 function manualsGoBack() {
-    if (manualsBrowserState.searchMode) {
-        // Exit search, go back to current folder
-        manualsBrowserState.searchMode = false;
-        const searchInput = document.getElementById('manualsSearchInput');
-        if (searchInput) searchInput.value = '';
-        const currentFolder = manualsBrowserState.stack[manualsBrowserState.stack.length - 1];
-        fetchAndRenderFolder(currentFolder.id);
-        return;
-    }
-    if (manualsBrowserState.stack.length <= 1) {
-        backToMenu();
-        return;
-    }
-    manualsBrowserState.stack.pop();
-    const prev = manualsBrowserState.stack[manualsBrowserState.stack.length - 1];
-    fetchAndRenderFolder(prev.id);
+    triggerAppBack();
 }
 window.manualsGoBack = manualsGoBack;
 
@@ -4591,6 +4774,7 @@ function resetPdfViewerState() {
 }
 
 async function openPdfViewer(fileId, title, mimeType) {
+    pushNavState({ screen: 'pdfViewer', fileId: fileId });
     resetPdfViewerState();
     const myToken = pdfViewerState.loadToken;
     pdfViewerState.fileId = fileId;
@@ -5187,11 +5371,7 @@ async function changePdfZoom(delta) {
 window.changePdfZoom = changePdfZoom;
 
 function closePdfViewer() {
-    resetPdfViewerState();
-    const overlay = document.getElementById('pdfViewerOverlay');
-    const iframe = document.getElementById('pdfIframe');
-    if (iframe) iframe.src = '';
-    if (overlay) overlay.style.display = 'none';
+    triggerAppBack();
 }
 window.closePdfViewer = closePdfViewer;
 
@@ -5934,6 +6114,7 @@ function generateMaintenanceRemarksPdf() {
 window.generateMaintenanceRemarksPdf = generateMaintenanceRemarksPdf;
 
 async function openGeneratedPdfPreview(fileName, pdfBlob) {
+    pushNavState({ screen: 'generatedPdf', fileName: fileName });
     const overlay = document.getElementById('generatedPdfOverlay');
     const titleEl = document.getElementById('generatedPdfTitle');
     const pagesContainer = document.getElementById('generatedPdfPagesContainer');
@@ -6047,9 +6228,6 @@ async function shareGeneratedArrivalPdf() {
 window.shareGeneratedArrivalPdf = shareGeneratedArrivalPdf;
 
 function closeGeneratedPdfPreview() {
-    const overlay = document.getElementById('generatedPdfOverlay');
-    const pagesContainer = document.getElementById('generatedPdfPagesContainer');
-    if (pagesContainer) pagesContainer.innerHTML = '';
-    if (overlay) overlay.style.display = 'none';
+    triggerAppBack();
 }
 window.closeGeneratedPdfPreview = closeGeneratedPdfPreview;
