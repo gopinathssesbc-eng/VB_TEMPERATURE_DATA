@@ -2113,6 +2113,7 @@ if (arrivalForm) {
 
         const report = collectArrivalReportData();
         const { Date: date, RakeNo: rakeNo, TrainNo: trainNo, DataEnteredBy: enteredBy } = report.basic;
+        const { defects = [], railMadad = [], detentions = [] } = report;
 
         if (!date || !rakeNo || !trainNo || !enteredBy) {
             Swal.fire({

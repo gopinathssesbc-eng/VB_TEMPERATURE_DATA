@@ -1,12 +1,12 @@
-const CACHE_NAME = 'vb-escorting-v3.5';
+const CACHE_NAME = 'vb-escorting-v3.6';
 
 const STATIC_ASSETS = [
     './',
     './index.html',
     './style.css',
-    './style.css?v=3.5',
+    './style.css?v=3.6',
     './app.js',
-    './app.js?v=3.5',
+    './app.js?v=3.6',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
