@@ -1037,6 +1037,7 @@ function clearArrivalForm() {
     collapseAllArrivalSections();
     updateArrivalSectionCounts();
     updateArrivalStatus("Ready to load", "");
+    isArrivalReportSaved = false;
 }
 
 function openDataEntry() {
@@ -2012,6 +2013,13 @@ if (arrivalSubmitBtn) {
     });
 }
 
+let isArrivalReportSaved = false;
+
+if (arrivalForm) {
+    arrivalForm.addEventListener('input', () => { isArrivalReportSaved = false; });
+    arrivalForm.addEventListener('change', () => { isArrivalReportSaved = false; });
+}
+
 function collectArrivalReportData() {
     const date = formatToDDMMYYYY(arrivalDateInput.value);
     const rakeNo = arrivalRakeSelect.value;
@@ -2154,6 +2162,7 @@ if (arrivalForm) {
 
             const result = await response.json();
             if (result.status === "success") {
+                isArrivalReportSaved = true;
                 updateArrivalStatus("Saved & Synced", "online");
                 Swal.fire({
                     icon: 'success',
@@ -2166,12 +2175,17 @@ if (arrivalForm) {
                             ✔ <strong>Detentions</strong>: ${detentions.length} detention record(s)
                         </div>
                     `,
+                    showCancelButton: true,
+                    confirmButtonText: '📄 Generate PDF & Share',
+                    cancelButtonText: 'Done',
+                    confirmButtonColor: '#14b8a6',
+                    cancelButtonColor: 'rgba(255, 255, 255, 0.15)',
                     background: 'var(--surface)',
-                    color: 'var(--text-main)',
-                    confirmButtonColor: 'var(--success)'
-                }).then(() => {
-                    clearArrivalForm();
-                    backToMenu();
+                    color: 'var(--text-main)'
+                }).then((choice) => {
+                    if (choice.isConfirmed) {
+                        generateArrivalReportPdf();
+                    }
                 });
             } else if (result.status === "unauthorized") {
                 handleSessionExpired();
@@ -2369,7 +2383,16 @@ async function fetchMaintenanceCategories() {
     }
 }
 
+let isMaintenanceRemarksSaved = false;
+
+const maintScreenEl = document.getElementById('maintenanceRemarksScreen');
+if (maintScreenEl) {
+    maintScreenEl.addEventListener('input', () => { isMaintenanceRemarksSaved = false; });
+    maintScreenEl.addEventListener('change', () => { isMaintenanceRemarksSaved = false; });
+}
+
 function openMaintenanceRemarks() {
+    isMaintenanceRemarksSaved = false;
     hideAllScreens();
     document.body.classList.add('arrival-report-active');
     populateMaintDropdowns();
@@ -2403,6 +2426,7 @@ function clearMaintForm() {
     if (saveStatus) saveStatus.textContent = '';
     const container = document.getElementById('maintEntriesContainer');
     if (container) container.innerHTML = '';
+    isMaintenanceRemarksSaved = false;
 }
 
 function populateMaintDropdowns() {
@@ -3384,6 +3408,7 @@ async function saveMaintenanceRemarks() {
         }
 
         if (result.status === 'success') {
+            isMaintenanceRemarksSaved = true;
             // ONLY AFTER SAVE: shift attended pending defect cards into Section 1 on screen
             if (newlyAttendedFromPending.length > 0) {
                 newlyAttendedFromPending.forEach(item => {
@@ -3403,9 +3428,17 @@ async function saveMaintenanceRemarks() {
                     <p style="margin: 0.3rem 0;">${remarks.length} remark(s) saved for <strong>${date}</strong>.</p>
                     ${newlyAttendedFromPending.length > 0 ? `<p style="margin: 0.3rem 0; color: #34d399;">✓ ${newlyAttendedFromPending.length} resolved defect(s) shifted to Section 1.</p>` : ''}
                 `,
+                showCancelButton: true,
+                confirmButtonText: '📄 Generate PDF & Share',
+                cancelButtonText: 'Done',
+                confirmButtonColor: '#14b8a6',
+                cancelButtonColor: 'rgba(255, 255, 255, 0.15)',
                 background: 'var(--surface)',
-                color: 'var(--text-main)',
-                confirmButtonColor: 'var(--primary)'
+                color: 'var(--text-main)'
+            }).then((choice) => {
+                if (choice.isConfirmed) {
+                    generateMaintenanceRemarksPdf();
+                }
             });
         } else {
             throw new Error(result.message || 'Unknown save error');
@@ -5072,6 +5105,18 @@ const generatedPdfState = {
 };
 
 function generateArrivalReportPdf() {
+    if (!isArrivalReportSaved) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Please save before generating PDF',
+            text: 'Save the Arrival Report to Google Sheets before generating or sharing the PDF.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
     if (!window.jspdf || !window.jspdf.jsPDF) {
         Swal.fire({
             icon: 'error',
@@ -5407,6 +5452,18 @@ function collectMaintenanceReportData() {
 }
 
 function generateMaintenanceRemarksPdf() {
+    if (!isMaintenanceRemarksSaved) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Please save before generating PDF',
+            text: 'Save Maintenance Remarks to Google Sheets before generating or sharing the PDF.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
     if (!window.jspdf || !window.jspdf.jsPDF) {
         Swal.fire({
             icon: 'error',
