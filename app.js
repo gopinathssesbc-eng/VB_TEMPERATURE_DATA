@@ -225,7 +225,17 @@ function doBackToMenu() {
 }
 
 function handleAppBack() {
-    // 0. Close Defect Modal if open
+    // 0. Close Detention, Rail Madad, or Defect Modals if open
+    const detentionModal = document.getElementById('detentionModal');
+    if (detentionModal && detentionModal.style.display !== 'none') {
+        closeDetentionModal(true);
+        return true;
+    }
+    const rmModal = document.getElementById('railMadadModal');
+    if (rmModal && rmModal.style.display !== 'none') {
+        closeRailMadadModal(true);
+        return true;
+    }
     const defectModal = document.getElementById('defectModal');
     if (defectModal && defectModal.style.display !== 'none') {
         closeDefectModal(true);
@@ -341,6 +351,8 @@ function hideAllScreens() {
     doClosePdfViewer();
     doCloseGeneratedPdfPreview();
     if (typeof closeDefectModal === 'function') closeDefectModal(false);
+    if (typeof closeRailMadadModal === 'function') closeRailMadadModal(false);
+    if (typeof closeDetentionModal === 'function') closeDetentionModal(false);
 }
 
 function backToMenu() {
@@ -749,6 +761,19 @@ function refreshRailMadadDropdowns() {
             }
         }
     });
+
+    const rmMainSel = document.getElementById('rmModalMainCatSelect');
+    if (rmMainSel) {
+        const cur = rmMainSel.value;
+        rmMainSel.innerHTML = buildMainCategoryOptions(cur);
+        if (cur) rmMainSel.value = cur;
+    }
+    const rmSubSel = document.getElementById('rmModalSubCatSelect');
+    if (rmSubSel) {
+        const cur = rmSubSel.value;
+        rmSubSel.innerHTML = buildSubCategoryOptions(cur);
+        if (cur) rmSubSel.value = cur;
+    }
 }
 
 function refreshDefectDropdowns() {
@@ -771,15 +796,22 @@ function refreshDefectDropdowns() {
 }
 
 function refreshDetentionDropdowns() {
-    if (!detentionsContainer) return;
-    detentionsContainer.querySelectorAll('.entry-card').forEach(card => {
-        const catSel = card.querySelector('.detention-category-select');
-        if (catSel) {
-            const current = catSel.value;
-            catSel.innerHTML = buildDetentionCategoryOptions(current);
-            if (current) catSel.value = current;
-        }
-    });
+    if (detentionsContainer) {
+        detentionsContainer.querySelectorAll('.entry-card, .detention-list-item').forEach(card => {
+            const catSel = card.querySelector('.detention-category-select');
+            if (catSel && catSel.tagName === 'SELECT') {
+                const current = catSel.value;
+                catSel.innerHTML = buildDetentionCategoryOptions(current);
+                if (current) catSel.value = current;
+            }
+        });
+    }
+    const modalCatSel = document.getElementById('detentionModalCategorySelect');
+    if (modalCatSel) {
+        const current = modalCatSel.value;
+        modalCatSel.innerHTML = buildDetentionCategoryOptions(current);
+        if (current) modalCatSel.value = current;
+    }
 }
 
 async function fetchDropdownData() {
@@ -887,15 +919,31 @@ function refreshAllCoachDropdowns() {
     }
     if (railMadadContainer) {
         railMadadContainer.querySelectorAll('.rm-coach-select').forEach(sel => {
-            const current = sel.value;
-            sel.innerHTML = buildCoachOptions(current);
+            if (sel.tagName === 'SELECT') {
+                const current = sel.value;
+                sel.innerHTML = buildCoachOptions(current);
+            }
         });
+    }
+    const rmModalCoachSel = document.getElementById('rmModalCoachSelect');
+    if (rmModalCoachSel) {
+        const current = rmModalCoachSel.value;
+        rmModalCoachSel.innerHTML = buildCoachOptions(current);
+        if (current) rmModalCoachSel.value = current;
     }
     if (detentionsContainer) {
         detentionsContainer.querySelectorAll('.detention-coach-select').forEach(sel => {
-            const current = sel.value;
-            sel.innerHTML = buildCoachOptions(current, true);
+            if (sel.tagName === 'SELECT') {
+                const current = sel.value;
+                sel.innerHTML = buildCoachOptions(current, true);
+            }
         });
+    }
+    const detModalCoachSel = document.getElementById('detentionModalCoachSelect');
+    if (detModalCoachSel) {
+        const current = detModalCoachSel.value;
+        detModalCoachSel.innerHTML = buildCoachOptions(current, true);
+        if (current) detModalCoachSel.value = current;
     }
 }
 
@@ -1124,204 +1172,658 @@ function checkDefectsEmpty() {
     updateArrivalSectionCounts();
 }
 
-// Section 2: Rail Madad
+// Section 2: Rail Madad (Compact List View & Modal)
+let editingRailMadadRow = null;
+
 function addRailMadadCard(data = {}) {
     if (!railMadadContainer) return;
-    const index = railMadadContainer.querySelectorAll('.entry-card').length + 1;
-    const card = document.createElement('div');
-    card.className = 'entry-card';
+    const placeholder = railMadadContainer.querySelector('.defects-empty-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const index = railMadadContainer.querySelectorAll('.entry-card, .rm-list-item').length + 1;
+    const row = document.createElement('div');
+    row.className = 'defect-list-item rm-list-item entry-card';
 
     const rawSubCat = data.SubCategory || '';
     const isCustomSub = isCustomSubCategory(rawSubCat);
+    const subCatDisplay = isCustomSub ? rawSubCat : (rawSubCat || '');
+    const coach = data.CoachNo || '';
+    const refNo = data.RMReferenceNo || '';
+    const mainCat = data.MainCategory || '';
+    const desc = data.ComplaintDescription || '';
+    const action = data.ActionTaken || '';
 
-    card.innerHTML = `
-        <div class="entry-card-header">
-            <span>Rail Madad Complaint #${index}</span>
-            <button type="button" class="remove-btn">✕ Remove</button>
-        </div>
-        <div class="form-row-2">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Coach Number</label>
-                <select class="rm-coach-select" required>
-                    ${buildCoachOptions(data.CoachNo || '')}
-                </select>
+    row.innerHTML = `
+        <input type="hidden" class="rm-coach-select" value="${escapeHtml(coach)}">
+        <input type="hidden" class="rm-ref-input" value="${escapeHtml(refNo)}">
+        <input type="hidden" class="rm-main-category" value="${escapeHtml(mainCat)}">
+        <input type="hidden" class="rm-sub-category" value="${escapeHtml(subCatDisplay)}">
+        <input type="hidden" class="rm-sub-category-custom" value="${escapeHtml(isCustomSub ? rawSubCat : '')}">
+        <textarea class="rm-desc-input" style="display: none;">${escapeHtml(desc)}</textarea>
+        <textarea class="rm-action-input" style="display: none;">${escapeHtml(action)}</textarea>
+
+        <div class="defect-item-main" onclick="openEditRailMadadModal(this.closest('.entry-card'))" title="Click to edit complaint">
+            <div class="defect-item-badges">
+                <span class="defect-badge-index rm-badge-index">#${index}</span>
+                <span class="defect-badge-coach">${escapeHtml(coach || 'Coach ?')}</span>
+                <span class="rm-badge-ref">${escapeHtml(refNo || 'No Ref')}</span>
+                <span class="defect-badge-cat">${escapeHtml(mainCat || 'General')}${subCatDisplay ? ' > ' + escapeHtml(subCatDisplay) : ''}</span>
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>RM Reference Number</label>
-                <input type="text" class="rm-ref-input" placeholder="e.g. RM-123456" value="${data.RMReferenceNo || ''}" required>
-            </div>
+            <div class="defect-item-desc">${escapeHtml(desc || '(No complaint details entered)')}</div>
+            ${action ? `<div class="item-action-taken-box"><strong>✓ Action:</strong> <span>${escapeHtml(action)}</span></div>` : ''}
         </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Complaint Main Category</label>
-            <select class="rm-main-category" required>
-                ${buildMainCategoryOptions(data.MainCategory || '')}
-            </select>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Complaint Sub Category</label>
-            <select class="rm-sub-category" required>
-                ${buildSubCategoryOptions(isCustomSub ? 'Other' : rawSubCat)}
-            </select>
-            <input type="text" class="rm-sub-category-custom" placeholder="Type custom sub category" value="${isCustomSub ? rawSubCat : ''}" style="${isCustomSub ? 'display: block; margin-top: 0.4rem;' : 'display: none; margin-top: 0.4rem;'}">
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Complaint Description</label>
-            <textarea class="rm-desc-input" rows="3" placeholder="Details of passenger complaint" required>${data.ComplaintDescription || ''}</textarea>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Action Taken Enroute</label>
-            <textarea class="rm-action-input" rows="3" placeholder="Action taken by technician / OBHS / crew" required>${data.ActionTaken || ''}</textarea>
+        <div class="defect-item-actions">
+            <button type="button" class="defect-action-btn edit" onclick="openEditRailMadadModal(this.closest('.entry-card'))" title="Edit complaint">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>Edit</span>
+            </button>
+            <button type="button" class="defect-action-btn remove remove-btn" onclick="removeRailMadadItem(this.closest('.entry-card'))" title="Remove complaint">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
     `;
 
-    const subSelect = card.querySelector('.rm-sub-category');
-    const customInput = card.querySelector('.rm-sub-category-custom');
-    subSelect.addEventListener('change', () => {
-        if (subSelect.value === 'Other' || subSelect.value === 'Others:') {
-            customInput.style.display = 'block';
-            customInput.setAttribute('required', 'required');
-            customInput.focus();
-        } else {
-            customInput.style.display = 'none';
-            customInput.removeAttribute('required');
-            customInput.value = '';
-        }
-    });
-
-    card.querySelector('.remove-btn').addEventListener('click', () => {
-        card.remove();
-        renumberCards(railMadadContainer, 'Rail Madad Complaint');
-        checkRailMadadEmpty();
-    });
-    railMadadContainer.appendChild(card);
+    railMadadContainer.appendChild(row);
     checkRailMadadEmpty();
+    return row;
 }
+
+function removeRailMadadItem(row) {
+    if (!row) return;
+    row.remove();
+    renumberCards(railMadadContainer, 'Rail Madad Complaint');
+    checkRailMadadEmpty();
+    isArrivalReportSaved = false;
+}
+window.removeRailMadadItem = removeRailMadadItem;
+
+function openAddRailMadadModal() {
+    editingRailMadadRow = null;
+    expandArrivalSection('railMadad');
+
+    const modalTitle = document.getElementById('rmModalTitle');
+    const nextIdx = railMadadContainer ? railMadadContainer.querySelectorAll('.entry-card, .rm-list-item').length + 1 : 1;
+    if (modalTitle) modalTitle.textContent = `Add Rail Madad Complaint #${nextIdx}`;
+
+    const coachSel = document.getElementById('rmModalCoachSelect');
+    if (coachSel) coachSel.innerHTML = buildCoachOptions('');
+
+    const refInput = document.getElementById('rmModalRefInput');
+    if (refInput) refInput.value = '';
+
+    const mainSel = document.getElementById('rmModalMainCatSelect');
+    if (mainSel) mainSel.innerHTML = buildMainCategoryOptions('');
+
+    const subSel = document.getElementById('rmModalSubCatSelect');
+    if (subSel) subSel.innerHTML = buildSubCategoryOptions('');
+
+    const customInput = document.getElementById('rmModalSubCatCustom');
+    if (customInput) {
+        customInput.style.display = 'none';
+        customInput.value = '';
+    }
+
+    const descInput = document.getElementById('rmModalDescInput');
+    if (descInput) descInput.value = '';
+
+    const actionInput = document.getElementById('rmModalActionInput');
+    if (actionInput) actionInput.value = '';
+
+    const modal = document.getElementById('railMadadModal');
+    if (modal) modal.style.display = 'flex';
+
+    if (refInput) setTimeout(() => refInput.focus(), 150);
+
+    pushNavState({ modal: 'railMadad' });
+}
+window.openAddRailMadadModal = openAddRailMadadModal;
+
+function openEditRailMadadModal(row) {
+    if (!row) return;
+    editingRailMadadRow = row;
+
+    const coach = row.querySelector('.rm-coach-select') ? row.querySelector('.rm-coach-select').value : '';
+    const refNo = row.querySelector('.rm-ref-input') ? row.querySelector('.rm-ref-input').value : '';
+    const mainCat = row.querySelector('.rm-main-category') ? row.querySelector('.rm-main-category').value : '';
+    const subCat = row.querySelector('.rm-sub-category') ? row.querySelector('.rm-sub-category').value : '';
+    const desc = row.querySelector('.rm-desc-input') ? row.querySelector('.rm-desc-input').value : '';
+    const action = row.querySelector('.rm-action-input') ? row.querySelector('.rm-action-input').value : '';
+
+    const isCustom = isCustomSubCategory(subCat);
+
+    const indexBadge = row.querySelector('.rm-badge-index');
+    const indexText = indexBadge ? indexBadge.textContent : '';
+
+    const modalTitle = document.getElementById('rmModalTitle');
+    if (modalTitle) modalTitle.textContent = `Edit Complaint ${indexText}`;
+
+    const coachSel = document.getElementById('rmModalCoachSelect');
+    if (coachSel) {
+        coachSel.innerHTML = buildCoachOptions(coach);
+        if (coach) coachSel.value = coach;
+    }
+
+    const refInput = document.getElementById('rmModalRefInput');
+    if (refInput) refInput.value = refNo;
+
+    const mainSel = document.getElementById('rmModalMainCatSelect');
+    if (mainSel) {
+        mainSel.innerHTML = buildMainCategoryOptions(mainCat);
+        if (mainCat) mainSel.value = mainCat;
+    }
+
+    const subSel = document.getElementById('rmModalSubCatSelect');
+    const customInput = document.getElementById('rmModalSubCatCustom');
+    if (subSel) {
+        subSel.innerHTML = buildSubCategoryOptions(isCustom ? 'Other' : subCat);
+        if (isCustom) {
+            subSel.value = 'Other';
+            if (customInput) {
+                customInput.style.display = 'block';
+                customInput.value = subCat;
+            }
+        } else {
+            if (subCat) subSel.value = subCat;
+            if (customInput) {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        }
+    }
+
+    const descInput = document.getElementById('rmModalDescInput');
+    if (descInput) descInput.value = desc;
+
+    const actionInput = document.getElementById('rmModalActionInput');
+    if (actionInput) actionInput.value = action;
+
+    const modal = document.getElementById('railMadadModal');
+    if (modal) modal.style.display = 'flex';
+
+    pushNavState({ modal: 'railMadad' });
+}
+window.openEditRailMadadModal = openEditRailMadadModal;
+
+function closeRailMadadModal(fromBack = false) {
+    const modal = document.getElementById('railMadadModal');
+    if (!modal) return;
+    if (modal.style.display === 'none') return;
+    modal.style.display = 'none';
+    editingRailMadadRow = null;
+    const form = document.getElementById('rmModalForm');
+    if (form) form.reset();
+    if (!fromBack && appNavDepth > 0) {
+        window.history.back();
+    }
+}
+window.closeRailMadadModal = closeRailMadadModal;
+
+function saveRailMadadModal() {
+    const coachSel = document.getElementById('rmModalCoachSelect');
+    const refInput = document.getElementById('rmModalRefInput');
+    const mainSel = document.getElementById('rmModalMainCatSelect');
+    const subSel = document.getElementById('rmModalSubCatSelect');
+    const customInput = document.getElementById('rmModalSubCatCustom');
+    const descInput = document.getElementById('rmModalDescInput');
+    const actionInput = document.getElementById('rmModalActionInput');
+
+    const coach = coachSel ? coachSel.value : '';
+    const refNo = refInput ? refInput.value.trim() : '';
+    const mainCat = mainSel ? mainSel.value : '';
+    let subCat = subSel ? subSel.value : '';
+    if ((subCat === 'Other' || subCat === 'Others:') && customInput && customInput.value.trim()) {
+        subCat = customInput.value.trim();
+    }
+    const desc = descInput ? descInput.value.trim() : '';
+    const action = actionInput ? actionInput.value.trim() : '';
+
+    if (!coach) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Coach Required',
+            text: 'Please select a coach number.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+    if (!refNo) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Reference Number Required',
+            text: 'Please enter the RM Reference Number.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+    if (!desc) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Description Required',
+            text: 'Please enter complaint details.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    if (editingRailMadadRow) {
+        // Update existing row
+        const coachInput = editingRailMadadRow.querySelector('.rm-coach-select');
+        const refHidden = editingRailMadadRow.querySelector('.rm-ref-input');
+        const mainHidden = editingRailMadadRow.querySelector('.rm-main-category');
+        const subHidden = editingRailMadadRow.querySelector('.rm-sub-category');
+        const descArea = editingRailMadadRow.querySelector('.rm-desc-input');
+        const actionArea = editingRailMadadRow.querySelector('.rm-action-input');
+
+        if (coachInput) coachInput.value = coach;
+        if (refHidden) refHidden.value = refNo;
+        if (mainHidden) mainHidden.value = mainCat;
+        if (subHidden) subHidden.value = subCat;
+        if (descArea) descArea.value = desc;
+        if (actionArea) actionArea.value = action;
+
+        const coachBadge = editingRailMadadRow.querySelector('.defect-badge-coach');
+        if (coachBadge) coachBadge.textContent = coach;
+
+        const refBadge = editingRailMadadRow.querySelector('.rm-badge-ref');
+        if (refBadge) refBadge.textContent = refNo;
+
+        const catBadge = editingRailMadadRow.querySelector('.defect-badge-cat');
+        if (catBadge) catBadge.textContent = `${mainCat || 'General'}${subCat ? ' > ' + subCat : ''}`;
+
+        const descDiv = editingRailMadadRow.querySelector('.defect-item-desc');
+        if (descDiv) descDiv.textContent = desc;
+
+        let actionBox = editingRailMadadRow.querySelector('.item-action-taken-box');
+        if (action) {
+            if (!actionBox) {
+                actionBox = document.createElement('div');
+                actionBox.className = 'item-action-taken-box';
+                editingRailMadadRow.querySelector('.defect-item-main').appendChild(actionBox);
+            }
+            actionBox.innerHTML = `<strong>✓ Action:</strong> <span>${escapeHtml(action)}</span>`;
+        } else if (actionBox) {
+            actionBox.remove();
+        }
+    } else {
+        addRailMadadCard({
+            CoachNo: coach,
+            RMReferenceNo: refNo,
+            MainCategory: mainCat,
+            SubCategory: subCat,
+            ComplaintDescription: desc,
+            ActionTaken: action
+        });
+    }
+
+    isArrivalReportSaved = false;
+    updateArrivalSectionCounts();
+    closeRailMadadModal(false);
+}
+window.saveRailMadadModal = saveRailMadadModal;
 
 function checkRailMadadEmpty() {
     if (!railMadadContainer) return;
-    const existingPlaceholder = railMadadContainer.querySelector('.empty-placeholder');
-    if (existingPlaceholder) {
-        existingPlaceholder.remove();
+    const rows = railMadadContainer.querySelectorAll('.entry-card, .rm-list-item');
+    if (rows.length === 0) {
+        railMadadContainer.innerHTML = `
+            <div class="defects-empty-placeholder">
+                <div class="empty-icon">📢</div>
+                <span>No Rail Madad complaints recorded for this rake. Click <strong>➕ Add Rail Madad Complaint</strong> to add.</span>
+            </div>
+        `;
+    } else {
+        const placeholder = railMadadContainer.querySelector('.defects-empty-placeholder');
+        if (placeholder) placeholder.remove();
     }
     updateArrivalSectionCounts();
 }
 
-// Section 3: Detentions
+// Section 3: Detentions (Compact List View & Modal)
+let editingDetentionRow = null;
+
 function addDetentionCard(data = {}) {
     if (!detentionsContainer) return;
-    const index = detentionsContainer.querySelectorAll('.entry-card').length + 1;
-    const card = document.createElement('div');
-    card.className = 'entry-card';
-    card.innerHTML = `
-        <div class="entry-card-header">
-            <span>Detention #${index}</span>
-            <button type="button" class="remove-btn">✕ Remove</button>
-        </div>
-        <div class="form-row-2">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Coach Number</label>
-                <select class="detention-coach-select" required>
-                    ${buildCoachOptions(data.CoachNo || '', true)}
-                </select>
+    const placeholder = detentionsContainer.querySelector('.defects-empty-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const index = detentionsContainer.querySelectorAll('.entry-card, .detention-list-item').length + 1;
+    const row = document.createElement('div');
+    row.className = 'defect-list-item detention-list-item entry-card';
+
+    const coach = data.CoachNo || '';
+    const station = data.Station || '';
+    const cat = data.Category || '';
+    let timeFrom = data.TimeFrom || '';
+    let timeTo = data.TimeTo || '';
+    const pFrom = parseTimeComponents(timeFrom);
+    if (pFrom) timeFrom = pFrom.formatted;
+    const pTo = parseTimeComponents(timeTo);
+    if (pTo) timeTo = pTo.formatted;
+    const totalDetention = data.TotalDetention || calculateDetentionDuration(timeFrom, timeTo);
+    const desc = data.IssueDescription || '';
+    const action = data.ActionTaken || '';
+
+    row.innerHTML = `
+        <input type="hidden" class="detention-coach-select" value="${escapeHtml(coach)}">
+        <input type="hidden" class="detention-station" value="${escapeHtml(station)}">
+        <input type="hidden" class="detention-category-select" value="${escapeHtml(cat)}">
+        <input type="hidden" class="detention-from" value="${escapeHtml(timeFrom)}">
+        <input type="hidden" class="detention-to" value="${escapeHtml(timeTo)}">
+        <input type="hidden" class="detention-total" value="${escapeHtml(totalDetention)}">
+        <textarea class="detention-desc" style="display: none;">${escapeHtml(desc)}</textarea>
+        <textarea class="detention-action" style="display: none;">${escapeHtml(action)}</textarea>
+
+        <div class="defect-item-main" onclick="openEditDetentionModal(this.closest('.entry-card'))" title="Click to edit detention">
+            <div class="defect-item-badges">
+                <span class="defect-badge-index detention-badge-index">#${index}</span>
+                <span class="defect-badge-coach">${escapeHtml(coach || 'Rake Level')}</span>
+                <span class="detention-badge-station">📍 ${escapeHtml(station || 'Enroute')}</span>
+                <span class="defect-badge-cat">${escapeHtml(cat || 'General')}</span>
+                <span class="detention-badge-duration">⏱️ ${escapeHtml(totalDetention || '0 mins')}${timeFrom && timeTo ? ' (' + escapeHtml(timeFrom) + ' - ' + escapeHtml(timeTo) + ')' : ''}</span>
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Station</label>
-                <input type="text" class="detention-station" placeholder="e.g. SBC, KPN" value="${data.Station || ''}" required>
-            </div>
+            <div class="defect-item-desc">${escapeHtml(desc || '(No reason entered)')}</div>
+            ${action ? `<div class="item-action-taken-box"><strong>✓ Action:</strong> <span>${escapeHtml(action)}</span></div>` : ''}
         </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Detention Category</label>
-            <select class="detention-category-select" required>
-                ${buildDetentionCategoryOptions(data.Category || '')}
-            </select>
-        </div>
-        <div class="form-row-3 detention-times-row">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Time From <span class="input-hint">(HH:MM)</span></label>
-                <input type="text" class="detention-from" placeholder="HH:MM" maxlength="5" value="${data.TimeFrom || ''}" required>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Time To <span class="input-hint">(HH:MM)</span></label>
-                <input type="text" class="detention-to" placeholder="HH:MM" maxlength="5" value="${data.TimeTo || ''}" required>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Total Detention</label>
-                <input type="text" class="detention-total calculated-input" readonly placeholder="Auto-calculated" value="${data.TotalDetention || ''}">
-            </div>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Issue Description</label>
-            <textarea class="detention-desc" rows="3" placeholder="Reason for train detention" required>${data.IssueDescription || ''}</textarea>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Action Taken</label>
-            <textarea class="detention-action" rows="3" placeholder="Action taken to rectify and dispatch" required>${data.ActionTaken || ''}</textarea>
+        <div class="defect-item-actions">
+            <button type="button" class="defect-action-btn edit" onclick="openEditDetentionModal(this.closest('.entry-card'))" title="Edit detention">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>Edit</span>
+            </button>
+            <button type="button" class="defect-action-btn remove remove-btn" onclick="removeDetentionItem(this.closest('.entry-card'))" title="Remove detention">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
     `;
 
-    const fromInput = card.querySelector('.detention-from');
-    const toInput = card.querySelector('.detention-to');
-    const totalInput = card.querySelector('.detention-total');
+    detentionsContainer.appendChild(row);
+    checkDetentionsEmpty();
+    return row;
+}
 
-    const formatTimeInput = (input) => {
-        let val = input.value;
-        if (val.includes(';') || val.includes('.')) {
-            val = val.replace(/[;\.]/g, ':');
-            input.value = val;
-        }
-        if (/^\d{4}$/.test(val)) {
-            input.value = val.slice(0, 2) + ':' + val.slice(2);
-        }
-    };
+function removeDetentionItem(row) {
+    if (!row) return;
+    row.remove();
+    renumberCards(detentionsContainer, 'Detention');
+    checkDetentionsEmpty();
+    isArrivalReportSaved = false;
+}
+window.removeDetentionItem = removeDetentionItem;
 
-    const updateCalc = () => {
-        totalInput.value = calculateDetentionDuration(fromInput.value, toInput.value);
-    };
+function openAddDetentionModal() {
+    editingDetentionRow = null;
+    expandArrivalSection('detentions');
 
-    [fromInput, toInput].forEach(inp => {
-        inp.addEventListener('input', () => {
-            formatTimeInput(inp);
-            updateCalc();
-        });
-        inp.addEventListener('blur', () => {
-            const parsed = parseTimeComponents(inp.value);
-            if (parsed) {
-                inp.value = parsed.formatted;
-            }
-            updateCalc();
-        });
-    });
+    const modalTitle = document.getElementById('detentionModalTitle');
+    const nextIdx = detentionsContainer ? detentionsContainer.querySelectorAll('.entry-card, .detention-list-item').length + 1 : 1;
+    if (modalTitle) modalTitle.textContent = `Add Detention #${nextIdx}`;
 
-    if (fromInput.value && toInput.value && !totalInput.value) {
-        updateCalc();
+    const coachSel = document.getElementById('detentionModalCoachSelect');
+    if (coachSel) coachSel.innerHTML = buildCoachOptions('', true);
+
+    const stationInput = document.getElementById('detentionModalStationInput');
+    if (stationInput) stationInput.value = '';
+
+    const catSel = document.getElementById('detentionModalCategorySelect');
+    if (catSel) catSel.innerHTML = buildDetentionCategoryOptions('');
+
+    const fromInput = document.getElementById('detentionModalFromInput');
+    if (fromInput) fromInput.value = '';
+
+    const toInput = document.getElementById('detentionModalToInput');
+    if (toInput) toInput.value = '';
+
+    const totalInput = document.getElementById('detentionModalTotalInput');
+    if (totalInput) totalInput.value = '';
+
+    const descInput = document.getElementById('detentionModalDescInput');
+    if (descInput) descInput.value = '';
+
+    const actionInput = document.getElementById('detentionModalActionInput');
+    if (actionInput) actionInput.value = '';
+
+    const modal = document.getElementById('detentionModal');
+    if (modal) modal.style.display = 'flex';
+
+    if (stationInput) setTimeout(() => stationInput.focus(), 150);
+
+    pushNavState({ modal: 'detention' });
+}
+window.openAddDetentionModal = openAddDetentionModal;
+
+function openEditDetentionModal(row) {
+    if (!row) return;
+    editingDetentionRow = row;
+
+    const coach = row.querySelector('.detention-coach-select') ? row.querySelector('.detention-coach-select').value : '';
+    const station = row.querySelector('.detention-station') ? row.querySelector('.detention-station').value : '';
+    const cat = row.querySelector('.detention-category-select') ? row.querySelector('.detention-category-select').value : '';
+    const timeFrom = row.querySelector('.detention-from') ? row.querySelector('.detention-from').value : '';
+    const timeTo = row.querySelector('.detention-to') ? row.querySelector('.detention-to').value : '';
+    const total = row.querySelector('.detention-total') ? row.querySelector('.detention-total').value : '';
+    const desc = row.querySelector('.detention-desc') ? row.querySelector('.detention-desc').value : '';
+    const action = row.querySelector('.detention-action') ? row.querySelector('.detention-action').value : '';
+
+    const indexBadge = row.querySelector('.detention-badge-index');
+    const indexText = indexBadge ? indexBadge.textContent : '';
+
+    const modalTitle = document.getElementById('detentionModalTitle');
+    if (modalTitle) modalTitle.textContent = `Edit Detention ${indexText}`;
+
+    const coachSel = document.getElementById('detentionModalCoachSelect');
+    if (coachSel) {
+        coachSel.innerHTML = buildCoachOptions(coach, true);
+        if (coach) coachSel.value = coach;
     }
 
-    card.querySelector('.remove-btn').addEventListener('click', () => {
-        card.remove();
-        renumberCards(detentionsContainer, 'Detention');
-        checkDetentionsEmpty();
-    });
+    const stationInput = document.getElementById('detentionModalStationInput');
+    if (stationInput) stationInput.value = station;
 
-    detentionsContainer.appendChild(card);
-    checkDetentionsEmpty();
+    const catSel = document.getElementById('detentionModalCategorySelect');
+    if (catSel) {
+        catSel.innerHTML = buildDetentionCategoryOptions(cat);
+        if (cat) catSel.value = cat;
+    }
+
+    const fromInput = document.getElementById('detentionModalFromInput');
+    if (fromInput) fromInput.value = timeFrom;
+
+    const toInput = document.getElementById('detentionModalToInput');
+    if (toInput) toInput.value = timeTo;
+
+    const totalInput = document.getElementById('detentionModalTotalInput');
+    if (totalInput) totalInput.value = total || calculateDetentionDuration(timeFrom, timeTo);
+
+    const descInput = document.getElementById('detentionModalDescInput');
+    if (descInput) descInput.value = desc;
+
+    const actionInput = document.getElementById('detentionModalActionInput');
+    if (actionInput) actionInput.value = action;
+
+    const modal = document.getElementById('detentionModal');
+    if (modal) modal.style.display = 'flex';
+
+    pushNavState({ modal: 'detention' });
 }
+window.openEditDetentionModal = openEditDetentionModal;
+
+function closeDetentionModal(fromBack = false) {
+    const modal = document.getElementById('detentionModal');
+    if (!modal) return;
+    if (modal.style.display === 'none') return;
+    modal.style.display = 'none';
+    editingDetentionRow = null;
+    const form = document.getElementById('detentionModalForm');
+    if (form) form.reset();
+    if (!fromBack && appNavDepth > 0) {
+        window.history.back();
+    }
+}
+window.closeDetentionModal = closeDetentionModal;
+
+function saveDetentionModal() {
+    const coachSel = document.getElementById('detentionModalCoachSelect');
+    const stationInput = document.getElementById('detentionModalStationInput');
+    const catSel = document.getElementById('detentionModalCategorySelect');
+    const fromInput = document.getElementById('detentionModalFromInput');
+    const toInput = document.getElementById('detentionModalToInput');
+    const totalInput = document.getElementById('detentionModalTotalInput');
+    const descInput = document.getElementById('detentionModalDescInput');
+    const actionInput = document.getElementById('detentionModalActionInput');
+
+    const coach = coachSel ? coachSel.value : '';
+    const station = stationInput ? stationInput.value.trim() : '';
+    const cat = catSel ? catSel.value : '';
+    let timeFrom = fromInput ? fromInput.value.trim() : '';
+    let timeTo = toInput ? toInput.value.trim() : '';
+    const pFrom = parseTimeComponents(timeFrom);
+    if (pFrom) timeFrom = pFrom.formatted;
+    const pTo = parseTimeComponents(timeTo);
+    if (pTo) timeTo = pTo.formatted;
+    const total = totalInput && totalInput.value ? totalInput.value : calculateDetentionDuration(timeFrom, timeTo);
+    const desc = descInput ? descInput.value.trim() : '';
+    const action = actionInput ? actionInput.value.trim() : '';
+
+    if (!station) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Station Required',
+            text: 'Please enter the station name/code where detention occurred.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+    if (!timeFrom || !timeTo) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Times Required',
+            text: 'Please enter both Time From and Time To (HH:MM).',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+    if (!desc) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Description Required',
+            text: 'Please enter the reason for train detention.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    if (editingDetentionRow) {
+        // Update existing row
+        const coachInput = editingDetentionRow.querySelector('.detention-coach-select');
+        const stnInput = editingDetentionRow.querySelector('.detention-station');
+        const catInput = editingDetentionRow.querySelector('.detention-category-select');
+        const fInput = editingDetentionRow.querySelector('.detention-from');
+        const tInput = editingDetentionRow.querySelector('.detention-to');
+        const totInput = editingDetentionRow.querySelector('.detention-total');
+        const descArea = editingDetentionRow.querySelector('.detention-desc');
+        const actionArea = editingDetentionRow.querySelector('.detention-action');
+
+        if (coachInput) coachInput.value = coach;
+        if (stnInput) stnInput.value = station;
+        if (catInput) catInput.value = cat;
+        if (fInput) fInput.value = timeFrom;
+        if (tInput) tInput.value = timeTo;
+        if (totInput) totInput.value = total;
+        if (descArea) descArea.value = desc;
+        if (actionArea) actionArea.value = action;
+
+        const coachBadge = editingDetentionRow.querySelector('.defect-badge-coach');
+        if (coachBadge) coachBadge.textContent = coach || 'Rake Level';
+
+        const stnBadge = editingDetentionRow.querySelector('.detention-badge-station');
+        if (stnBadge) stnBadge.textContent = `📍 ${station}`;
+
+        const catBadge = editingDetentionRow.querySelector('.defect-badge-cat');
+        if (catBadge) catBadge.textContent = cat || 'General';
+
+        const durationBadge = editingDetentionRow.querySelector('.detention-badge-duration');
+        if (durationBadge) durationBadge.textContent = `⏱️ ${total || '0 mins'}${timeFrom && timeTo ? ' (' + timeFrom + ' - ' + timeTo + ')' : ''}`;
+
+        const descDiv = editingDetentionRow.querySelector('.defect-item-desc');
+        if (descDiv) descDiv.textContent = desc;
+
+        let actionBox = editingDetentionRow.querySelector('.item-action-taken-box');
+        if (action) {
+            if (!actionBox) {
+                actionBox = document.createElement('div');
+                actionBox.className = 'item-action-taken-box';
+                editingDetentionRow.querySelector('.defect-item-main').appendChild(actionBox);
+            }
+            actionBox.innerHTML = `<strong>✓ Action:</strong> <span>${escapeHtml(action)}</span>`;
+        } else if (actionBox) {
+            actionBox.remove();
+        }
+    } else {
+        addDetentionCard({
+            CoachNo: coach,
+            Station: station,
+            Category: cat,
+            TimeFrom: timeFrom,
+            TimeTo: timeTo,
+            TotalDetention: total,
+            IssueDescription: desc,
+            ActionTaken: action
+        });
+    }
+
+    isArrivalReportSaved = false;
+    updateArrivalSectionCounts();
+    closeDetentionModal(false);
+}
+window.saveDetentionModal = saveDetentionModal;
 
 function checkDetentionsEmpty() {
     if (!detentionsContainer) return;
-    const existingPlaceholder = detentionsContainer.querySelector('.empty-placeholder');
-    if (existingPlaceholder) {
-        existingPlaceholder.remove();
+    const rows = detentionsContainer.querySelectorAll('.entry-card, .detention-list-item');
+    if (rows.length === 0) {
+        detentionsContainer.innerHTML = `
+            <div class="defects-empty-placeholder">
+                <div class="empty-icon">⏱️</div>
+                <span>No train detentions recorded for this rake. Click <strong>➕ Add Detention</strong> to add.</span>
+            </div>
+        `;
+    } else {
+        const placeholder = detentionsContainer.querySelector('.defects-empty-placeholder');
+        if (placeholder) placeholder.remove();
     }
     updateArrivalSectionCounts();
 }
 
 function renumberCards(container, prefix) {
     if (!container) return;
-    const cards = container.querySelectorAll('.entry-card, .defect-list-item');
+    const cards = container.querySelectorAll('.entry-card, .defect-list-item, .rm-list-item, .detention-list-item');
     cards.forEach((card, idx) => {
         const titleSpan = card.querySelector('.entry-card-header span');
         if (titleSpan) titleSpan.textContent = `${prefix} #${idx + 1}`;
-        const indexBadge = card.querySelector('.defect-badge-index');
+        const indexBadge = card.querySelector('.defect-badge-index, .rm-badge-index, .detention-badge-index');
         if (indexBadge) indexBadge.textContent = `#${idx + 1}`;
     });
 }
@@ -2199,15 +2701,13 @@ if (addDefectBtn) {
 
 if (addRailMadadBtn) {
     addRailMadadBtn.addEventListener('click', () => {
-        expandArrivalSection('railMadad');
-        addRailMadadCard();
+        openAddRailMadadModal();
     });
 }
 
 if (addDetentionBtn) {
     addDetentionBtn.addEventListener('click', () => {
-        expandArrivalSection('detentions');
-        addDetentionCard();
+        openAddDetentionModal();
     });
 }
 
@@ -2436,7 +2936,7 @@ function collectArrivalReportData() {
     });
 
     // Collect Section 2: Rail Madad
-    const rmCards = railMadadContainer.querySelectorAll('.entry-card');
+    const rmCards = railMadadContainer.querySelectorAll('.entry-card, .rm-list-item');
     const railMadad = [];
     rmCards.forEach(card => {
         const subSelect = card.querySelector('.rm-sub-category');
@@ -2457,7 +2957,7 @@ function collectArrivalReportData() {
     });
 
     // Collect Section 3: Detentions
-    const detentionCards = detentionsContainer.querySelectorAll('.entry-card');
+    const detentionCards = detentionsContainer.querySelectorAll('.entry-card, .detention-list-item');
     const detentions = [];
     detentionCards.forEach(card => {
         let timeFrom = card.querySelector('.detention-from').value.trim();
@@ -4463,6 +4963,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 addCurrentCategoryItem();
             }
+        });
+    }
+
+    // Wire Rail Madad Modal subcategory toggle
+    const rmModalSubCat = document.getElementById('rmModalSubCatSelect');
+    const rmModalCustom = document.getElementById('rmModalSubCatCustom');
+    if (rmModalSubCat && rmModalCustom) {
+        rmModalSubCat.addEventListener('change', () => {
+            if (rmModalSubCat.value === 'Other' || rmModalSubCat.value === 'Others:') {
+                rmModalCustom.style.display = 'block';
+                rmModalCustom.focus();
+            } else {
+                rmModalCustom.style.display = 'none';
+                rmModalCustom.value = '';
+            }
+        });
+    }
+
+    // Wire Detention Modal time calculation
+    const detModalFrom = document.getElementById('detentionModalFromInput');
+    const detModalTo = document.getElementById('detentionModalToInput');
+    const detModalTotal = document.getElementById('detentionModalTotalInput');
+    if (detModalFrom && detModalTo && detModalTotal) {
+        const updateModalDetentionCalc = () => {
+            detModalTotal.value = calculateDetentionDuration(detModalFrom.value, detModalTo.value);
+        };
+        const formatTimeInp = (inp) => {
+            let val = inp.value;
+            if (val.includes(';') || val.includes('.')) {
+                val = val.replace(/[;\.]/g, ':');
+                inp.value = val;
+            }
+            if (/^\d{4}$/.test(val)) {
+                inp.value = val.slice(0, 2) + ':' + val.slice(2);
+            }
+        };
+        [detModalFrom, detModalTo].forEach(inp => {
+            inp.addEventListener('input', () => {
+                formatTimeInp(inp);
+                updateModalDetentionCalc();
+            });
+            inp.addEventListener('blur', () => {
+                const parsed = parseTimeComponents(inp.value);
+                if (parsed) {
+                    inp.value = parsed.formatted;
+                }
+                updateModalDetentionCalc();
+            });
         });
     }
 });

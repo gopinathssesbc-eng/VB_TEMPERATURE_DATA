@@ -1593,6 +1593,71 @@ input:disabled, select:disabled, textarea:disabled {
     font-size: 1.5rem;
 }
 
+/* Rail Madad and Detention list items & badge styles */
+.rm-list-item {
+    border-left: 3.5px solid #a855f7 !important;
+}
+
+.rm-list-item:hover {
+    border-color: rgba(168, 85, 247, 0.35) !important;
+    border-left-color: #a855f7 !important;
+}
+
+.detention-list-item {
+    border-left: 3.5px solid #f97316 !important;
+}
+
+.detention-list-item:hover {
+    border-color: rgba(249, 115, 22, 0.35) !important;
+    border-left-color: #f97316 !important;
+}
+
+.rm-badge-ref {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #c084fc;
+    background: rgba(168, 85, 247, 0.14);
+    border: 1px solid rgba(168, 85, 247, 0.28);
+    padding: 0.15rem 0.55rem;
+    border-radius: 0.35rem;
+    letter-spacing: 0.02em;
+}
+
+.detention-badge-station {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.14);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 0.15rem 0.55rem;
+    border-radius: 0.35rem;
+}
+
+.detention-badge-duration {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 0.15rem 0.55rem;
+    border-radius: 0.35rem;
+}
+
+.item-action-taken-box {
+    margin-top: 0.25rem;
+    font-size: 0.82rem;
+    color: #94a3b8;
+    line-height: 1.4;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+}
+
+.item-action-taken-box strong {
+    color: #34d399;
+    flex-shrink: 0;
+}
+
 /* Defect Modal (Popup) */
 .defect-modal-overlay {
     position: fixed;
