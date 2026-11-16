@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=4.3">
+    <link rel="stylesheet" href="style.css?v=4.4">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -617,7 +617,7 @@
                             <span id="maintCountBadge" class="section-count-badge">0 entries</span>
                         </div>
 
-                        <div id="maintEntriesContainer">
+                        <div id="maintEntriesContainer" class="defects-list-container">
                             <!-- Populated dynamically -->
                         </div>
 
@@ -636,7 +636,7 @@
                             <span id="maintPendingCountBadge" class="section-count-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">0 pending</span>
                         </div>
 
-                        <div id="maintPendingContainer">
+                        <div id="maintPendingContainer" class="defects-list-container">
                             <!-- Populated dynamically -->
                         </div>
                     </section>
@@ -1127,7 +1127,7 @@
                 </div>
                 <div class="defect-modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeMaintRemarkModal(true)" style="padding: 0.55rem 1.1rem; font-size: 0.88rem;">Cancel</button>
-                    <button type="submit" id="maintRemarkModalSaveBtn" class="btn btn-primary" style="padding: 0.55rem 1.3rem; font-size: 0.88rem; font-weight: 600;">
+                    <button type="button" id="maintRemarkModalSaveBtn" class="btn btn-primary" onclick="saveMaintRemarkModal()" style="padding: 0.55rem 1.3rem; font-size: 0.88rem; font-weight: 600;">
                         <span>Save Defect</span>
                     </button>
                 </div>
@@ -1189,7 +1189,7 @@
                 </div>
                 <div class="defect-modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeMaintPendingModal(true)" style="padding: 0.55rem 1.1rem; font-size: 0.88rem;">Cancel</button>
-                    <button type="submit" id="maintPendingModalSaveBtn" class="btn btn-primary" style="padding: 0.55rem 1.3rem; font-size: 0.88rem; font-weight: 600; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-color: #f59e0b;">
+                    <button type="button" id="maintPendingModalSaveBtn" class="btn btn-primary" onclick="saveMaintPendingModal()" style="padding: 0.55rem 1.3rem; font-size: 0.88rem; font-weight: 600; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-color: #f59e0b;">
                         <span>Update Defect Status</span>
                     </button>
                 </div>
@@ -1211,7 +1211,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=4.3"></script>
+    <script src="app.js?v=4.4"></script>
 </body>
 
 </html>

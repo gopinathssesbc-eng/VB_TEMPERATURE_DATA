@@ -172,6 +172,15 @@ function pushNavState(state) {
     }
 }
 
+function safelyPopModalHistory() {
+    if (appNavDepth > 0) {
+        appNavDepth--;
+        isNavigatingBack = true;
+        setTimeout(() => { isNavigatingBack = false; }, 350);
+        window.history.back();
+    }
+}
+
 function initAppHistory() {
     try {
         history.replaceState({ screen: 'menu_base' }, '');
@@ -360,11 +369,11 @@ function hideAllScreens() {
     if (manualsScreen) manualsScreen.style.display = 'none';
     doClosePdfViewer();
     doCloseGeneratedPdfPreview();
-    if (typeof closeDefectModal === 'function') closeDefectModal(false);
-    if (typeof closeRailMadadModal === 'function') closeRailMadadModal(false);
-    if (typeof closeDetentionModal === 'function') closeDetentionModal(false);
-    if (typeof closeMaintRemarkModal === 'function') closeMaintRemarkModal(false);
-    if (typeof closeMaintPendingModal === 'function') closeMaintPendingModal(false);
+    if (typeof closeDefectModal === 'function') closeDefectModal(true);
+    if (typeof closeRailMadadModal === 'function') closeRailMadadModal(true);
+    if (typeof closeDetentionModal === 'function') closeDetentionModal(true);
+    if (typeof closeMaintRemarkModal === 'function') closeMaintRemarkModal(true);
+    if (typeof closeMaintPendingModal === 'function') closeMaintPendingModal(true);
 }
 
 function backToMenu() {
@@ -379,6 +388,11 @@ window.manualsGoBack = manualsGoBack;
 
 // Native Popstate Listener for Android Back Button & Gestures
 window.addEventListener('popstate', (e) => {
+    // If programmatic modal history pop is in progress, ignore popstate
+    if (isNavigatingBack) {
+        return;
+    }
+
     // If password modal is active (user not logged in yet), allow native behavior
     const passwordModal = document.getElementById('passwordModal');
     if (passwordModal && passwordModal.style.display !== 'none' && !document.body.classList.contains('logged-in')) {
@@ -1100,9 +1114,7 @@ function closeDefectModal(fromBack = false) {
     editingDefectRow = null;
     const form = document.getElementById('defectModalForm');
     if (form) form.reset();
-    if (!fromBack && appNavDepth > 0) {
-        window.history.back();
-    }
+    if (!fromBack) safelyPopModalHistory();
 }
 window.closeDefectModal = closeDefectModal;
 
@@ -1372,9 +1384,7 @@ function closeRailMadadModal(fromBack = false) {
     editingRailMadadRow = null;
     const form = document.getElementById('rmModalForm');
     if (form) form.reset();
-    if (!fromBack && appNavDepth > 0) {
-        window.history.back();
-    }
+    if (!fromBack) safelyPopModalHistory();
 }
 window.closeRailMadadModal = closeRailMadadModal;
 
@@ -1687,9 +1697,7 @@ function closeDetentionModal(fromBack = false) {
     editingDetentionRow = null;
     const form = document.getElementById('detentionModalForm');
     if (form) form.reset();
-    if (!fromBack && appNavDepth > 0) {
-        window.history.back();
-    }
+    if (!fromBack) safelyPopModalHistory();
 }
 window.closeDetentionModal = closeDetentionModal;
 
@@ -3126,6 +3134,7 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
             .then((registration) => {
                 console.log('[PWA] Service Worker registered successfully:', registration.scope);
+                registration.update();
             })
             .catch((error) => {
                 console.warn('[PWA] Service Worker registration failed:', error);
@@ -3699,9 +3708,7 @@ function closeMaintRemarkModal(fromBack = false) {
     editingMaintRemarkRow = null;
     const form = document.getElementById('maintRemarkModalForm');
     if (form) form.reset();
-    if (!fromBack && appNavDepth > 0) {
-        window.history.back();
-    }
+    if (!fromBack) safelyPopModalHistory();
 }
 window.closeMaintRemarkModal = closeMaintRemarkModal;
 
@@ -3899,7 +3906,7 @@ function addMaintRemarkCard(data = {}) {
 
     const index = container.querySelectorAll('.maint-entry-card').length + 1;
     const card = document.createElement('div');
-    card.className = 'defect-list-item maint-list-item maint-entry-card entry-card' + (isPending ? ' is-pending' : '');
+    card.className = 'defect-list-item maint-list-item maint-entry-card' + (isPending ? ' is-pending' : '');
 
     if (data.OrigRowNumber) card.dataset.origRow = data.OrigRowNumber;
     if (data.DefectId) card.dataset.defectId = data.DefectId;
@@ -3985,7 +3992,7 @@ function renderPendingRemarks(pendingList = []) {
     loadedPendingRemarks.forEach((item, idx) => {
         const card = document.createElement('div');
         const isAttended = (item.AttentionStatus === 'Attended');
-        card.className = 'defect-list-item maint-pending-list-item maint-pending-card entry-card' + (isAttended ? ' status-attended' : '');
+        card.className = 'defect-list-item maint-pending-list-item maint-pending-card' + (isAttended ? ' status-attended' : '');
         card.id = `pendingCard_${idx}`;
 
         card.innerHTML = `
@@ -4116,9 +4123,7 @@ function closeMaintPendingModal(fromBack = false) {
     editingPendingIdx = null;
     const form = document.getElementById('maintPendingModalForm');
     if (form) form.reset();
-    if (!fromBack && appNavDepth > 0) {
-        window.history.back();
-    }
+    if (!fromBack) safelyPopModalHistory();
 }
 window.closeMaintPendingModal = closeMaintPendingModal;
 
