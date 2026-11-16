@@ -225,6 +225,13 @@ function doBackToMenu() {
 }
 
 function handleAppBack() {
+    // 0. Close Defect Modal if open
+    const defectModal = document.getElementById('defectModal');
+    if (defectModal && defectModal.style.display !== 'none') {
+        closeDefectModal(true);
+        return true;
+    }
+
     // 1. Close SweetAlert modal if open
     if (window.Swal && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
         Swal.close();
@@ -333,6 +340,7 @@ function hideAllScreens() {
     if (manualsScreen) manualsScreen.style.display = 'none';
     doClosePdfViewer();
     doCloseGeneratedPdfPreview();
+    if (typeof closeDefectModal === 'function') closeDefectModal(false);
 }
 
 function backToMenu() {
@@ -744,15 +752,22 @@ function refreshRailMadadDropdowns() {
 }
 
 function refreshDefectDropdowns() {
-    if (!defectsContainer) return;
-    defectsContainer.querySelectorAll('.defect-row').forEach(row => {
-        const catSel = row.querySelector('.defect-cat-select');
-        if (catSel) {
-            const current = catSel.value;
-            catSel.innerHTML = buildDefectCategoryOptions(current);
-            if (current) catSel.value = current;
-        }
-    });
+    if (defectsContainer) {
+        defectsContainer.querySelectorAll('.defect-row').forEach(row => {
+            const catSel = row.querySelector('.defect-cat-select');
+            if (catSel && catSel.tagName === 'SELECT') {
+                const current = catSel.value;
+                catSel.innerHTML = buildDefectCategoryOptions(current);
+                if (current) catSel.value = current;
+            }
+        });
+    }
+    const modalCatSel = document.getElementById('defectModalCategorySelect');
+    if (modalCatSel) {
+        const current = modalCatSel.value;
+        modalCatSel.innerHTML = buildDefectCategoryOptions(current);
+        if (current) modalCatSel.value = current;
+    }
 }
 
 function refreshDetentionDropdowns() {
@@ -856,22 +871,37 @@ function buildCoachOptions(selectedCoach = '', includeAllOption = false) {
 }
 
 function refreshAllCoachDropdowns() {
-    if (!defectsContainer || !railMadadContainer || !detentionsContainer) return;
-    defectsContainer.querySelectorAll('.defect-coach-select').forEach(sel => {
-        const current = sel.value;
-        sel.innerHTML = buildCoachOptions(current);
-    });
-    railMadadContainer.querySelectorAll('.rm-coach-select').forEach(sel => {
-        const current = sel.value;
-        sel.innerHTML = buildCoachOptions(current);
-    });
-    detentionsContainer.querySelectorAll('.detention-coach-select').forEach(sel => {
-        const current = sel.value;
-        sel.innerHTML = buildCoachOptions(current, true);
-    });
+    if (defectsContainer) {
+        defectsContainer.querySelectorAll('.defect-coach-select').forEach(sel => {
+            if (sel.tagName === 'SELECT') {
+                const current = sel.value;
+                sel.innerHTML = buildCoachOptions(current);
+            }
+        });
+    }
+    const modalCoachSel = document.getElementById('defectModalCoachSelect');
+    if (modalCoachSel) {
+        const current = modalCoachSel.value;
+        modalCoachSel.innerHTML = buildCoachOptions(current);
+        if (current) modalCoachSel.value = current;
+    }
+    if (railMadadContainer) {
+        railMadadContainer.querySelectorAll('.rm-coach-select').forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = buildCoachOptions(current);
+        });
+    }
+    if (detentionsContainer) {
+        detentionsContainer.querySelectorAll('.detention-coach-select').forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = buildCoachOptions(current, true);
+        });
+    }
 }
 
-// Section 1: Defects
+// Section 1: Defects (Compact List View & Modal)
+let editingDefectRow = null;
+
 function addDefectRow(coach = '', category = '', desc = '') {
     if (!defectsContainer) return;
     let c = coach;
@@ -882,49 +912,214 @@ function addDefectRow(coach = '', category = '', desc = '') {
         cat = coach.Category || '';
         d = coach.IssueDescription || '';
     }
+
+    const placeholder = defectsContainer.querySelector('.defects-empty-placeholder');
+    if (placeholder) placeholder.remove();
+
     const index = defectsContainer.querySelectorAll('.defect-row').length + 1;
-    const card = document.createElement('div');
-    card.className = 'entry-card defect-card defect-row';
-    card.innerHTML = `
-        <div class="entry-card-header">
-            <span>Defect #${index}</span>
-            <button type="button" class="remove-btn">✕ Remove</button>
-        </div>
-        <div class="form-row-2">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Coach Number</label>
-                <select class="defect-coach-select" required>
-                    ${buildCoachOptions(c)}
-                </select>
+    const row = document.createElement('div');
+    row.className = 'defect-list-item defect-row';
+    row.innerHTML = `
+        <input type="hidden" class="defect-coach-select" value="${escapeHtml(c || '')}">
+        <input type="hidden" class="defect-cat-select" value="${escapeHtml(cat || '')}">
+        <textarea class="defect-desc-input" style="display: none;">${escapeHtml(d || '')}</textarea>
+
+        <div class="defect-item-main" onclick="openEditDefectModal(this.closest('.defect-row'))" title="Click to edit defect">
+            <div class="defect-item-badges">
+                <span class="defect-badge-index">#${index}</span>
+                <span class="defect-badge-coach">${escapeHtml(c || 'Coach ?')}</span>
+                <span class="defect-badge-cat">${escapeHtml(cat || 'General')}</span>
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Defect Category</label>
-                <select class="defect-cat-select" required>
-                    ${buildDefectCategoryOptions(cat)}
-                </select>
-            </div>
+            <div class="defect-item-desc">${escapeHtml(d || '(No description entered)')}</div>
         </div>
-        <div class="form-group" style="margin-bottom: 0;">
-            <label>Defect Description</label>
-            <textarea class="defect-desc-input" rows="3" placeholder="Enter defect / issue description" required>${d || ''}</textarea>
+        <div class="defect-item-actions">
+            <button type="button" class="defect-action-btn edit" onclick="openEditDefectModal(this.closest('.defect-row'))" title="Edit defect">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>Edit</span>
+            </button>
+            <button type="button" class="defect-action-btn remove remove-btn" onclick="removeDefectItem(this.closest('.defect-row'))" title="Remove defect">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
     `;
 
-    card.querySelector('.remove-btn').addEventListener('click', () => {
-        card.remove();
-        renumberCards(defectsContainer, 'Defect');
-        checkDefectsEmpty();
-    });
-
-    defectsContainer.appendChild(card);
+    defectsContainer.appendChild(row);
     checkDefectsEmpty();
+    return row;
 }
+
+function removeDefectItem(row) {
+    if (!row) return;
+    row.remove();
+    renumberCards(defectsContainer, 'Defect');
+    checkDefectsEmpty();
+    isArrivalReportSaved = false;
+}
+window.removeDefectItem = removeDefectItem;
+
+function openAddDefectModal() {
+    editingDefectRow = null;
+    expandArrivalSection('defects');
+
+    const modalTitle = document.getElementById('defectModalTitle');
+    const nextIdx = defectsContainer ? defectsContainer.querySelectorAll('.defect-row').length + 1 : 1;
+    if (modalTitle) modalTitle.textContent = `Add Defect #${nextIdx}`;
+
+    const coachSel = document.getElementById('defectModalCoachSelect');
+    if (coachSel) coachSel.innerHTML = buildCoachOptions('');
+
+    const catSel = document.getElementById('defectModalCategorySelect');
+    if (catSel) catSel.innerHTML = buildDefectCategoryOptions('');
+
+    const descInput = document.getElementById('defectModalDescInput');
+    if (descInput) descInput.value = '';
+
+    const modal = document.getElementById('defectModal');
+    if (modal) modal.style.display = 'flex';
+
+    if (descInput) setTimeout(() => descInput.focus(), 150);
+
+    pushNavState({ modal: 'defect' });
+}
+window.openAddDefectModal = openAddDefectModal;
+
+function openEditDefectModal(row) {
+    if (!row) return;
+    editingDefectRow = row;
+
+    const coachInput = row.querySelector('.defect-coach-select');
+    const catInput = row.querySelector('.defect-cat-select');
+    const descArea = row.querySelector('.defect-desc-input');
+
+    const coach = coachInput ? coachInput.value : '';
+    const cat = catInput ? catInput.value : '';
+    const desc = descArea ? descArea.value : '';
+
+    const indexBadge = row.querySelector('.defect-badge-index');
+    const indexText = indexBadge ? indexBadge.textContent : '';
+
+    const modalTitle = document.getElementById('defectModalTitle');
+    if (modalTitle) modalTitle.textContent = `Edit Defect ${indexText}`;
+
+    const coachSel = document.getElementById('defectModalCoachSelect');
+    if (coachSel) {
+        coachSel.innerHTML = buildCoachOptions(coach);
+        if (coach) coachSel.value = coach;
+    }
+
+    const catSel = document.getElementById('defectModalCategorySelect');
+    if (catSel) {
+        catSel.innerHTML = buildDefectCategoryOptions(cat);
+        if (cat) catSel.value = cat;
+    }
+
+    const descInput = document.getElementById('defectModalDescInput');
+    if (descInput) descInput.value = desc;
+
+    const modal = document.getElementById('defectModal');
+    if (modal) modal.style.display = 'flex';
+
+    if (descInput) setTimeout(() => descInput.focus(), 150);
+
+    pushNavState({ modal: 'defect' });
+}
+window.openEditDefectModal = openEditDefectModal;
+
+function closeDefectModal(fromBack = false) {
+    const modal = document.getElementById('defectModal');
+    if (!modal) return;
+    if (modal.style.display === 'none') return;
+    modal.style.display = 'none';
+    editingDefectRow = null;
+    const form = document.getElementById('defectModalForm');
+    if (form) form.reset();
+    if (!fromBack && appNavDepth > 0) {
+        window.history.back();
+    }
+}
+window.closeDefectModal = closeDefectModal;
+
+function saveDefectModal() {
+    const coachSel = document.getElementById('defectModalCoachSelect');
+    const catSel = document.getElementById('defectModalCategorySelect');
+    const descInput = document.getElementById('defectModalDescInput');
+
+    const coach = coachSel ? coachSel.value : '';
+    const cat = catSel ? catSel.value : '';
+    const desc = descInput ? descInput.value.trim() : '';
+
+    if (!coach) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Coach Required',
+            text: 'Please select a coach number for this defect.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    if (!desc) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Description Required',
+            text: 'Please enter the defect description.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    if (editingDefectRow) {
+        // Update existing row
+        const coachInput = editingDefectRow.querySelector('.defect-coach-select');
+        const catInput = editingDefectRow.querySelector('.defect-cat-select');
+        const descArea = editingDefectRow.querySelector('.defect-desc-input');
+
+        if (coachInput) coachInput.value = coach;
+        if (catInput) catInput.value = cat;
+        if (descArea) descArea.value = desc;
+
+        const coachBadge = editingDefectRow.querySelector('.defect-badge-coach');
+        if (coachBadge) coachBadge.textContent = coach;
+
+        const catBadge = editingDefectRow.querySelector('.defect-badge-cat');
+        if (catBadge) catBadge.textContent = cat || 'General';
+
+        const descDiv = editingDefectRow.querySelector('.defect-item-desc');
+        if (descDiv) descDiv.textContent = desc;
+    } else {
+        // Create new defect row
+        addDefectRow(coach, cat, desc);
+    }
+
+    isArrivalReportSaved = false;
+    updateArrivalSectionCounts();
+    closeDefectModal(false);
+}
+window.saveDefectModal = saveDefectModal;
 
 function checkDefectsEmpty() {
     if (!defectsContainer) return;
     const rows = defectsContainer.querySelectorAll('.defect-row');
     if (rows.length === 0) {
-        defectsContainer.innerHTML = '';
+        defectsContainer.innerHTML = `
+            <div class="defects-empty-placeholder">
+                <div class="empty-icon">📋</div>
+                <span>No defects recorded for this rake. Click <strong>➕ Add Defect</strong> to add.</span>
+            </div>
+        `;
+    } else {
+        const placeholder = defectsContainer.querySelector('.defects-empty-placeholder');
+        if (placeholder) placeholder.remove();
     }
     updateArrivalSectionCounts();
 }
@@ -1122,10 +1317,12 @@ function checkDetentionsEmpty() {
 
 function renumberCards(container, prefix) {
     if (!container) return;
-    const cards = container.querySelectorAll('.entry-card');
+    const cards = container.querySelectorAll('.entry-card, .defect-list-item');
     cards.forEach((card, idx) => {
         const titleSpan = card.querySelector('.entry-card-header span');
         if (titleSpan) titleSpan.textContent = `${prefix} #${idx + 1}`;
+        const indexBadge = card.querySelector('.defect-badge-index');
+        if (indexBadge) indexBadge.textContent = `#${idx + 1}`;
     });
 }
 
@@ -1996,8 +2193,7 @@ if (arrivalTrainSelect) {
 // Add row buttons
 if (addDefectBtn) {
     addDefectBtn.addEventListener('click', () => {
-        expandArrivalSection('defects');
-        addDefectRow();
+        openAddDefectModal();
     });
 }
 

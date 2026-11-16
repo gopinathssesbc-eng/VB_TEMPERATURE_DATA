@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=3.9">
+    <link rel="stylesheet" href="style.css?v=4.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -69,7 +69,7 @@
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div
                 style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v 3.9
+                v 4.0
             </div>
         </div>
     </div>
@@ -326,7 +326,7 @@
         </main>
         <div
             style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 3.9
+            v 4.0
         </div>
     </div>
 
@@ -481,8 +481,8 @@
                                     <!-- JS injects defect rows here -->
                                 </div>
 
-                                <button type="button" id="addDefectBtn" class="add-btn">
-                                    <span>➕ Add More Defects</span>
+                                <button type="button" id="addDefectBtn" class="add-btn" onclick="openAddDefectModal()">
+                                    <span>➕ Add Defect</span>
                                 </button>
                             </div>
                         </section>
@@ -787,7 +787,7 @@
             </section>
         </main>
         <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 3.9
+            v 4.0
         </div>
     </div>
 
@@ -930,6 +930,42 @@
         </div>
     </div>
 
+    <!-- Add / Edit Defect Modal -->
+    <div id="defectModal" class="defect-modal-overlay" style="display: none;">
+        <div class="defect-modal-dialog">
+            <div class="defect-modal-header">
+                <h3 id="defectModalTitle">Add Defect</h3>
+                <button type="button" class="defect-modal-close" onclick="closeDefectModal(true)" title="Close">✕</button>
+            </div>
+            <form id="defectModalForm" onsubmit="event.preventDefault(); saveDefectModal();">
+                <div class="defect-modal-body">
+                    <div class="form-group">
+                        <label for="defectModalCoachSelect" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">Coach Number <span style="color: #ef4444;">*</span></label>
+                        <select id="defectModalCoachSelect" class="form-control" required style="width: 100%;">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="defectModalCategorySelect" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">Defect Category <span style="color: #ef4444;">*</span></label>
+                        <select id="defectModalCategorySelect" class="form-control" required style="width: 100%;">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="defectModalDescInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">Defect Description <span style="color: #ef4444;">*</span></label>
+                        <textarea id="defectModalDescInput" class="form-control defect-desc-input" rows="4" placeholder="Enter defect / issue details..." required style="width: 100%;"></textarea>
+                    </div>
+                </div>
+                <div class="defect-modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeDefectModal(true)" style="padding: 0.55rem 1.1rem; font-size: 0.88rem;">Cancel</button>
+                    <button type="submit" id="defectModalSaveBtn" class="btn btn-primary" style="padding: 0.55rem 1.3rem; font-size: 0.88rem; font-weight: 600;">
+                        <span>Save Defect</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Chart.js -->
@@ -944,7 +980,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=3.9"></script>
+    <script src="app.js?v=4.0"></script>
 </body>
 
 </html>
