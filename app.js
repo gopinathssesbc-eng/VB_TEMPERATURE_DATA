@@ -225,7 +225,17 @@ function doBackToMenu() {
 }
 
 function handleAppBack() {
-    // 0. Close Detention, Rail Madad, or Defect Modals if open
+    // 0. Close Modals if open
+    const maintPendingModal = document.getElementById('maintPendingModal');
+    if (maintPendingModal && maintPendingModal.style.display !== 'none') {
+        closeMaintPendingModal(true);
+        return true;
+    }
+    const maintRemarkModal = document.getElementById('maintRemarkModal');
+    if (maintRemarkModal && maintRemarkModal.style.display !== 'none') {
+        closeMaintRemarkModal(true);
+        return true;
+    }
     const detentionModal = document.getElementById('detentionModal');
     if (detentionModal && detentionModal.style.display !== 'none') {
         closeDetentionModal(true);
@@ -353,6 +363,8 @@ function hideAllScreens() {
     if (typeof closeDefectModal === 'function') closeDefectModal(false);
     if (typeof closeRailMadadModal === 'function') closeRailMadadModal(false);
     if (typeof closeDetentionModal === 'function') closeDetentionModal(false);
+    if (typeof closeMaintRemarkModal === 'function') closeMaintRemarkModal(false);
+    if (typeof closeMaintPendingModal === 'function') closeMaintPendingModal(false);
 }
 
 function backToMenu() {
@@ -978,6 +990,7 @@ function addDefectRow(coach = '', category = '', desc = '') {
                 <span class="defect-badge-coach">${escapeHtml(c || 'Coach ?')}</span>
                 <span class="defect-badge-cat">${escapeHtml(cat || 'General')}</span>
             </div>
+            <div class="item-mini-header">Defect Details:</div>
             <div class="defect-item-desc">${escapeHtml(d || '(No description entered)')}</div>
         </div>
         <div class="defect-item-actions">
@@ -1209,6 +1222,7 @@ function addRailMadadCard(data = {}) {
                 <span class="rm-badge-ref">${escapeHtml(refNo || 'No Ref')}</span>
                 <span class="defect-badge-cat">${escapeHtml(mainCat || 'General')}${subCatDisplay ? ' > ' + escapeHtml(subCatDisplay) : ''}</span>
             </div>
+            <div class="item-mini-header">Complaint Details:</div>
             <div class="defect-item-desc">${escapeHtml(desc || '(No complaint details entered)')}</div>
             ${action ? `<div class="item-action-taken-box"><strong>✓ Action:</strong> <span>${escapeHtml(action)}</span></div>` : ''}
         </div>
@@ -1533,6 +1547,7 @@ function addDetentionCard(data = {}) {
                 <span class="defect-badge-cat">${escapeHtml(cat || 'General')}</span>
                 <span class="detention-badge-duration">⏱️ ${escapeHtml(totalDetention || '0 mins')}${timeFrom && timeTo ? ' (' + escapeHtml(timeFrom) + ' - ' + escapeHtml(timeTo) + ')' : ''}</span>
             </div>
+            <div class="item-mini-header">Detention Details:</div>
             <div class="defect-item-desc">${escapeHtml(desc || '(No reason entered)')}</div>
             ${action ? `<div class="item-action-taken-box"><strong>✓ Action:</strong> <span>${escapeHtml(action)}</span></div>` : ''}
         </div>
@@ -3513,75 +3528,433 @@ function refreshAllMaintCoachDropdowns() {
 }
 
 function refreshAllMaintCategoryDropdowns() {
-    const container = document.getElementById('maintEntriesContainer');
-    if (!container) return;
-    container.querySelectorAll('.maint-entry-card').forEach(card => {
-        const mainCatSelect = card.querySelector('.maint-main-cat');
-        const subCatSelect = card.querySelector('.maint-sub-cat');
-        if (!mainCatSelect || !subCatSelect) return;
-
-        const currentMain = mainCatSelect.value;
-        const currentSub = subCatSelect.value;
-
-        const mainCats = Object.keys(cachedMaintenanceCategories);
-        let mainHtml = '<option value="">-- Select Main Category --</option>';
-        mainCats.forEach(cat => {
-            const sel = (cat.toLowerCase() === currentMain.toLowerCase()) ? 'selected' : '';
-            mainHtml += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
-        });
-        mainCatSelect.innerHTML = mainHtml;
-        if (currentMain) mainCatSelect.value = currentMain;
-
-        const subList = cachedMaintenanceCategories[mainCatSelect.value] || [];
-        let subHtml = '<option value="">-- Select Sub Category --</option>';
-        let isMatched = false;
-        subList.forEach(sub => {
-            const sel = (sub.toLowerCase() === currentSub.toLowerCase()) ? 'selected' : '';
-            if (sel) isMatched = true;
-            subHtml += `<option value="${escapeHtml(sub)}" ${sel}>${escapeHtml(sub)}</option>`;
-        });
-        const otherSel = (!isMatched && currentSub) || currentSub === 'Other' ? 'selected' : '';
-        subHtml += `<option value="Other" ${otherSel}>Other (Specify)</option>`;
-        subCatSelect.innerHTML = subHtml;
-    });
+    const mainSel = document.getElementById('maintModalMainCatSelect');
+    if (mainSel) {
+        const cur = mainSel.value;
+        mainSel.innerHTML = buildMaintMainCatOptions(cur);
+        if (cur) mainSel.value = cur;
+    }
+    const pMainSel = document.getElementById('maintPendingMainCatSelect');
+    if (pMainSel) {
+        const cur = pMainSel.value;
+        pMainSel.innerHTML = buildMaintMainCatOptions(cur);
+        if (cur) pMainSel.value = cur;
+    }
 }
 
-let loadedPendingRemarks = [];
+function buildMaintMainCatOptions(selected = '') {
+    const mainCats = Object.keys(cachedMaintenanceCategories || {});
+    if (mainCats.length === 0) {
+        mainCats.push('UG- Air', 'Interior', 'Propulsion');
+    }
+    let html = '<option value="">-- Select Main Category --</option>';
+    mainCats.forEach(cat => {
+        const sel = (selected && cat.toLowerCase() === selected.toLowerCase()) ? 'selected' : '';
+        html += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
+    });
+    return html;
+}
 
-function handleMaintStatusChange(selectEl) {
-    const card = selectEl.closest('.maint-entry-card');
+function buildMaintSubCatOptions(mainCat, selected = '') {
+    if (!mainCat || !cachedMaintenanceCategories || !cachedMaintenanceCategories[mainCat]) {
+        return '<option value="">-- Select Sub Category --</option><option value="Other">Other (Specify)</option>';
+    }
+    const subList = cachedMaintenanceCategories[mainCat] || [];
+    let html = '<option value="">-- Select Sub Category --</option>';
+    let isMatched = false;
+    subList.forEach(sub => {
+        const sel = (selected && sub.toLowerCase() === selected.toLowerCase()) ? 'selected' : '';
+        if (sel) isMatched = true;
+        html += `<option value="${escapeHtml(sub)}" ${sel}>${escapeHtml(sub)}</option>`;
+    });
+    const otherSel = (!isMatched && selected && selected !== '') || selected === 'Other' || selected === 'Others' ? 'selected' : '';
+    html += `<option value="Other" ${otherSel}>Other (Specify)</option>`;
+    return html;
+}
+
+// ---------------------------------------------------------------------------
+// Section 1: Maintenance Remarks (Compact List View & Modal)
+// ---------------------------------------------------------------------------
+let editingMaintRemarkRow = null;
+
+function openAddMaintRemarkModal() {
+    editingMaintRemarkRow = null;
+
+    const modalTitle = document.getElementById('maintRemarkModalTitle');
+    const container = document.getElementById('maintEntriesContainer');
+    const nextIdx = container ? container.querySelectorAll('.maint-entry-card').length + 1 : 1;
+    if (modalTitle) modalTitle.textContent = `Add Defect Remark #${nextIdx}`;
+
+    const coachSel = document.getElementById('maintModalCoachSelect');
+    if (coachSel) coachSel.innerHTML = buildMaintCoachOptions('');
+
+    const statusSel = document.getElementById('maintModalStatusSelect');
+    if (statusSel) statusSel.value = 'Attended';
+
+    const mainSel = document.getElementById('maintModalMainCatSelect');
+    const subSel = document.getElementById('maintModalSubCatSelect');
+    const customInput = document.getElementById('maintModalSubCatCustom');
+
+    if (mainSel) {
+        mainSel.innerHTML = buildMaintMainCatOptions('');
+        const firstMain = mainSel.options[1] ? mainSel.options[1].value : '';
+        if (firstMain) {
+            mainSel.value = firstMain;
+            if (subSel) subSel.innerHTML = buildMaintSubCatOptions(firstMain, '');
+        } else if (subSel) {
+            subSel.innerHTML = '<option value="">-- Select Sub Category --</option>';
+        }
+    }
+    if (customInput) {
+        customInput.style.display = 'none';
+        customInput.value = '';
+    }
+
+    const descInput = document.getElementById('maintModalDescInput');
+    if (descInput) descInput.value = '';
+
+    const actionInput = document.getElementById('maintModalActionInput');
+    if (actionInput) actionInput.value = '';
+
+    const modal = document.getElementById('maintRemarkModal');
+    if (modal) modal.style.display = 'flex';
+
+    if (descInput) setTimeout(() => descInput.focus(), 150);
+
+    pushNavState({ modal: 'maintRemark' });
+}
+window.openAddMaintRemarkModal = openAddMaintRemarkModal;
+
+function openEditMaintRemarkModal(row) {
+    if (!row) return;
+    editingMaintRemarkRow = row;
+
+    const coach = row.querySelector('.maint-coach-select') ? row.querySelector('.maint-coach-select').value : '';
+    const status = row.querySelector('.maint-status-select') ? row.querySelector('.maint-status-select').value : 'Attended';
+    const mainCat = row.querySelector('.maint-main-cat') ? row.querySelector('.maint-main-cat').value : '';
+    const subCat = row.querySelector('.maint-sub-cat') ? row.querySelector('.maint-sub-cat').value : '';
+    const customSub = row.querySelector('.maint-sub-cat-custom') ? row.querySelector('.maint-sub-cat-custom').value : '';
+    const desc = row.querySelector('.maint-desc') ? row.querySelector('.maint-desc').value : '';
+    const action = row.querySelector('.maint-action') ? row.querySelector('.maint-action').value : '';
+
+    const idxBadge = row.querySelector('.defect-badge-index');
+    const idxText = idxBadge ? idxBadge.textContent : '';
+
+    const modalTitle = document.getElementById('maintRemarkModalTitle');
+    if (modalTitle) modalTitle.textContent = `Edit Defect Remark ${idxText}`;
+
+    const coachSel = document.getElementById('maintModalCoachSelect');
+    if (coachSel) coachSel.innerHTML = buildMaintCoachOptions(coach);
+
+    const statusSel = document.getElementById('maintModalStatusSelect');
+    if (statusSel) statusSel.value = status || 'Attended';
+
+    const mainSel = document.getElementById('maintModalMainCatSelect');
+    const subSel = document.getElementById('maintModalSubCatSelect');
+    const customInput = document.getElementById('maintModalSubCatCustom');
+
+    if (mainSel) {
+        mainSel.innerHTML = buildMaintMainCatOptions(mainCat);
+        if (mainCat) mainSel.value = mainCat;
+    }
+
+    if (subSel) {
+        const subList = cachedMaintenanceCategories[mainCat] || [];
+        const isMatched = subList.some(s => s.toLowerCase() === (subCat || '').toLowerCase());
+        const isCustom = (!isMatched && subCat) || subCat === 'Other' || subCat === 'Others';
+        subSel.innerHTML = buildMaintSubCatOptions(mainCat, isCustom ? 'Other' : subCat);
+        if (isCustom) {
+            subSel.value = 'Other';
+            if (customInput) {
+                customInput.style.display = 'block';
+                customInput.value = customSub || subCat;
+            }
+        } else {
+            if (subCat) subSel.value = subCat;
+            if (customInput) {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        }
+    }
+
+    const descInput = document.getElementById('maintModalDescInput');
+    if (descInput) descInput.value = desc;
+
+    const actionInput = document.getElementById('maintModalActionInput');
+    if (actionInput) actionInput.value = action;
+
+    const modal = document.getElementById('maintRemarkModal');
+    if (modal) modal.style.display = 'flex';
+
+    pushNavState({ modal: 'maintRemark' });
+}
+window.openEditMaintRemarkModal = openEditMaintRemarkModal;
+
+function closeMaintRemarkModal(fromBack = false) {
+    const modal = document.getElementById('maintRemarkModal');
+    if (!modal) return;
+    if (modal.style.display === 'none') return;
+    modal.style.display = 'none';
+    editingMaintRemarkRow = null;
+    const form = document.getElementById('maintRemarkModalForm');
+    if (form) form.reset();
+    if (!fromBack && appNavDepth > 0) {
+        window.history.back();
+    }
+}
+window.closeMaintRemarkModal = closeMaintRemarkModal;
+
+function saveMaintRemarkModal() {
+    const coachSel = document.getElementById('maintModalCoachSelect');
+    const statusSel = document.getElementById('maintModalStatusSelect');
+    const mainSel = document.getElementById('maintModalMainCatSelect');
+    const subSel = document.getElementById('maintModalSubCatSelect');
+    const customInput = document.getElementById('maintModalSubCatCustom');
+    const descInput = document.getElementById('maintModalDescInput');
+    const actionInput = document.getElementById('maintModalActionInput');
+
+    const coach = coachSel ? coachSel.value : '';
+    const status = statusSel ? statusSel.value : 'Attended';
+    const mainCat = mainSel ? mainSel.value : '';
+    let subCat = subSel ? subSel.value : '';
+    let customVal = '';
+    if ((subCat === 'Other' || subCat === 'Others') && customInput && customInput.value.trim()) {
+        customVal = customInput.value.trim();
+        subCat = customVal;
+    }
+    const desc = descInput ? descInput.value.trim() : '';
+    const action = actionInput ? actionInput.value.trim() : '';
+
+    if (!coach) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Coach Required',
+            text: 'Please select a coach number.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+    if (!mainCat) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Main Category Required',
+            text: 'Please select a main category.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+    if (!subCat) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Sub Category Required',
+            text: 'Please select or enter a sub category.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+    if (!desc) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Defect Description Required',
+            text: 'Please enter defect details.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const basicDateInput = document.getElementById('maintDateInput');
+    const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+    const isPending = (status === 'Pending');
+    const attendedDateVal = isPending ? '' : basicDate;
+
+    if (editingMaintRemarkRow) {
+        const coachHidden = editingMaintRemarkRow.querySelector('.maint-coach-select');
+        const statusHidden = editingMaintRemarkRow.querySelector('.maint-status-select');
+        const mainHidden = editingMaintRemarkRow.querySelector('.maint-main-cat');
+        const subHidden = editingMaintRemarkRow.querySelector('.maint-sub-cat');
+        const customHidden = editingMaintRemarkRow.querySelector('.maint-sub-cat-custom');
+        const attendedHidden = editingMaintRemarkRow.querySelector('.maint-attended-date');
+        const descArea = editingMaintRemarkRow.querySelector('.maint-desc');
+        const actionArea = editingMaintRemarkRow.querySelector('.maint-action');
+
+        if (coachHidden) coachHidden.value = coach;
+        if (statusHidden) statusHidden.value = status;
+        if (mainHidden) mainHidden.value = mainCat;
+        if (subHidden) subHidden.value = subCat;
+        if (customHidden) customHidden.value = customVal;
+        if (attendedHidden) attendedHidden.value = attendedDateVal;
+        if (descArea) descArea.value = desc;
+        if (actionArea) actionArea.value = action;
+
+        if (isPending) {
+            editingMaintRemarkRow.classList.add('is-pending');
+        } else {
+            editingMaintRemarkRow.classList.remove('is-pending');
+        }
+
+        const coachBadge = editingMaintRemarkRow.querySelector('.defect-badge-coach');
+        if (coachBadge) coachBadge.textContent = coach;
+
+        const catBadge = editingMaintRemarkRow.querySelector('.defect-badge-cat');
+        if (catBadge) catBadge.textContent = `${mainCat || 'General'}${subCat ? ' > ' + subCat : ''}`;
+
+        const statusChip = editingMaintRemarkRow.querySelector('.maint-status-chip');
+        if (statusChip) {
+            statusChip.className = `maint-status-chip ${isPending ? 'is-pending' : 'is-attended'}`;
+            statusChip.textContent = isPending ? '⚠️ PENDING' : '✓ ATTENDED';
+        }
+
+        const descDiv = editingMaintRemarkRow.querySelector('.defect-item-desc');
+        if (descDiv) descDiv.textContent = desc;
+
+        let actionBox = editingMaintRemarkRow.querySelector('.item-action-taken-box');
+        if (action) {
+            if (!actionBox) {
+                actionBox = document.createElement('div');
+                actionBox.className = 'item-action-taken-box';
+                editingMaintRemarkRow.querySelector('.defect-item-main').appendChild(actionBox);
+            }
+            actionBox.innerHTML = `<strong>✓ Action Taken:</strong> <span>${escapeHtml(action)}</span>`;
+        } else if (actionBox) {
+            actionBox.remove();
+        }
+    } else {
+        addMaintRemarkCard({
+            CoachNo: coach,
+            AttentionStatus: status,
+            MainCategory: mainCat,
+            SubCategory: subCat,
+            DefectDescription: desc,
+            AttentionGiven: action,
+            AttendedDate: attendedDateVal
+        });
+    }
+
+    isMaintenanceRemarksSaved = false;
+    closeMaintRemarkModal(false);
+    updateMaintCount();
+}
+window.saveMaintRemarkModal = saveMaintRemarkModal;
+
+function removeMaintRemarkItem(card) {
     if (!card) return;
-    const statusChip = card.querySelector('.maint-status-chip');
-    const strip = card.querySelector('.maint-attended-strip');
-    const dateText = card.querySelector('.maint-attended-date-text');
-    const dateHidden = card.querySelector('.maint-attended-date');
+    card.remove();
+    updateMaintCount();
+    isMaintenanceRemarksSaved = false;
+}
+window.removeMaintRemarkItem = removeMaintRemarkItem;
+
+function updateMaintCount() {
+    const container = document.getElementById('maintEntriesContainer');
+    const badge = document.getElementById('maintCountBadge');
+    if (!container) return;
+    const cards = container.querySelectorAll('.maint-entry-card');
+    if (badge) {
+        badge.textContent = `${cards.length} ${cards.length === 1 ? 'entry' : 'entries'}`;
+    }
+    cards.forEach((card, idx) => {
+        const idxLabel = card.querySelector('.defect-badge-index');
+        if (idxLabel) idxLabel.textContent = `#${idx + 1}`;
+    });
+
+    const emptyNotice = document.getElementById('maintEmptyNotice');
+    if (cards.length === 0) {
+        if (!emptyNotice) {
+            container.innerHTML = '<div class="pending-empty-box" id="maintEmptyNotice" style="margin-bottom: 0;">No defects added for this date. Click "+ Add New Defect" below to add one.</div>';
+        }
+    } else {
+        if (emptyNotice) emptyNotice.remove();
+    }
+}
+
+function addMaintRemarkCard(data = {}) {
+    const container = document.getElementById('maintEntriesContainer');
+    if (!container) return;
+
+    const emptyNotice = document.getElementById('maintEmptyNotice');
+    if (emptyNotice) emptyNotice.remove();
+
+    const currentStatus = data.AttentionStatus || 'Attended';
+    const isPending = (currentStatus === 'Pending');
+
     const basicDateInput = document.getElementById('maintDateInput');
     const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
 
-    if (selectEl.value === 'Pending') {
-        card.classList.add('is-pending');
-        selectEl.classList.remove('is-attended');
-        selectEl.classList.add('is-pending');
-        if (statusChip) {
-            statusChip.textContent = '⚠️ PENDING';
-            statusChip.className = 'maint-status-chip is-pending';
-        }
-        if (strip) strip.classList.add('hidden');
-        if (dateHidden) dateHidden.value = '';
-    } else {
-        card.classList.remove('is-pending');
-        selectEl.classList.remove('is-pending');
-        selectEl.classList.add('is-attended');
-        if (statusChip) {
-            statusChip.textContent = '✓ ATTENDED';
-            statusChip.className = 'maint-status-chip is-attended';
-        }
-        if (strip) strip.classList.remove('hidden');
-        if (dateText) dateText.textContent = basicDate;
-        if (dateHidden) dateHidden.value = basicDate;
-    }
+    const selectedMainCat = data.MainCategory || '';
+    const selectedSubCat = data.SubCategory || '';
+    const selectedCoach = data.CoachNo || '';
+    const desc = data.DefectDescription || '';
+    const action = data.AttentionGiven || '';
+    const attendedDateVal = isPending ? '' : (data.AttendedDate || basicDate);
+    const origTag = data.OriginalDate ? `<span class="pending-meta-tag attended" style="font-size: 0.72rem; padding: 0.15rem 0.5rem; margin-left: 0.25rem;">Shifted from ${escapeHtml(data.OriginalDate)}</span>` : '';
+
+    const index = container.querySelectorAll('.maint-entry-card').length + 1;
+    const card = document.createElement('div');
+    card.className = 'defect-list-item maint-list-item maint-entry-card entry-card' + (isPending ? ' is-pending' : '');
+
+    if (data.OrigRowNumber) card.dataset.origRow = data.OrigRowNumber;
+    if (data.DefectId) card.dataset.defectId = data.DefectId;
+    if (data.OriginalDate) card.dataset.origDate = data.OriginalDate;
+
+    card.innerHTML = `
+        <input type="hidden" class="maint-coach-select" value="${escapeHtml(selectedCoach)}">
+        <input type="hidden" class="maint-status-select" value="${escapeHtml(currentStatus)}">
+        <input type="hidden" class="maint-main-cat" value="${escapeHtml(selectedMainCat)}">
+        <input type="hidden" class="maint-sub-cat" value="${escapeHtml(selectedSubCat)}">
+        <input type="hidden" class="maint-sub-cat-custom" value="${escapeHtml(selectedSubCat)}">
+        <input type="hidden" class="maint-attended-date" value="${escapeHtml(attendedDateVal)}">
+        <textarea class="maint-desc" style="display: none;">${escapeHtml(desc)}</textarea>
+        <textarea class="maint-action" style="display: none;">${escapeHtml(action)}</textarea>
+
+        <div class="defect-item-main" onclick="openEditMaintRemarkModal(this.closest('.maint-entry-card'))" title="Click to edit remark">
+            <div class="defect-item-badges">
+                <span class="defect-badge-index">#${index}</span>
+                <span class="defect-badge-coach">${escapeHtml(selectedCoach || 'Coach ?')}</span>
+                <span class="defect-badge-cat">${escapeHtml(selectedMainCat || 'General')}${selectedSubCat ? ' > ' + escapeHtml(selectedSubCat) : ''}</span>
+                <span class="maint-status-chip ${isPending ? 'is-pending' : 'is-attended'}">${isPending ? '⚠️ PENDING' : '✓ ATTENDED'}</span>
+                ${origTag}
+            </div>
+            <div class="item-mini-header">Defect Details:</div>
+            <div class="defect-item-desc">${escapeHtml(desc || '(No description entered)')}</div>
+            ${action ? `<div class="item-action-taken-box"><strong>✓ Action Taken:</strong> <span>${escapeHtml(action)}</span></div>` : ''}
+        </div>
+        <div class="defect-item-actions">
+            <button type="button" class="defect-action-btn edit" onclick="openEditMaintRemarkModal(this.closest('.maint-entry-card'))" title="Edit remark">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>Edit</span>
+            </button>
+            <button type="button" class="defect-action-btn remove remove-btn" onclick="removeMaintRemarkItem(this.closest('.maint-entry-card'))" title="Remove remark">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    `;
+
+    container.appendChild(card);
+    updateMaintCount();
+    return card;
 }
-window.handleMaintStatusChange = handleMaintStatusChange;
+window.addMaintRemarkCard = addMaintRemarkCard;
+
+// ---------------------------------------------------------------------------
+// Section 2: Pending Defects from Previous Dates (Compact List View & Modal)
+// ---------------------------------------------------------------------------
+let loadedPendingRemarks = [];
+let editingPendingIdx = null;
 
 function renderPendingRemarks(pendingList = []) {
     const container = document.getElementById('maintPendingContainer');
@@ -3606,367 +3979,317 @@ function renderPendingRemarks(pendingList = []) {
     }
 
     container.innerHTML = '';
-    const mainCats = Object.keys(cachedMaintenanceCategories);
-    if (mainCats.length === 0) {
-        mainCats.push('UG- Air', 'Interior', 'Propulsion');
-    }
-
     const basicDateInput = document.getElementById('maintDateInput');
     const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
 
     loadedPendingRemarks.forEach((item, idx) => {
         const card = document.createElement('div');
         const isAttended = (item.AttentionStatus === 'Attended');
-        card.className = 'maint-pending-card' + (isAttended ? ' status-attended' : '');
+        card.className = 'defect-list-item maint-pending-list-item maint-pending-card entry-card' + (isAttended ? ' status-attended' : '');
         card.id = `pendingCard_${idx}`;
 
-        let mainCatOptionsHtml = '<option value="">-- Select Main Category --</option>';
-        mainCats.forEach(cat => {
-            const sel = (item.MainCategory && cat.toLowerCase() === item.MainCategory.toLowerCase()) ? 'selected' : '';
-            mainCatOptionsHtml += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
-        });
-
         card.innerHTML = `
-            <div class="maint-card-header">
-                <div class="maint-header-left">
+            <input type="hidden" class="pending-coach-select maint-coach-select" value="${escapeHtml(item.CoachNo || '')}">
+            <input type="hidden" class="pending-status-select maint-status-select" value="${isAttended ? 'Attended' : 'Pending'}">
+            <input type="hidden" class="pending-main-cat maint-main-cat" value="${escapeHtml(item.MainCategory || '')}">
+            <input type="hidden" class="pending-sub-cat maint-sub-cat" value="${escapeHtml(item.SubCategory || '')}">
+            <input type="hidden" class="pending-sub-cat-custom maint-sub-cat-custom" value="${escapeHtml(item.SubCategory || '')}">
+            <input type="hidden" class="pending-attended-date" id="pendingAttendedDate_${idx}" value="${isAttended ? escapeHtml(basicDate) : ''}">
+            <textarea class="pending-desc-text" style="display: none;">${escapeHtml(item.DefectDescription || '')}</textarea>
+            <textarea class="pending-attention-text" style="display: none;">${escapeHtml(item.AttentionGiven || '')}</textarea>
+
+            <div class="defect-item-main" onclick="openEditPendingModal(${idx})" title="Click to resolve or edit defect">
+                <div class="defect-item-badges">
+                    <span class="defect-badge-index">#${idx + 1}</span>
+                    <span class="defect-badge-coach">${escapeHtml(item.CoachNo || 'All Coach')}</span>
+                    <span class="defect-badge-cat">${escapeHtml(item.MainCategory || 'General')}${item.SubCategory ? ' > ' + escapeHtml(item.SubCategory) : ''}</span>
                     <span class="pending-meta-tag ${isAttended ? 'attended' : ''}" id="pendingBadge_${idx}">
                         ${isAttended ? '✓ ATTENDED (Resolved Today)' : '⚠️ PENDING DEFECT'}
                     </span>
-                    <span style="font-size: 0.76rem; color: var(--text-muted);">
-                        Logged: <strong style="color: #fbbf24;">${escapeHtml(item.OriginalDate)}</strong> ${item.TrainNo ? `(${escapeHtml(item.TrainNo)})` : ''}
-                    </span>
+                    <span class="rm-badge-ref" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);">📅 Logged: ${escapeHtml(item.OriginalDate || '')}${item.TrainNo ? ' (' + escapeHtml(item.TrainNo) + ')' : ''}</span>
                 </div>
-                <span id="pendingHint_${idx}" style="font-size: 0.74rem; color: ${isAttended ? '#34d399' : '#38bdf8'}; font-style: italic;">
-                    ${isAttended ? '✓ Shifts to Section 1 upon Save' : 'Select Attended below to resolve today'}
-                </span>
+                <div class="item-mini-header">Defect Details:</div>
+                <div class="defect-item-desc">${escapeHtml(item.DefectDescription || '(No description entered)')}</div>
+                ${item.AttentionGiven ? `<div class="item-action-taken-box"><strong>✓ Action Taken Today:</strong> <span>${escapeHtml(item.AttentionGiven)}</span></div>` : ''}
             </div>
-
-            <div class="maint-form-grid">
-                <div class="maint-field-group">
-                    <label>Coach Number</label>
-                    <select class="pending-coach-select maint-coach-select" required>
-                        ${buildMaintCoachOptions(item.CoachNo)}
-                    </select>
-                </div>
-                <div class="maint-field-group">
-                    <label style="color: #fbbf24;">Attention Status</label>
-                    <select class="pending-status-select maint-status-select ${isAttended ? 'is-attended' : 'is-pending'}" onchange="handlePendingStatusToggle(${idx}, this)">
-                        <option value="Pending" ${!isAttended ? 'selected' : ''}>Pending (Still Unresolved)</option>
-                        <option value="Attended" ${isAttended ? 'selected' : ''}>Attended (Resolved Today)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="maint-form-grid">
-                <div class="maint-field-group">
-                    <label>Main Category</label>
-                    <select class="pending-main-cat maint-main-cat" required>
-                        ${mainCatOptionsHtml}
-                    </select>
-                </div>
-                <div class="maint-field-group">
-                    <label>Sub Category</label>
-                    <select class="pending-sub-cat maint-sub-cat" required>
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-            </div>
-
-            <input type="text" class="pending-sub-cat-custom maint-sub-cat-custom" placeholder="Specify other sub-category..." style="display: none; margin-top: -0.2rem; margin-bottom: 0.45rem; padding: 0.45rem 0.6rem; font-size: 0.85rem;" maxlength="100">
-
-            <div class="maint-attended-strip ${isAttended ? '' : 'hidden'}" id="pendingAttendedStrip_${idx}">
-                <span style="font-weight: 700;">Attended Date:</span>
-                <span id="pendingAttendedDateText_${idx}" style="font-weight: 600;">${isAttended ? escapeHtml(basicDate) : ''}</span>
-                <span style="opacity: 0.8; font-size: 0.7rem;">(Resolving on today's date)</span>
-                <input type="hidden" class="pending-attended-date" id="pendingAttendedDate_${idx}" value="${isAttended ? escapeHtml(basicDate) : ''}">
-            </div>
-
-            <div class="maint-field-group">
-                <label>Defect Description</label>
-                <textarea class="pending-desc-text" rows="2" placeholder="Describe defect details..." required>${escapeHtml(item.DefectDescription || '')}</textarea>
-            </div>
-
-            <div class="maint-field-group" style="margin-bottom: 0;">
-                <label>Attention Given / Action Taken Today</label>
-                <textarea class="pending-attention-text" rows="2" placeholder="Action taken / rectification details today...">${escapeHtml(item.AttentionGiven || '')}</textarea>
+            <div class="defect-item-actions">
+                <button type="button" class="defect-action-btn edit" onclick="openEditPendingModal(${idx})" title="Resolve or edit defect" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); color: #fbbf24;">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span>${isAttended ? 'Edit' : 'Resolve'}</span>
+                </button>
             </div>
         `;
 
-        const mainCatSelect = card.querySelector('.pending-main-cat');
-        const subCatSelect = card.querySelector('.pending-sub-cat');
-        const customInput = card.querySelector('.pending-sub-cat-custom');
-
-        function updatePendingSubCategories(currentSub = '') {
-            const mainCat = mainCatSelect.value;
-            if (!mainCat) {
-                subCatSelect.innerHTML = '<option value="">-- Select Sub Category --</option>';
-                customInput.style.display = 'none';
-                return;
-            }
-            const subList = cachedMaintenanceCategories[mainCat] || [];
-            let html = '<option value="">-- Select Sub Category --</option>';
-            let isMatched = false;
-            subList.forEach(sub => {
-                const sel = (sub.toLowerCase() === (currentSub || '').toLowerCase()) ? 'selected' : '';
-                if (sel) isMatched = true;
-                html += `<option value="${escapeHtml(sub)}" ${sel}>${escapeHtml(sub)}</option>`;
-            });
-            const otherSel = (!isMatched && currentSub && currentSub !== '') || currentSub === 'Other' || currentSub === 'Others' ? 'selected' : '';
-            html += `<option value="Other" ${otherSel}>Other (Specify)</option>`;
-            subCatSelect.innerHTML = html;
-
-            if (otherSel) {
-                customInput.style.display = 'block';
-                if (currentSub && currentSub !== 'Other' && currentSub !== 'Others') {
-                    customInput.value = currentSub;
-                }
-            } else {
-                customInput.style.display = 'none';
-            }
-        }
-
-        mainCatSelect.addEventListener('change', () => {
-            updatePendingSubCategories();
-        });
-
-        subCatSelect.addEventListener('change', () => {
-            if (subCatSelect.value === 'Other') {
-                customInput.style.display = 'block';
-                customInput.focus();
-            } else {
-                customInput.style.display = 'none';
-                customInput.value = '';
-            }
-        });
-
-        updatePendingSubCategories(item.SubCategory);
         container.appendChild(card);
     });
 }
 window.renderPendingRemarks = renderPendingRemarks;
 
-function handlePendingStatusToggle(idx, selectEl) {
+function openEditPendingModal(idx) {
+    editingPendingIdx = idx;
     const card = document.getElementById(`pendingCard_${idx}`);
-    const badge = document.getElementById(`pendingBadge_${idx}`);
-    const hint = document.getElementById(`pendingHint_${idx}`);
-    const strip = document.getElementById(`pendingAttendedStrip_${idx}`);
-    const dateText = document.getElementById(`pendingAttendedDateText_${idx}`);
-    const dateHidden = document.getElementById(`pendingAttendedDate_${idx}`);
+    const orig = (loadedPendingRemarks && loadedPendingRemarks[idx]) || {};
+    if (!card) return;
+
+    const coach = card.querySelector('.pending-coach-select') ? card.querySelector('.pending-coach-select').value : (orig.CoachNo || '');
+    const status = card.querySelector('.pending-status-select') ? card.querySelector('.pending-status-select').value : (orig.AttentionStatus || 'Pending');
+    const mainCat = card.querySelector('.pending-main-cat') ? card.querySelector('.pending-main-cat').value : (orig.MainCategory || '');
+    const subCat = card.querySelector('.pending-sub-cat') ? card.querySelector('.pending-sub-cat').value : (orig.SubCategory || '');
+    const customSub = card.querySelector('.pending-sub-cat-custom') ? card.querySelector('.pending-sub-cat-custom').value : '';
+    const desc = card.querySelector('.pending-desc-text') ? card.querySelector('.pending-desc-text').value : (orig.DefectDescription || '');
+    const action = card.querySelector('.pending-attention-text') ? card.querySelector('.pending-attention-text').value : (orig.AttentionGiven || '');
+
+    const modalTitle = document.getElementById('maintPendingModalTitle');
+    if (modalTitle) modalTitle.textContent = `Pending Defect #${idx + 1}`;
+
+    const origDateText = document.getElementById('maintPendingOrigDateText');
+    if (origDateText) origDateText.textContent = orig.OriginalDate || 'Earlier Date';
+    const origTrainText = document.getElementById('maintPendingOrigTrainText');
+    if (origTrainText) origTrainText.textContent = orig.TrainNo ? `(${orig.TrainNo})` : '';
+
+    const statusSel = document.getElementById('maintPendingStatusSelect');
+    if (statusSel) statusSel.value = status;
+
     const basicDateInput = document.getElementById('maintDateInput');
     const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
-    if (!card || !badge) return;
 
-    if (selectEl.value === 'Attended') {
-        card.classList.add('status-attended');
-        selectEl.classList.remove('is-pending');
-        selectEl.classList.add('is-attended');
-        badge.textContent = '✓ ATTENDED (Resolved Today)';
-        badge.className = 'pending-meta-tag attended';
-        if (hint) {
-            hint.textContent = '✓ Marked Attended (shifts to Section 1 upon clicking Save)';
-            hint.style.color = '#34d399';
-        }
-        if (strip) strip.classList.remove('hidden');
+    const strip = document.getElementById('maintPendingAttendedStrip');
+    const dateText = document.getElementById('maintPendingAttendedDateText');
+    if (strip) {
+        strip.style.display = (status === 'Attended') ? 'block' : 'none';
         if (dateText) dateText.textContent = basicDate;
-        if (dateHidden) dateHidden.value = basicDate;
-    } else {
-        card.classList.remove('status-attended');
-        selectEl.classList.remove('is-attended');
-        selectEl.classList.add('is-pending');
-        badge.textContent = '⚠️ PENDING DEFECT';
-        badge.className = 'pending-meta-tag';
-        if (hint) {
-            hint.textContent = 'Select Attended below to resolve on this date';
-            hint.style.color = '#38bdf8';
-        }
-        if (strip) strip.classList.add('hidden');
-        if (dateHidden) dateHidden.value = '';
-    }
-}
-window.handlePendingStatusToggle = handlePendingStatusToggle;
-
-function updateMaintCount() {
-    const container = document.getElementById('maintEntriesContainer');
-    const badge = document.getElementById('maintCountBadge');
-    if (!container) return;
-    const cards = container.querySelectorAll('.maint-entry-card');
-    if (badge) {
-        badge.textContent = `${cards.length} ${cards.length === 1 ? 'entry' : 'entries'}`;
-    }
-    cards.forEach((card, idx) => {
-        const idxLabel = card.querySelector('.maint-card-index');
-        if (idxLabel) idxLabel.textContent = `Remark #${idx + 1}`;
-    });
-
-    const emptyNotice = document.getElementById('maintEmptyNotice');
-    if (cards.length === 0) {
-        if (!emptyNotice) {
-            container.innerHTML = '<div class="pending-empty-box" id="maintEmptyNotice" style="margin-bottom: 0;">No defects added for this date. Click "+ Add New Defect" below to add one.</div>';
-        }
-    } else {
-        if (emptyNotice) emptyNotice.remove();
-    }
-}
-
-function addMaintRemarkCard(data = {}) {
-    const container = document.getElementById('maintEntriesContainer');
-    if (!container) return;
-
-    const emptyNotice = document.getElementById('maintEmptyNotice');
-    if (emptyNotice) emptyNotice.remove();
-
-    const card = document.createElement('div');
-    const currentStatus = data.AttentionStatus || 'Attended';
-    const isPending = (currentStatus === 'Pending');
-    card.className = 'maint-entry-card' + (isPending ? ' is-pending' : '');
-
-    if (data.OrigRowNumber) card.dataset.origRow = data.OrigRowNumber;
-    if (data.DefectId) card.dataset.defectId = data.DefectId;
-    if (data.OriginalDate) card.dataset.origDate = data.OriginalDate;
-
-    const mainCats = Object.keys(cachedMaintenanceCategories);
-    if (mainCats.length === 0) {
-        mainCats.push('UG- Air', 'Interior', 'Propulsion');
     }
 
-    const basicDateInput = document.getElementById('maintDateInput');
-    const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+    const coachSel = document.getElementById('maintPendingCoachSelect');
+    if (coachSel) coachSel.innerHTML = buildMaintCoachOptions(coach);
 
-    const selectedMainCat = data.MainCategory || '';
-    const selectedSubCat = data.SubCategory || '';
-    const selectedCoach = data.CoachNo || '';
-    const desc = data.DefectDescription || '';
-    const action = data.AttentionGiven || '';
-    const attendedDateVal = isPending ? '' : (basicDate || data.AttendedDate);
-    const origTag = data.OriginalDate ? `<span class="pending-meta-tag attended" style="font-size: 0.72rem; padding: 0.15rem 0.5rem; margin-left: 0.5rem;">Shifted from ${escapeHtml(data.OriginalDate)}</span>` : '';
+    const mainSel = document.getElementById('maintPendingMainCatSelect');
+    const subSel = document.getElementById('maintPendingSubCatSelect');
+    const customInput = document.getElementById('maintPendingSubCatCustom');
 
-    let mainCatOptionsHtml = '<option value="">-- Select Main Category --</option>';
-    mainCats.forEach(cat => {
-        const sel = (selectedMainCat && cat.toLowerCase() === selectedMainCat.toLowerCase()) ? 'selected' : '';
-        mainCatOptionsHtml += `<option value="${escapeHtml(cat)}" ${sel}>${escapeHtml(cat)}</option>`;
-    });
+    if (mainSel) {
+        mainSel.innerHTML = buildMaintMainCatOptions(mainCat);
+        if (mainCat) mainSel.value = mainCat;
+    }
 
-    card.innerHTML = `
-        <div class="maint-card-header">
-            <div class="maint-header-left">
-                <span class="maint-card-index">Remark</span>
-                <span class="maint-status-chip ${isPending ? 'is-pending' : 'is-attended'}">
-                    ${isPending ? '⚠️ PENDING' : '✓ ATTENDED'}
-                </span>
-                ${origTag}
-            </div>
-            <button type="button" class="btn btn-danger btn-sm remove-maint-btn" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; width: auto !important; margin: 0; min-width: 65px; flex: 0 0 auto;">✕ Remove</button>
-        </div>
-
-        <div class="maint-form-grid">
-            <div class="maint-field-group">
-                <label>Coach Number</label>
-                <select class="maint-coach-select" required>
-                    ${buildMaintCoachOptions(selectedCoach)}
-                </select>
-            </div>
-            <div class="maint-field-group">
-                <label>Attention Status</label>
-                <select class="maint-status-select ${isPending ? 'is-pending' : 'is-attended'}" required onchange="handleMaintStatusChange(this)">
-                    <option value="Attended" ${!isPending ? 'selected' : ''}>Attended (Resolved)</option>
-                    <option value="Pending" ${isPending ? 'selected' : ''}>Pending (Unresolved)</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="maint-form-grid">
-            <div class="maint-field-group">
-                <label>Main Category</label>
-                <select class="maint-main-cat" required>
-                    ${mainCatOptionsHtml}
-                </select>
-            </div>
-            <div class="maint-field-group">
-                <label>Sub Category</label>
-                <select class="maint-sub-cat" required>
-                    <!-- Dynamically populated -->
-                </select>
-            </div>
-        </div>
-
-        <input type="text" class="maint-sub-cat-custom" placeholder="Specify other sub-category..." style="display: none; margin-top: -0.2rem; margin-bottom: 0.45rem; padding: 0.45rem 0.6rem; font-size: 0.85rem;" maxlength="100">
-
-        <div class="maint-attended-strip ${isPending ? 'hidden' : ''}">
-            <span style="font-weight: 700;">Attended Date:</span>
-            <span class="maint-attended-date-text" style="font-weight: 600;">${escapeHtml(attendedDateVal)}</span>
-            <span style="opacity: 0.8; font-size: 0.7rem;">(Same as defect date)</span>
-            <input type="hidden" class="maint-attended-date" value="${escapeHtml(attendedDateVal)}">
-        </div>
-
-        <div class="maint-field-group">
-            <label>Defect Description</label>
-            <textarea class="maint-desc" rows="2" placeholder="Describe defect details..." required>${escapeHtml(desc)}</textarea>
-        </div>
-
-        <div class="maint-field-group" style="margin-bottom: 0;">
-            <label>Attention Given / Action Taken</label>
-            <textarea class="maint-action" rows="2" placeholder="Action taken / rectification details...">${escapeHtml(action)}</textarea>
-        </div>
-    `;
-
-    const mainCatSelect = card.querySelector('.maint-main-cat');
-    const subCatSelect = card.querySelector('.maint-sub-cat');
-    const customInput = card.querySelector('.maint-sub-cat-custom');
-    const removeBtn = card.querySelector('.remove-maint-btn');
-
-    function updateSubCategories(currentSub = '') {
-        const mainCat = mainCatSelect.value;
-        if (!mainCat) {
-            subCatSelect.innerHTML = '<option value="">-- Select Sub Category --</option>';
-            customInput.style.display = 'none';
-            return;
-        }
+    if (subSel) {
         const subList = cachedMaintenanceCategories[mainCat] || [];
-        let html = '<option value="">-- Select Sub Category --</option>';
-        let isMatched = false;
-        subList.forEach(sub => {
-            const sel = (sub.toLowerCase() === (currentSub || '').toLowerCase()) ? 'selected' : '';
-            if (sel) isMatched = true;
-            html += `<option value="${escapeHtml(sub)}" ${sel}>${escapeHtml(sub)}</option>`;
-        });
-        const otherSel = (!isMatched && currentSub && currentSub !== '') || currentSub === 'Other' || currentSub === 'Others' ? 'selected' : '';
-        html += `<option value="Other" ${otherSel}>Other (Specify)</option>`;
-        subCatSelect.innerHTML = html;
-
-        if (otherSel) {
-            customInput.style.display = 'block';
-            if (currentSub && currentSub !== 'Other' && currentSub !== 'Others') {
-                customInput.value = currentSub;
+        const isMatched = subList.some(s => s.toLowerCase() === (subCat || '').toLowerCase());
+        const isCustom = (!isMatched && subCat) || subCat === 'Other' || subCat === 'Others';
+        subSel.innerHTML = buildMaintSubCatOptions(mainCat, isCustom ? 'Other' : subCat);
+        if (isCustom) {
+            subSel.value = 'Other';
+            if (customInput) {
+                customInput.style.display = 'block';
+                customInput.value = customSub || subCat;
             }
         } else {
-            customInput.style.display = 'none';
+            if (subCat) subSel.value = subCat;
+            if (customInput) {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
         }
     }
 
-    mainCatSelect.addEventListener('change', () => {
-        updateSubCategories();
-    });
+    const descInput = document.getElementById('maintPendingDescInput');
+    if (descInput) descInput.value = desc;
 
-    subCatSelect.addEventListener('change', () => {
-        if (subCatSelect.value === 'Other') {
-            customInput.style.display = 'block';
-            customInput.focus();
-        } else {
-            customInput.style.display = 'none';
-            customInput.value = '';
-        }
-    });
+    const actionInput = document.getElementById('maintPendingActionInput');
+    if (actionInput) actionInput.value = action;
 
-    removeBtn.addEventListener('click', () => {
-        card.remove();
-        updateMaintCount();
-    });
+    const modal = document.getElementById('maintPendingModal');
+    if (modal) modal.style.display = 'flex';
 
-    updateSubCategories(selectedSubCat);
-    container.appendChild(card);
-    updateMaintCount();
+    pushNavState({ modal: 'maintPending' });
 }
-window.addMaintRemarkCard = addMaintRemarkCard;
+window.openEditPendingModal = openEditPendingModal;
+
+function closeMaintPendingModal(fromBack = false) {
+    const modal = document.getElementById('maintPendingModal');
+    if (!modal) return;
+    if (modal.style.display === 'none') return;
+    modal.style.display = 'none';
+    editingPendingIdx = null;
+    const form = document.getElementById('maintPendingModalForm');
+    if (form) form.reset();
+    if (!fromBack && appNavDepth > 0) {
+        window.history.back();
+    }
+}
+window.closeMaintPendingModal = closeMaintPendingModal;
+
+function saveMaintPendingModal() {
+    if (editingPendingIdx === null) return;
+    const idx = editingPendingIdx;
+    const card = document.getElementById(`pendingCard_${idx}`);
+    if (!card) return;
+
+    const statusSel = document.getElementById('maintPendingStatusSelect');
+    const coachSel = document.getElementById('maintPendingCoachSelect');
+    const mainSel = document.getElementById('maintPendingMainCatSelect');
+    const subSel = document.getElementById('maintPendingSubCatSelect');
+    const customInput = document.getElementById('maintPendingSubCatCustom');
+    const descInput = document.getElementById('maintPendingDescInput');
+    const actionInput = document.getElementById('maintPendingActionInput');
+
+    const status = statusSel ? statusSel.value : 'Pending';
+    const isAttended = (status === 'Attended');
+    const coach = coachSel ? coachSel.value : '';
+    const mainCat = mainSel ? mainSel.value : '';
+    let subCat = subSel ? subSel.value : '';
+    let customVal = '';
+    if ((subCat === 'Other' || subCat === 'Others') && customInput && customInput.value.trim()) {
+        customVal = customInput.value.trim();
+        subCat = customVal;
+    }
+    const desc = descInput ? descInput.value.trim() : '';
+    const action = actionInput ? actionInput.value.trim() : '';
+
+    if (!desc) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Description Required',
+            text: 'Please enter defect details.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const basicDateInput = document.getElementById('maintDateInput');
+    const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+    const attendedDateVal = isAttended ? basicDate : '';
+
+    const coachHidden = card.querySelector('.pending-coach-select');
+    const statusHidden = card.querySelector('.pending-status-select');
+    const mainHidden = card.querySelector('.pending-main-cat');
+    const subHidden = card.querySelector('.pending-sub-cat');
+    const customHidden = card.querySelector('.pending-sub-cat-custom');
+    const attendedHidden = card.querySelector('.pending-attended-date');
+    const descArea = card.querySelector('.pending-desc-text');
+    const actionArea = card.querySelector('.pending-attention-text');
+
+    if (coachHidden) coachHidden.value = coach;
+    if (statusHidden) statusHidden.value = status;
+    if (mainHidden) mainHidden.value = mainCat;
+    if (subHidden) subHidden.value = subCat;
+    if (customHidden) customHidden.value = customVal;
+    if (attendedHidden) attendedHidden.value = attendedDateVal;
+    if (descArea) descArea.value = desc;
+    if (actionArea) actionArea.value = action;
+
+    if (isAttended) {
+        card.classList.add('status-attended');
+    } else {
+        card.classList.remove('status-attended');
+    }
+
+    const coachBadge = card.querySelector('.defect-badge-coach');
+    if (coachBadge) coachBadge.textContent = coach || 'All Coach';
+
+    const catBadge = card.querySelector('.defect-badge-cat');
+    if (catBadge) catBadge.textContent = `${mainCat || 'General'}${subCat ? ' > ' + subCat : ''}`;
+
+    const badge = document.getElementById(`pendingBadge_${idx}`);
+    if (badge) {
+        badge.className = `pending-meta-tag ${isAttended ? 'attended' : ''}`;
+        badge.textContent = isAttended ? '✓ ATTENDED (Resolved Today)' : '⚠️ PENDING DEFECT';
+    }
+
+    const editBtnSpan = card.querySelector('.defect-action-btn.edit span');
+    if (editBtnSpan) editBtnSpan.textContent = isAttended ? 'Edit' : 'Resolve';
+
+    const descDiv = card.querySelector('.defect-item-desc');
+    if (descDiv) descDiv.textContent = desc;
+
+    let actionBox = card.querySelector('.item-action-taken-box');
+    if (action) {
+        if (!actionBox) {
+            actionBox = document.createElement('div');
+            actionBox.className = 'item-action-taken-box';
+            card.querySelector('.defect-item-main').appendChild(actionBox);
+        }
+        actionBox.innerHTML = `<strong>✓ Action Taken Today:</strong> <span>${escapeHtml(action)}</span>`;
+    } else if (actionBox) {
+        actionBox.remove();
+    }
+
+    if (loadedPendingRemarks[idx]) {
+        loadedPendingRemarks[idx].AttentionStatus = status;
+        loadedPendingRemarks[idx].CoachNo = coach;
+        loadedPendingRemarks[idx].MainCategory = mainCat;
+        loadedPendingRemarks[idx].SubCategory = subCat;
+        loadedPendingRemarks[idx].DefectDescription = desc;
+        loadedPendingRemarks[idx].AttentionGiven = action;
+    }
+
+    isMaintenanceRemarksSaved = false;
+    closeMaintPendingModal(false);
+}
+window.saveMaintPendingModal = saveMaintPendingModal;
+
+// Setup Maintenance Remark Modal Event Listeners
+(function initMaintModalListeners() {
+    const mainSel = document.getElementById('maintModalMainCatSelect');
+    const subSel = document.getElementById('maintModalSubCatSelect');
+    const customInput = document.getElementById('maintModalSubCatCustom');
+    if (mainSel && subSel) {
+        mainSel.addEventListener('change', () => {
+            subSel.innerHTML = buildMaintSubCatOptions(mainSel.value, '');
+            if (customInput) { customInput.style.display = 'none'; customInput.value = ''; }
+        });
+        subSel.addEventListener('change', () => {
+            if (subSel.value === 'Other' && customInput) {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else if (customInput) {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        });
+    }
+
+    const pMainSel = document.getElementById('maintPendingMainCatSelect');
+    const pSubSel = document.getElementById('maintPendingSubCatSelect');
+    const pCustomInput = document.getElementById('maintPendingSubCatCustom');
+    const pStatusSel = document.getElementById('maintPendingStatusSelect');
+    const pStrip = document.getElementById('maintPendingAttendedStrip');
+    const pDateText = document.getElementById('maintPendingAttendedDateText');
+
+    if (pMainSel && pSubSel) {
+        pMainSel.addEventListener('change', () => {
+            pSubSel.innerHTML = buildMaintSubCatOptions(pMainSel.value, '');
+            if (pCustomInput) { pCustomInput.style.display = 'none'; pCustomInput.value = ''; }
+        });
+        pSubSel.addEventListener('change', () => {
+            if (pSubSel.value === 'Other' && pCustomInput) {
+                pCustomInput.style.display = 'block';
+                pCustomInput.focus();
+            } else if (pCustomInput) {
+                pCustomInput.style.display = 'none';
+                pCustomInput.value = '';
+            }
+        });
+    }
+
+    if (pStatusSel) {
+        pStatusSel.addEventListener('change', () => {
+            const basicDateInput = document.getElementById('maintDateInput');
+            const basicDate = basicDateInput ? basicDateInput.value.trim() : '';
+            if (pStatusSel.value === 'Attended') {
+                if (pStrip) pStrip.style.display = 'block';
+                if (pDateText) pDateText.textContent = basicDate;
+            } else {
+                if (pStrip) pStrip.style.display = 'none';
+            }
+        });
+    }
+})();
 
 async function loadMaintenanceRemarks() {
     if (!currentPassword) {

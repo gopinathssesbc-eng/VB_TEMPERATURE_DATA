@@ -1612,6 +1612,32 @@ input:disabled, select:disabled, textarea:disabled {
     border-left-color: #f97316 !important;
 }
 
+.maint-list-item {
+    border-left: 3.5px solid #10b981 !important;
+}
+
+.maint-list-item:hover {
+    border-color: rgba(16, 185, 129, 0.35) !important;
+    border-left-color: #10b981 !important;
+}
+
+.maint-list-item.is-pending {
+    border-left-color: #f59e0b !important;
+}
+
+.maint-pending-list-item {
+    border-left: 3.5px solid #f59e0b !important;
+}
+
+.maint-pending-list-item:hover {
+    border-color: rgba(245, 158, 11, 0.35) !important;
+    border-left-color: #f59e0b !important;
+}
+
+.maint-pending-list-item.status-attended {
+    border-left-color: #10b981 !important;
+}
+
 .rm-badge-ref {
     font-size: 0.78rem;
     font-weight: 700;
@@ -1641,6 +1667,16 @@ input:disabled, select:disabled, textarea:disabled {
     border: 1px solid rgba(16, 185, 129, 0.3);
     padding: 0.15rem 0.55rem;
     border-radius: 0.35rem;
+}
+
+.item-mini-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.15rem;
+    margin-bottom: -0.15rem;
 }
 
 .item-action-taken-box {
