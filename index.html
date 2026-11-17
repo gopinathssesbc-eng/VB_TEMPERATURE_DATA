@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=4.5">
+    <link rel="stylesheet" href="style.css?v=4.6">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -583,18 +583,24 @@
 
                     <div class="maint-form-grid" style="margin-top: 0.5rem; margin-bottom: 0.75rem;">
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label for="maintTrainInput">Train No</label>
-                            <input type="text" id="maintTrainInput" list="maintTrainList" placeholder="e.g. 26651/2" required>
-                            <datalist id="maintTrainList">
-                                <option value="26651/2">
-                                <option value="20661/2">
-                            </datalist>
+                            <label for="maintTrainSelect">Train No</label>
+                            <select id="maintTrainSelect" name="Train No" required onchange="handleMaintTrainChange()">
+                                <option value="">-- Select Train No --</option>
+                                <option value="26651/2">26651/2</option>
+                                <option value="20661/2">20661/2</option>
+                                <option value="Other">Other (Enter Train No)</option>
+                            </select>
                         </div>
 
                         <div class="form-group" style="margin-bottom: 0;">
                             <label for="maintSseInput">SSE Name</label>
                             <input type="text" id="maintSseInput" name="SSE Name" placeholder="SSE Incharge Name" required>
                         </div>
+                    </div>
+
+                    <div class="form-group" id="maintOtherTrainGroup" style="display: none; margin-bottom: 0.75rem;">
+                        <label for="maintOtherTrainInput">Specify Train Number</label>
+                        <input type="text" id="maintOtherTrainInput" placeholder="e.g. 20631">
                     </div>
 
                     <button type="button" id="maintLoadBtn" class="load-btn" onclick="loadMaintenanceRemarks()">
@@ -1210,7 +1216,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=4.5"></script>
+    <script src="app.js?v=4.6"></script>
 </body>
 
 </html>

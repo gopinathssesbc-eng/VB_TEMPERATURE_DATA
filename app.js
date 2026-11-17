@@ -3440,6 +3440,19 @@ window.handleMaintDateChange = handleMaintDateChange;
 
 function handleMaintRakeChange() {
     refreshAllMaintCoachDropdowns();
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const trainSelect = document.getElementById('maintTrainSelect');
+    const selectedRake = rakeSelect ? rakeSelect.value : '';
+    const defaultTrains = {
+        "IC2021": "20661/2",
+        "IC2008": "26651/2",
+        "IC2015": "26651/2"
+    };
+    if (trainSelect && defaultTrains[selectedRake]) {
+        trainSelect.value = defaultTrains[selectedRake];
+        const otherGroup = document.getElementById('maintOtherTrainGroup');
+        if (otherGroup) otherGroup.style.display = 'none';
+    }
 }
 window.handleMaintRakeChange = handleMaintRakeChange;
 
@@ -3503,19 +3516,27 @@ function getMaintTrainValue() {
 }
 
 function setMaintTrainValue(val) {
-    const input = document.getElementById('maintTrainInput');
-    if (input) input.value = val || '';
     const select = document.getElementById('maintTrainSelect');
     if (select) {
         select.value = val || '';
         if (val && !select.value) {
-            select.value = 'Other';
+            let match = Array.from(select.options).find(opt => opt.value && (opt.value.includes(val) || val.includes(opt.value)));
+            if (match && match.value !== 'Other') {
+                select.value = match.value;
+            } else {
+                select.value = 'Other';
+                const grp = document.getElementById('maintOtherTrainGroup');
+                if (grp) grp.style.display = 'block';
+                const other = document.getElementById('maintOtherTrainInput');
+                if (other) other.value = val;
+            }
+        } else {
             const grp = document.getElementById('maintOtherTrainGroup');
-            if (grp) grp.style.display = 'block';
-            const other = document.getElementById('maintOtherTrainInput');
-            if (other) other.value = val;
+            if (grp && select.value !== 'Other') grp.style.display = 'none';
         }
     }
+    const input = document.getElementById('maintTrainInput');
+    if (input) input.value = val || '';
 }
 
 function refreshAllMaintCoachDropdowns() {
