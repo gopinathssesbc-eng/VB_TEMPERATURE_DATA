@@ -469,6 +469,7 @@ function clearForm() {
     technicianSelect.innerHTML = '<option value="">-- Select Token --</option>';
     technicianSelect.disabled = true;
     updateStatus("", "");
+    isTemperatureSaved = false;
 }
 
 // Convert any date value/string to DD-MM-YYYY format
@@ -2425,6 +2426,13 @@ passwordForm.addEventListener('submit', async (e) => {
     }
 });
 
+let isTemperatureSaved = false;
+
+if (form) {
+    form.addEventListener('input', () => { isTemperatureSaved = false; });
+    form.addEventListener('change', () => { isTemperatureSaved = false; });
+}
+
 // Auto Load Existing Data
 async function fetchAndPopulateData(train, station, date) {
     Swal.fire({
@@ -2488,16 +2496,18 @@ function populateFormIfExists(dateStr, stationStr, train) {
             // Evaluate colors for existing populated data
             [1, 2, 3, 4].forEach(axleNum => evaluateAxlePair(coach, axleNum));
         });
+        isTemperatureSaved = true;
         Swal.fire({
             icon: 'success',
             title: 'Record Found',
-            text: 'Existing data has been loaded. You can edit it now.',
+            text: 'Existing data has been loaded. You can edit it now or generate PDF directly.',
             background: 'var(--surface)',
             color: 'var(--text-main)',
             confirmButtonColor: 'var(--success)',
             returnFocus: false
         });
     } else {
+        isTemperatureSaved = false;
         currentCoaches.forEach(coach => {
             AXLES.forEach(axle => {
                 const key = `${coach}_${axle}`;
@@ -2615,6 +2625,7 @@ form.addEventListener('submit', async (e) => {
 
         const result = await response.json();
         if (result.status === "success") {
+            isTemperatureSaved = true;
             updateStatus("Saved successfully", "online");
             Swal.fire({
                 icon: 'success',
@@ -2622,10 +2633,18 @@ form.addEventListener('submit', async (e) => {
                 text: result.message,
                 background: 'var(--surface)',
                 color: 'var(--text-main)',
-                confirmButtonColor: 'var(--success)'
-            }).then(() => {
-                clearForm();
-                backToMenu(); // Return to menu after saving
+                showCancelButton: true,
+                confirmButtonColor: 'var(--primary)',
+                cancelButtonColor: 'var(--surface-light)',
+                confirmButtonText: '📄 Generate PDF & Share',
+                cancelButtonText: 'Back to Menu'
+            }).then((choice) => {
+                if (choice.isConfirmed) {
+                    generateTemperaturePdf();
+                } else {
+                    clearForm();
+                    backToMenu(); // Return to menu after saving
+                }
             });
         } else if (result.status === "unauthorized") {
             handleSessionExpired();
@@ -7218,6 +7237,371 @@ function generateMaintenanceRemarksPdf() {
     openGeneratedPdfPreview(fileName, pdfBlob);
 }
 window.generateMaintenanceRemarksPdf = generateMaintenanceRemarksPdf;
+
+// ============================================================
+// AXLE TEMPERATURE LOG PDF GENERATION, PREVIEW & SHARE
+// ============================================================
+
+function collectTemperatureReportData() {
+    const train = trainSelect ? trainSelect.value.trim() : '';
+    const station = stationSelect ? stationSelect.value.trim() : '';
+    const dateVal = dateInput ? dateInput.value.trim() : '';
+    const date = formatToDDMMYYYY(dateVal);
+    const technician = technicianSelect ? technicianSelect.value.trim() : '';
+
+    const currentCoaches = (TRAIN_COACHES[train] || []);
+    const coachData = [];
+
+    currentCoaches.forEach(coach => {
+        const row = {
+            coach: coach.toUpperCase(),
+            L1: '', R1: '', Diff1: '',
+            L2: '', R2: '', Diff2: '',
+            L3: '', R3: '', Diff3: '',
+            L4: '', R4: '', Diff4: '',
+            maxTemp: null,
+            hasRedAlert: false,
+            hasOrangeAlert: false,
+            filledCount: 0
+        };
+
+        let maxT = -Infinity;
+
+        [1, 2, 3, 4].forEach(axleNum => {
+            const lInput = document.querySelector(`input[name="${coach}_L${axleNum}"]`);
+            const rInput = document.querySelector(`input[name="${coach}_R${axleNum}"]`);
+            const lVal = lInput && lInput.value !== '' ? parseFloat(lInput.value) : null;
+            const rVal = rInput && rInput.value !== '' ? parseFloat(rInput.value) : null;
+
+            if (lVal !== null && !isNaN(lVal)) {
+                row[`L${axleNum}`] = lVal.toFixed(1);
+                row.filledCount++;
+                if (lVal > maxT) maxT = lVal;
+                if (lVal > 60) row.hasRedAlert = true;
+                else if (lVal > 50) row.hasOrangeAlert = true;
+            }
+            if (rVal !== null && !isNaN(rVal)) {
+                row[`R${axleNum}`] = rVal.toFixed(1);
+                row.filledCount++;
+                if (rVal > maxT) maxT = rVal;
+                if (rVal > 60) row.hasRedAlert = true;
+                else if (rVal > 50) row.hasOrangeAlert = true;
+            }
+            if (lVal !== null && rVal !== null && !isNaN(lVal) && !isNaN(rVal)) {
+                const diff = Math.abs(lVal - rVal);
+                row[`Diff${axleNum}`] = diff.toFixed(1);
+                if (diff > 10) row.hasRedAlert = true;
+            }
+        });
+
+        if (maxT > -Infinity) row.maxTemp = maxT.toFixed(1);
+        coachData.push(row);
+    });
+
+    return {
+        basic: {
+            TrainNo: train,
+            Station: station,
+            Date: date,
+            Technician: technician,
+            Timestamp: formatToDDMMYYYY(new Date()) + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+        },
+        coachData
+    };
+}
+
+function generateTemperaturePdf() {
+    if (!isTemperatureSaved) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Please save before generating PDF',
+            text: 'You have unsaved changes or new entries. Please save records to Google Sheets before generating or sharing the PDF.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire({
+            icon: 'error',
+            title: 'PDF Library Not Loaded',
+            text: 'Please check your internet connection and refresh the app.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const report = collectTemperatureReportData();
+    const { basic, coachData } = report;
+
+    if (!basic.TrainNo || !basic.Station || !basic.Date) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Details',
+            text: 'Please select Train Number, Station, and Date before generating the PDF.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const filledCoaches = coachData.filter(c => c.filledCount > 0);
+    if (filledCoaches.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Temperature Data',
+            text: 'No temperature readings entered for any coach. Please enter or load temperature data first.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 10;
+
+    const cleanStr = (s) => String(s || '').replace(/[\u00A0\u202F\u200B]/g, ' ');
+
+    const hasVfsRoboto = Boolean(window.pdfMake && window.pdfMake.vfs && window.pdfMake.vfs['Roboto-Regular.ttf']);
+    let fontName = 'helvetica';
+    if (hasVfsRoboto) {
+        try {
+            doc.addFileToVFS('Roboto-Regular.ttf', window.pdfMake.vfs['Roboto-Regular.ttf']);
+            doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+            if (window.pdfMake.vfs['Roboto-Medium.ttf']) {
+                doc.addFileToVFS('Roboto-Medium.ttf', window.pdfMake.vfs['Roboto-Medium.ttf']);
+                doc.addFont('Roboto-Medium.ttf', 'Roboto', 'bold');
+            }
+            fontName = 'Roboto';
+        } catch (e) {
+            fontName = 'helvetica';
+        }
+    }
+
+    // 1. Header Banner
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 22, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(fontName, 'bold');
+    doc.setFontSize(13.5);
+    doc.text('VANDE BHARAT ESCORTING - AXLE BOX TEMPERATURE LOG', marginX, 10);
+    doc.setFont(fontName, 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`SBC Coaching Depot  |  Generated: ${cleanStr(basic.Timestamp)}`, marginX, 17);
+
+    // 2. Top Basic Details Table
+    doc.autoTable({
+        startY: 25,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        styles: { font: fontName },
+        head: [['Date', 'Train / Rake No', 'Station', 'Staff Token No']],
+        body: [[
+            cleanStr(basic.Date) || '-',
+            cleanStr(basic.TrainNo) || '-',
+            cleanStr(basic.Station) || '-',
+            cleanStr(basic.Technician) || '-'
+        ]],
+        headStyles: {
+            font: fontName,
+            fillColor: [30, 58, 138],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 9,
+            cellPadding: 2.5
+        },
+        bodyStyles: {
+            font: fontName,
+            fontSize: 9.5,
+            fontStyle: 'bold',
+            textColor: [15, 23, 42],
+            cellPadding: 2.5
+        }
+    });
+
+    // 3. Coach Temperature Table
+    const tableStartY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 40) + 4;
+
+    const tableHead = [
+        [
+            { content: 'Coach', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: 'Axle 1 (°C)', colSpan: 3, styles: { halign: 'center' } },
+            { content: 'Axle 2 (°C)', colSpan: 3, styles: { halign: 'center' } },
+            { content: 'Axle 3 (°C)', colSpan: 3, styles: { halign: 'center' } },
+            { content: 'Axle 4 (°C)', colSpan: 3, styles: { halign: 'center' } },
+            { content: 'Max', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: 'Status', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+            'L1', 'R1', 'Diff',
+            'L2', 'R2', 'Diff',
+            'L3', 'R3', 'Diff',
+            'L4', 'R4', 'Diff'
+        ]
+    ];
+
+    const tableBody = coachData.map(c => {
+        let statusStr = '-';
+        if (c.filledCount > 0) {
+            if (c.hasRedAlert) statusStr = 'ALERT';
+            else if (c.hasOrangeAlert) statusStr = 'WARN';
+            else statusStr = 'OK';
+        }
+        return [
+            c.coach,
+            c.L1 || '-', c.R1 || '-', c.Diff1 || '-',
+            c.L2 || '-', c.R2 || '-', c.Diff2 || '-',
+            c.L3 || '-', c.R3 || '-', c.Diff3 || '-',
+            c.L4 || '-', c.R4 || '-', c.Diff4 || '-',
+            c.maxTemp !== null ? `${c.maxTemp}` : '-',
+            statusStr
+        ];
+    });
+
+    doc.autoTable({
+        startY: tableStartY,
+        margin: { left: marginX, right: marginX },
+        theme: 'grid',
+        styles: {
+            font: fontName,
+            fontSize: 8.5,
+            cellPadding: 2,
+            halign: 'center',
+            valign: 'middle'
+        },
+        columnStyles: {
+            0: { halign: 'left', fontStyle: 'bold', cellWidth: 32 },
+            1: { cellWidth: 17 }, 2: { cellWidth: 17 }, 3: { cellWidth: 17 },
+            4: { cellWidth: 17 }, 5: { cellWidth: 17 }, 6: { cellWidth: 17 },
+            7: { cellWidth: 17 }, 8: { cellWidth: 17 }, 9: { cellWidth: 17 },
+            10: { cellWidth: 17 }, 11: { cellWidth: 17 }, 12: { cellWidth: 17 },
+            13: { cellWidth: 18, fontStyle: 'bold' },
+            14: { cellWidth: 18, fontStyle: 'bold' }
+        },
+        head: tableHead,
+        headStyles: {
+            font: fontName,
+            fillColor: [15, 23, 42],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 8.5,
+            cellPadding: 2.2
+        },
+        body: tableBody,
+        didParseCell: function (data) {
+            if (data.section === 'body') {
+                const colIdx = data.column.index;
+                const cellVal = parseFloat(data.cell.text[0]);
+
+                // Temperature values (L and R columns: 1, 2, 4, 5, 7, 8, 10, 11)
+                if ([1, 2, 4, 5, 7, 8, 10, 11].includes(colIdx) && !isNaN(cellVal)) {
+                    if (cellVal > 60) {
+                        data.cell.styles.fillColor = [254, 226, 226];
+                        data.cell.styles.textColor = [185, 28, 28];
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (cellVal > 50) {
+                        data.cell.styles.fillColor = [254, 243, 199];
+                        data.cell.styles.textColor = [180, 83, 9];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+
+                // Diff values (3, 6, 9, 12)
+                if ([3, 6, 9, 12].includes(colIdx) && !isNaN(cellVal)) {
+                    if (cellVal > 10) {
+                        data.cell.styles.fillColor = [254, 226, 226];
+                        data.cell.styles.textColor = [185, 28, 28];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+
+                // Max Temp column (13)
+                if (colIdx === 13 && !isNaN(cellVal)) {
+                    if (cellVal > 60) {
+                        data.cell.styles.textColor = [185, 28, 28];
+                    } else if (cellVal > 50) {
+                        data.cell.styles.textColor = [180, 83, 9];
+                    }
+                }
+
+                // Status column (14)
+                if (colIdx === 14) {
+                    const statusText = data.cell.text[0];
+                    if (statusText === 'ALERT') {
+                        data.cell.styles.fillColor = [254, 226, 226];
+                        data.cell.styles.textColor = [185, 28, 28];
+                    } else if (statusText === 'WARN') {
+                        data.cell.styles.fillColor = [254, 243, 199];
+                        data.cell.styles.textColor = [180, 83, 9];
+                    } else if (statusText === 'OK') {
+                        data.cell.styles.textColor = [16, 185, 129];
+                    }
+                }
+            }
+        }
+    });
+
+    // 4. Legend & Summary
+    let legendY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 170) + 6;
+    if (legendY > 195) {
+        doc.addPage();
+        legendY = 15;
+    }
+    doc.setFont(fontName, 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text('Alert Thresholds:', marginX, legendY);
+
+    doc.setFont(fontName, 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(185, 28, 28);
+    doc.text('● RED ALERT: Temp > 60°C or |L - R| > 10°C', marginX + 30, legendY);
+
+    doc.setTextColor(180, 83, 9);
+    doc.text('● ORANGE WARNING: Temp > 50°C', marginX + 105, legendY);
+
+    doc.setTextColor(16, 185, 129);
+    doc.text('● NORMAL: Temp ≤ 50°C and |L - R| ≤ 10°C', marginX + 170, legendY);
+
+    // Save and preview
+    const safeTrain = String(basic.TrainNo || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+    const safeStation = String(basic.Station || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+    const fileName = `Axle_Temp_Log_${safeTrain}_${safeStation}_${basic.Date}.pdf`;
+
+    let pdfBlob;
+    if (hasVfsRoboto) {
+        pdfBlob = doc.output('blob');
+    } else {
+        const rawString = doc.output();
+        const patchedString = rawString.replace(/\/FirstChar 32\r?\n\/LastChar 255\r?\n/g, '');
+        const bytes = new Uint8Array(patchedString.length);
+        for (let i = 0; i < patchedString.length; i++) {
+            bytes[i] = patchedString.charCodeAt(i) & 0xff;
+        }
+        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+    }
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    generatedPdfState.blob = pdfBlob;
+    generatedPdfState.file = pdfFile;
+    generatedPdfState.fileName = fileName;
+    generatedPdfState.summaryText =
+        `VB Axle Temperature Log\nDate: ${basic.Date} | Station: ${basic.Station}\n` +
+        `Train/Rake: ${basic.TrainNo} | Staff Token: ${basic.Technician || '-'}\n` +
+        `Coaches Logged: ${filledCoaches.length} / ${coachData.length}`;
+
+    openGeneratedPdfPreview(fileName, pdfBlob);
+}
+window.generateTemperaturePdf = generateTemperaturePdf;
 
 async function openGeneratedPdfPreview(fileName, pdfBlob) {
     pushNavState({ screen: 'generatedPdf', fileName: fileName });
