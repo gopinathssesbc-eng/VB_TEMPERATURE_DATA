@@ -2766,6 +2766,7 @@ if (arrivalLoadBtn) {
         spinner.classList.remove('hidden');
         arrivalLoadStatus.textContent = 'Checking for existing records in Google Sheets...';
         arrivalLoadStatus.style.color = '#38bdf8';
+        isArrivalReportSaved = false;
 
         try {
             const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || getWebAppUrl(rake);
@@ -2833,6 +2834,7 @@ if (arrivalLoadBtn) {
                 arrivalLoadStatus.textContent = `Loaded existing report for ${rake} on ${date}. You can edit and re-save.`;
                 arrivalLoadStatus.style.color = 'var(--success)';
                 updateArrivalStatus('Existing report loaded', 'online');
+                isArrivalReportSaved = true;
 
                 if (arrivalSectionsWrapper) {
                     arrivalSectionsWrapper.style.display = 'block';
@@ -2854,6 +2856,7 @@ if (arrivalLoadBtn) {
                 arrivalLoadStatus.textContent = `No existing report found for ${rake} on ${date}. You can enter new details.`;
                 arrivalLoadStatus.style.color = 'var(--text-muted)';
                 updateArrivalStatus('Ready to submit new report', '');
+                isArrivalReportSaved = false;
 
                 // Keep sections empty: start clean
                 defectsContainer.innerHTML = '';
@@ -2883,6 +2886,7 @@ if (arrivalLoadBtn) {
             }
         } catch (err) {
             console.error(err);
+            isArrivalReportSaved = false;
             arrivalLoadStatus.textContent = 'Failed to load report from server. You can still enter new data.';
             arrivalLoadStatus.style.color = 'var(--error)';
             if (arrivalSectionsWrapper) {
@@ -4350,6 +4354,7 @@ async function loadMaintenanceRemarks() {
     spinner.classList.remove('hidden');
     statusEl.textContent = 'Checking for existing and pending maintenance records...';
     statusEl.style.color = '#38bdf8';
+    isMaintenanceRemarksSaved = false;
 
     try {
         const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
@@ -4409,6 +4414,7 @@ async function loadMaintenanceRemarks() {
                 statusEl.textContent = `No defects reported for ${date}. (${filteredPending.length} pending from earlier dates)`;
                 statusEl.style.color = '#10b981';
             }
+            isMaintenanceRemarksSaved = true;
         } else {
             updateMaintCount();
             const pendingCount = filteredPending.length;
@@ -4416,11 +4422,17 @@ async function loadMaintenanceRemarks() {
                 ? `Found ${pendingCount} pending defect(s) from earlier dates for ${rake}. Click "+ Add New Defect" to add a new remark.`
                 : `No existing records for ${rake} on ${date}. Click "+ Add New Defect" to add a remark.`;
             statusEl.style.color = 'var(--text-muted)';
+            if (pendingCount > 0) {
+                isMaintenanceRemarksSaved = true;
+            } else {
+                isMaintenanceRemarksSaved = false;
+            }
         }
 
         document.getElementById('maintEntriesWrapper').style.display = 'block';
 
     } catch (err) {
+        isMaintenanceRemarksSaved = false;
         statusEl.textContent = 'Error loading from Google Sheets: ' + (err.message || 'Network error');
         statusEl.style.color = '#f87171';
     } finally {
@@ -6614,7 +6626,7 @@ function generateArrivalReportPdf() {
         Swal.fire({
             icon: 'warning',
             title: 'Please save before generating PDF',
-            text: 'Save the Arrival Report to Google Sheets before generating or sharing the PDF.',
+            text: 'You have unsaved changes or new entries. Please save the Arrival Report to Google Sheets before generating or sharing the PDF.',
             background: 'var(--surface)',
             color: 'var(--text-main)',
             confirmButtonColor: 'var(--primary)'
@@ -6961,7 +6973,7 @@ function generateMaintenanceRemarksPdf() {
         Swal.fire({
             icon: 'warning',
             title: 'Please save before generating PDF',
-            text: 'Save Maintenance Remarks to Google Sheets before generating or sharing the PDF.',
+            text: 'You have unsaved changes or new entries. Please save Maintenance Remarks to Google Sheets before generating or sharing the PDF.',
             background: 'var(--surface)',
             color: 'var(--text-main)',
             confirmButtonColor: 'var(--primary)'
