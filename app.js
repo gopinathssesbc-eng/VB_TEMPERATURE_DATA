@@ -159,11 +159,10 @@ const arrivalDatePicker = flatpickr("#arrivalDateInput", {
 // ANDROID HARDWARE BACK BUTTON & NAVIGATION HISTORY MANAGER
 // ============================================================================
 let appNavDepth = 0;
-let isNavigatingBack = false;
+let isModalHistoryPopping = false;
 let lastBackPressTime = 0;
 
 function pushNavState(state) {
-    if (isNavigatingBack) return;
     try {
         history.pushState(state || { t: Date.now() }, '');
         appNavDepth++;
@@ -175,8 +174,8 @@ function pushNavState(state) {
 function safelyPopModalHistory() {
     if (appNavDepth > 0) {
         appNavDepth--;
-        isNavigatingBack = true;
-        setTimeout(() => { isNavigatingBack = false; }, 350);
+        isModalHistoryPopping = true;
+        setTimeout(() => { isModalHistoryPopping = false; }, 350);
         window.history.back();
     }
 }
@@ -342,14 +341,15 @@ function handleAppBack() {
 }
 
 function triggerAppBack() {
-    if (isNavigatingBack) return;
-    isNavigatingBack = true;
-    setTimeout(() => { isNavigatingBack = false; }, 250);
+    // 1. Immediately execute back navigation in UI for instant responsiveness
+    handleAppBack();
 
+    // 2. Synchronize browser history stack
     if (appNavDepth > 0) {
+        appNavDepth--;
+        isModalHistoryPopping = true;
+        setTimeout(() => { isModalHistoryPopping = false; }, 350);
         window.history.back();
-    } else {
-        handleAppBack();
     }
 }
 
@@ -388,8 +388,9 @@ window.manualsGoBack = manualsGoBack;
 
 // Native Popstate Listener for Android Back Button & Gestures
 window.addEventListener('popstate', (e) => {
-    // If programmatic modal history pop is in progress, ignore popstate
-    if (isNavigatingBack) {
+    // If programmatic history pop is in progress, ignore this event
+    if (isModalHistoryPopping) {
+        isModalHistoryPopping = false;
         return;
     }
 
