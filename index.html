@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=4.8">
+    <link rel="stylesheet" href="style.css?v=4.9">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -69,7 +69,7 @@
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div
                 style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v 4.8
+                v 4.9
             </div>
         </div>
     </div>
@@ -134,6 +134,21 @@
                 <div class="menu-card-content">
                     <span class="menu-card-title">Maintenance Remarks</span>
                     <span class="menu-card-subtitle">Log defect rectification & attention given</span>
+                </div>
+                <div class="menu-card-arrow">›</div>
+            </button>
+
+            <!-- 4. Rail Madad Feedback Report -->
+            <button type="button" class="menu-card railmadad-menu-card" id="btnRailMadadReport" onclick="openRailMadadReport()">
+                <div class="menu-card-icon icon-railmadad">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                        <path d="m9 11 2 2 4-4"/>
+                    </svg>
+                </div>
+                <div class="menu-card-content">
+                    <span class="menu-card-title">Rail Madad Feedback Report</span>
+                    <span class="menu-card-subtitle">Generate feedback report with pitline attention & photos</span>
                 </div>
                 <div class="menu-card-arrow">›</div>
             </button>
@@ -326,7 +341,7 @@
         </main>
         <div
             style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 4.8
+            v 4.9
         </div>
     </div>
 
@@ -670,6 +685,129 @@
         </main>
     </div>
 
+    <!-- Rail Madad Feedback Report Screen -->
+    <div class="container screen" id="railMadadReportScreen" style="display: none;">
+        <header class="arrival-header">
+            <button type="button" class="back-btn arrival-back-btn" onclick="backToMenu()">← Back</button>
+            <h1 class="arrival-title">Rail Madad Feedback Report</h1>
+            <div style="width: 50px;"></div>
+        </header>
+
+        <main>
+            <form id="rmReportForm" onsubmit="event.preventDefault();">
+                <!-- Basic Details -->
+                <section class="metadata-section">
+                    <h2>Basic Details</h2>
+
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="rmReportDateInput">Date</label>
+                            <input type="text" id="rmReportDateInput" placeholder="Select Date" readonly required>
+                        </div>
+                        <div class="form-group">
+                            <label for="rmReportRakeSelect">Rake No</label>
+                            <select id="rmReportRakeSelect" onchange="handleRmReportRakeChange()" required>
+                                <option value="">-- Select Rake --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row-2" style="margin-top: 0.75rem;">
+                        <div class="form-group">
+                            <label for="rmReportTrainSelect">Train No</label>
+                            <select id="rmReportTrainSelect" onchange="handleRmReportTrainChange()" required>
+                                <option value="">-- Select Train --</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="rmReportOtherTrainGroup" style="display: none;">
+                            <label for="rmReportOtherTrainInput">Enter Train No</label>
+                            <input type="text" id="rmReportOtherTrainInput" placeholder="e.g. 20661/2">
+                        </div>
+                        <div class="form-group">
+                            <label for="rmReportStaffInput">Staff Name</label>
+                            <input type="text" id="rmReportStaffInput" placeholder="Escorting Staff Name">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <button type="button" class="btn btn-primary" id="rmReportLoadBtn" onclick="loadRailMadadReportComplaints()" style="width: 100%;">
+                            <span>🔍 Load Rail Madad Complaints</span>
+                            <div class="spinner hidden"></div>
+                        </button>
+                        <p id="rmReportLoadStatus" class="load-status" style="margin-top: 0.5rem;"></p>
+                    </div>
+                </section>
+
+                <!-- Complaints Content Area (shown after loading) -->
+                <div id="rmReportContentWrapper" style="display: none; margin-top: 1.25rem;">
+                    <!-- Stage 1 View: Loaded Complaints Summary -->
+                    <section class="metadata-section" id="rmReportSummarySection">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.05rem; color: var(--text-main);">Complaints Reported by Escorting Staff</h2>
+                                <p style="margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-muted);">Complaints retrieved from Google Sheets for this date</p>
+                            </div>
+                            <span id="rmReportCountBadge" class="section-count-badge">0 complaints</span>
+                        </div>
+
+                        <div id="rmReportComplaintsList" class="defects-list-container">
+                            <!-- Injected dynamically -->
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                            <button type="button" class="btn btn-success" id="btnPrepareRmReport" onclick="openRmReportEditor()" style="width: 100%; padding: 0.85rem; font-size: 0.98rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+                                <span>📝 Generate Feedback Report</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Stage 2 View: Interactive Feedback Report Cards (Pitline Attention & Images) -->
+                    <div id="rmReportEditorSection" style="display: none; margin-top: 1.25rem;">
+                        <section class="metadata-section">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                                <div>
+                                    <h2 style="margin: 0; font-size: 1.05rem; color: #fbbf24;">Feedback & Pitline Attention</h2>
+                                    <p style="margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-muted);">Edit complaint details, enter pitline rectification, and attach photos</p>
+                                </div>
+                            </div>
+
+                            <!-- Editable Name of the SSE for Report -->
+                            <div style="background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 0.6rem; padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                                <label for="rmEditorSupervisorInput" style="display: block; font-size: 0.84rem; font-weight: 600; color: #fbbf24; margin-bottom: 0.35rem;">
+                                    👤 Name of the SSE
+                                </label>
+                                <input type="text" id="rmEditorSupervisorInput" class="rm-edit-input" placeholder="Enter Name of the SSE">
+                                <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; display: block;">Enter the Name of the SSE here to appear in the PDF report header.</span>
+                            </div>
+
+                            <div id="rmReportCardsContainer" class="defects-list-container">
+                                <!-- Detailed cards injected dynamically -->
+                            </div>
+
+                            <button type="button" class="btn btn-secondary add-entry-btn" onclick="addManualRmFeedbackCard()" style="margin-top: 0.75rem;">
+                                + Add Another Complaint
+                            </button>
+                        </section>
+
+                        <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                            <button type="button" id="rmSaveDetailsBtn" class="rm-save-btn" onclick="saveRailMadadFeedbackDetails()">
+                                <span>💾 Save Details to Sheet</span>
+                                <div class="spinner hidden"></div>
+                            </button>
+                            <button type="button" id="rmGeneratePdfBtn" class="generate-pdf-btn" onclick="generateRailMadadFeedbackPdf()">
+                                <span>📄 Generate PDF & Share</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 1.5rem; padding-bottom: 1rem;">
+                    <button type="button" class="back-btn" onclick="backToMenu()" style="margin-bottom: 0;">← Back to Menu</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
     <!-- Dashboard Screen -->
     <div class="container screen" id="dashboardScreen" style="display: none;">
         <header class="arrival-header">
@@ -797,7 +935,7 @@
             </section>
         </main>
         <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 4.8
+            v 4.9
         </div>
     </div>
 
@@ -993,9 +1131,13 @@
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label for="rmModalRefInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">RM Reference No <span style="color: #ef4444;">*</span></label>
-                            <input type="text" id="rmModalRefInput" class="form-control" placeholder="e.g. RM-123456" required style="width: 100%;">
+                            <label for="rmModalSeatInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">Seat Number</label>
+                            <input type="text" id="rmModalSeatInput" class="form-control" placeholder="e.g. 45 or 12, 13" style="width: 100%;">
                         </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 0.75rem;">
+                        <label for="rmModalRefInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">RM Reference No <span style="color: #ef4444;">*</span></label>
+                        <input type="text" id="rmModalRefInput" class="form-control" placeholder="e.g. RM-123456" required style="width: 100%;">
                     </div>
                     <div class="form-group">
                         <label for="rmModalMainCatSelect" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">Complaint Main Category <span style="color: #ef4444;">*</span></label>
@@ -1221,7 +1363,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=4.8"></script>
+    <script src="app.js?v=4.9"></script>
 </body>
 
 </html>

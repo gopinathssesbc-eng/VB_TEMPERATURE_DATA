@@ -482,11 +482,14 @@ function doGet(e) {
         const trainIdx = headers.indexOf("Train No");
         const userIdx = headers.indexOf("Data Entered By");
         const coachIdx = headers.indexOf("Coach No");
+        const seatIdx = headers.indexOf("Seat No") !== -1 ? headers.indexOf("Seat No") : headers.indexOf("Seat Number");
         const refIdx = headers.indexOf("RM Reference No");
         const mainCatIdx = headers.indexOf("Main Category");
         const subCatIdx = headers.indexOf("Sub Category");
         const descIdx = headers.indexOf("Complaint Description");
         const actIdx = headers.indexOf("Action Taken Enroute");
+        const depotIdx = headers.findIndex(h => String(h || "").toLowerCase().includes("depot"));
+        const sseIdx = headers.findIndex(h => String(h || "").toLowerCase().includes("sse"));
 
         for (let i = 1; i < data2.length; i++) {
           const row = data2[i];
@@ -497,14 +500,18 @@ function doGet(e) {
             found = true;
             if (!basic.TrainNo && trainIdx !== -1) basic.TrainNo = String(row[trainIdx] || "").trim();
             if (!basic.DataEnteredBy && userIdx !== -1) basic.DataEnteredBy = String(row[userIdx] || "").trim();
+            if (!basic.SSEName && sseIdx !== -1) basic.SSEName = String(row[sseIdx] || "").trim();
 
             railMadad.push({
               CoachNo: coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "",
+              SeatNo: seatIdx !== -1 ? String(row[seatIdx] || "").trim() : "",
               RMReferenceNo: refIdx !== -1 ? String(row[refIdx] || "").trim() : "",
               MainCategory: mainCatIdx !== -1 ? String(row[mainCatIdx] || "").trim() : "",
               SubCategory: subCatIdx !== -1 ? String(row[subCatIdx] || "").trim() : "",
               ComplaintDescription: descIdx !== -1 ? String(row[descIdx] || "").trim() : "",
-              ActionTaken: actIdx !== -1 ? String(row[actIdx] || "").trim() : ""
+              ActionTaken: actIdx !== -1 ? String(row[actIdx] || "").trim() : "",
+              DepotAttention: depotIdx !== -1 ? String(row[depotIdx] || "").trim() : "",
+              PitlineAttention: depotIdx !== -1 ? String(row[depotIdx] || "").trim() : ""
             });
           }
         }
@@ -1035,19 +1042,60 @@ function doPost(e) {
       }
 
       // 2) Sheet: "Rail Madad"
-      const headers2 = ["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "RM Reference No", "Main Category", "Sub Category", "Complaint Description", "Action Taken Enroute"];
       let sheet2 = getSheetCaseInsensitive(ss, "Rail Madad");
       if (!sheet2) {
         sheet2 = ss.insertSheet("Rail Madad");
+        sheet2.appendRow(["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Seat No", "RM Reference No", "Main Category", "Sub Category", "Complaint Description", "Action Taken Enroute"]);
+      }
+      let headers2 = (sheet2.getLastColumn() > 0) ? sheet2.getRange(1, 1, 1, sheet2.getLastColumn()).getValues()[0] : [];
+      if (headers2.length === 0) {
+        headers2 = ["Timestamp", "Date", "Rake No", "Train No", "Data Entered By", "Coach No", "Seat No", "RM Reference No", "Main Category", "Sub Category", "Complaint Description", "Action Taken Enroute"];
         sheet2.appendRow(headers2);
-      } else if (sheet2.getDataRange().getValues().length === 0) {
-        sheet2.appendRow(headers2);
+      } else {
+        let seatCol = headers2.indexOf("Seat No") !== -1 ? headers2.indexOf("Seat No") : headers2.indexOf("Seat Number");
+        if (seatCol === -1) {
+          const coachColIdx = headers2.indexOf("Coach No");
+          if (coachColIdx !== -1) {
+            sheet2.insertColumnAfter(coachColIdx + 1);
+            sheet2.getRange(1, coachColIdx + 2).setValue("Seat No");
+          } else {
+            sheet2.getRange(1, headers2.length + 1).setValue("Seat No");
+          }
+          SpreadsheetApp.flush();
+          headers2 = sheet2.getRange(1, 1, 1, sheet2.getLastColumn()).getValues()[0];
+        }
       }
       clearExistingRows(sheet2);
 
+      const rmTsIdx = headers2.indexOf("Timestamp");
+      const rmDateIdx = headers2.indexOf("Date");
+      const rmRakeIdx = headers2.indexOf("Rake No");
+      const rmTrainIdx = headers2.indexOf("Train No");
+      const rmUserIdx = headers2.indexOf("Data Entered By");
+      const rmCoachIdx = headers2.indexOf("Coach No");
+      const rmSeatIdx = headers2.indexOf("Seat No") !== -1 ? headers2.indexOf("Seat No") : headers2.indexOf("Seat Number");
+      const rmRefIdx = headers2.indexOf("RM Reference No");
+      const rmMainCatIdx = headers2.indexOf("Main Category");
+      const rmSubCatIdx = headers2.indexOf("Sub Category");
+      const rmDescIdx = headers2.indexOf("Complaint Description");
+      const rmActIdx = headers2.indexOf("Action Taken Enroute");
+
       if (railMadad.length > 0) {
         railMadad.forEach(rm => {
-          sheet2.appendRow([timestamp, dateStr, rakeStr, trainStr, enteredBy, rm.CoachNo || "", rm.RMReferenceNo || "", rm.MainCategory || "", rm.SubCategory || "", rm.ComplaintDescription || "", rm.ActionTaken || ""]);
+          const rowData = new Array(headers2.length).fill("");
+          if (rmTsIdx !== -1) rowData[rmTsIdx] = timestamp;
+          if (rmDateIdx !== -1) rowData[rmDateIdx] = dateStr;
+          if (rmRakeIdx !== -1) rowData[rmRakeIdx] = rakeStr;
+          if (rmTrainIdx !== -1) rowData[rmTrainIdx] = trainStr;
+          if (rmUserIdx !== -1) rowData[rmUserIdx] = enteredBy;
+          if (rmCoachIdx !== -1) rowData[rmCoachIdx] = rm.CoachNo || "";
+          if (rmSeatIdx !== -1) rowData[rmSeatIdx] = rm.SeatNo || "";
+          if (rmRefIdx !== -1) rowData[rmRefIdx] = rm.RMReferenceNo || "";
+          if (rmMainCatIdx !== -1) rowData[rmMainCatIdx] = rm.MainCategory || "";
+          if (rmSubCatIdx !== -1) rowData[rmSubCatIdx] = rm.SubCategory || "";
+          if (rmDescIdx !== -1) rowData[rmDescIdx] = rm.ComplaintDescription || "";
+          if (rmActIdx !== -1) rowData[rmActIdx] = rm.ActionTaken || "";
+          sheet2.appendRow(rowData);
         });
       }
 
@@ -1304,6 +1352,180 @@ function doPost(e) {
         message: `Saved ${remarks.length} remark(s) and updated ${pendingUpdates.length} pending defect(s) for ${rakeStr} on ${dateStr}`,
         count: remarks.length,
         pendingUpdated: pendingUpdates.length
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =========================================================================
+    // 5. SAVE RAIL MADAD FEEDBACK: Sync feedback/depot remarks to "Rail Madad" sheet
+    // =========================================================================
+    if (request.action === "save_rail_madad_feedback") {
+      const basic = request.basic || {};
+      const dateStr = formatDateCell(basic.Date);
+      const rakeStr = String(basic.RakeNo || "").trim();
+      const trainStr = String(basic.TrainNo || "").trim();
+      const staffName = String(basic.StaffName || "").trim();
+      const sseStr = String(basic.SseName || "").trim();
+      const timestamp = String(basic.Timestamp || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss"));
+      const railMadad = request.railMadad || [];
+
+      let sheet = getSheetCaseInsensitive(ss, "Rail Madad");
+      if (!sheet) {
+        sheet = ss.insertSheet("Rail Madad");
+        sheet.appendRow([
+          "Timestamp", "Date", "Rake No", "Train No", "Data Entered By",
+          "Coach No", "Seat No", "RM Reference No", "Main Category", "Sub Category",
+          "Complaint Description", "Action Taken Enroute", "Depot Attention Remarks", "Name of the SSE"
+        ]);
+        SpreadsheetApp.flush();
+      }
+
+      // Check and add columns to headers if not present
+      let currentHeaders = (sheet.getLastColumn() > 0) ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h || "").trim()) : [];
+      let currentHeadersLower = currentHeaders.map(h => h.toLowerCase());
+
+      if (currentHeaders.length === 0) {
+        currentHeaders = [
+          "Timestamp", "Date", "Rake No", "Train No", "Data Entered By",
+          "Coach No", "Seat No", "RM Reference No", "Main Category", "Sub Category",
+          "Complaint Description", "Action Taken Enroute", "Depot Attention Remarks", "Name of the SSE"
+        ];
+        sheet.appendRow(currentHeaders);
+        SpreadsheetApp.flush();
+      } else {
+        let changed = false;
+        if (currentHeadersLower.indexOf("seat no") === -1 && currentHeadersLower.indexOf("seat number") === -1) {
+          const coachColIdx = currentHeadersLower.indexOf("coach no");
+          if (coachColIdx !== -1) {
+            sheet.insertColumnAfter(coachColIdx + 1);
+            sheet.getRange(1, coachColIdx + 2).setValue("Seat No");
+          } else {
+            sheet.getRange(1, currentHeaders.length + 1).setValue("Seat No");
+          }
+          changed = true;
+        }
+        if (changed) {
+          SpreadsheetApp.flush();
+          currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h || "").trim());
+          currentHeadersLower = currentHeaders.map(h => h.toLowerCase());
+        }
+
+        if (currentHeadersLower.findIndex(h => h.includes("depot")) === -1) {
+          sheet.getRange(1, currentHeaders.length + 1).setValue("Depot Attention Remarks");
+          currentHeaders.push("Depot Attention Remarks");
+          currentHeadersLower.push("depot attention remarks");
+        }
+        if (currentHeadersLower.findIndex(h => h.includes("sse")) === -1) {
+          sheet.getRange(1, currentHeaders.length + 1).setValue("Name of the SSE");
+          currentHeaders.push("Name of the SSE");
+          currentHeadersLower.push("name of the sse");
+        }
+        SpreadsheetApp.flush();
+      }
+
+      // Re-read headers and indices
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h || "").trim());
+      const tsIdx = headers.indexOf("Timestamp");
+      const dateIdx = headers.indexOf("Date");
+      const rakeIdx = headers.indexOf("Rake No");
+      const trainIdx = headers.indexOf("Train No");
+      const userIdx = headers.indexOf("Data Entered By");
+      const coachIdx = headers.indexOf("Coach No");
+      const seatIdx = headers.findIndex(h => h.toLowerCase().includes("seat"));
+      const refIdx = headers.findIndex(h => h.toLowerCase().includes("rm reference") || h.toLowerCase() === "rm ref");
+      const mainCatIdx = headers.indexOf("Main Category");
+      const subCatIdx = headers.indexOf("Sub Category");
+      const descIdx = headers.indexOf("Complaint Description");
+      const actIdx = headers.indexOf("Action Taken Enroute");
+      const depotIdx = headers.findIndex(h => h.toLowerCase().includes("depot"));
+      const sseIdx = headers.findIndex(h => h.toLowerCase().includes("sse"));
+
+      const allData = sheet.getDataRange().getValues();
+      let updatedCount = 0;
+      let addedCount = 0;
+      const matchedRowIndices = new Set();
+
+      railMadad.forEach(rm => {
+        const rmRef = String(rm.RMReferenceNo || "").trim();
+        const rmCoach = String(rm.CoachNo || "").trim();
+        const rmDesc = String(rm.ComplaintDescription || "").trim();
+        const rmDepot = String(rm.DepotAttention || rm.PitlineAttention || "").trim();
+
+        let matchedRowIdx = -1;
+
+        // Search for existing row matching this complaint for same Date & Rake
+        for (let r = 1; r < allData.length; r++) {
+          if (matchedRowIndices.has(r)) continue;
+
+          const row = allData[r];
+          const rowDate = formatDateCell(row[dateIdx]);
+          const rowRake = String(row[rakeIdx] || "").trim();
+
+          if (rowDate === dateStr && (!rakeStr || rowRake.toLowerCase() === rakeStr.toLowerCase())) {
+            const rowRef = refIdx !== -1 ? String(row[refIdx] || "").trim() : "";
+            const rowCoach = coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "";
+            const rowDesc = descIdx !== -1 ? String(row[descIdx] || "").trim() : "";
+
+            if (rmRef && rowRef && rmRef.toLowerCase() === rowRef.toLowerCase()) {
+              matchedRowIdx = r;
+              break;
+            }
+            if (rmCoach && rowCoach && rmCoach.toLowerCase() === rowCoach.toLowerCase()) {
+              if (!rmRef && !rowRef) {
+                if (rmDesc && rowDesc && (rmDesc.toLowerCase() === rowDesc.toLowerCase() || rowDesc.toLowerCase().includes(rmDesc.toLowerCase()))) {
+                  matchedRowIdx = r;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (matchedRowIdx !== -1) {
+          // Entry ALREADY AVAILABLE: update only changes
+          matchedRowIndices.add(matchedRowIdx);
+          const sheetRowNum = matchedRowIdx + 1;
+
+          if (depotIdx !== -1) sheet.getRange(sheetRowNum, depotIdx + 1).setValue(rmDepot);
+          if (sseIdx !== -1 && sseStr) sheet.getRange(sheetRowNum, sseIdx + 1).setValue(sseStr);
+          if (coachIdx !== -1 && rm.CoachNo) sheet.getRange(sheetRowNum, coachIdx + 1).setValue(rm.CoachNo);
+          if (seatIdx !== -1 && rm.SeatNo !== undefined) sheet.getRange(sheetRowNum, seatIdx + 1).setValue(rm.SeatNo || "");
+          if (refIdx !== -1 && rm.RMReferenceNo) sheet.getRange(sheetRowNum, refIdx + 1).setValue(rm.RMReferenceNo);
+          if (mainCatIdx !== -1 && rm.MainCategory) sheet.getRange(sheetRowNum, mainCatIdx + 1).setValue(rm.MainCategory);
+          if (subCatIdx !== -1 && rm.SubCategory) sheet.getRange(sheetRowNum, subCatIdx + 1).setValue(rm.SubCategory);
+          if (descIdx !== -1 && rm.ComplaintDescription) sheet.getRange(sheetRowNum, descIdx + 1).setValue(rm.ComplaintDescription);
+          if (actIdx !== -1 && rm.ActionTaken) sheet.getRange(sheetRowNum, actIdx + 1).setValue(rm.ActionTaken);
+
+          updatedCount++;
+        } else {
+          // New entry not available in sheet: append new row
+          const newRow = new Array(headers.length).fill("");
+          if (tsIdx !== -1) newRow[tsIdx] = timestamp;
+          if (dateIdx !== -1) newRow[dateIdx] = dateStr;
+          if (rakeIdx !== -1) newRow[rakeIdx] = rakeStr;
+          if (trainIdx !== -1) newRow[trainIdx] = trainStr;
+          if (userIdx !== -1) newRow[userIdx] = staffName || sseStr;
+          if (coachIdx !== -1) newRow[coachIdx] = rm.CoachNo || "";
+          if (seatIdx !== -1) newRow[seatIdx] = rm.SeatNo || "";
+          if (refIdx !== -1) newRow[refIdx] = rm.RMReferenceNo || "";
+          if (mainCatIdx !== -1) newRow[mainCatIdx] = rm.MainCategory || "";
+          if (subCatIdx !== -1) newRow[subCatIdx] = rm.SubCategory || "";
+          if (descIdx !== -1) newRow[descIdx] = rm.ComplaintDescription || "";
+          if (actIdx !== -1) newRow[actIdx] = rm.ActionTaken || "";
+          if (depotIdx !== -1) newRow[depotIdx] = rmDepot;
+          if (sseIdx !== -1) newRow[sseIdx] = sseStr;
+
+          sheet.appendRow(newRow);
+          addedCount++;
+        }
+      });
+
+      SpreadsheetApp.flush();
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: `Rail Madad feedback synced to sheet successfully (${updatedCount} updated, ${addedCount} added).`,
+        updated: updatedCount,
+        added: addedCount
       })).setMimeType(ContentService.MimeType.JSON);
     }
     // =========================================================================

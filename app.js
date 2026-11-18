@@ -155,6 +155,26 @@ const arrivalDatePicker = flatpickr("#arrivalDateInput", {
     }
 });
 
+// Initialize Calendar for Rail Madad Feedback Report
+const rmReportDatePicker = flatpickr("#rmReportDateInput", {
+    dateFormat: "d-m-Y",
+    defaultDate: "today",
+    disableMobile: "true",
+    theme: "dark",
+    maxDate: "today",
+    onChange: function () {
+        const wrapper = document.getElementById('rmReportContentWrapper');
+        if (wrapper && wrapper.style.display !== 'none') {
+            wrapper.style.display = 'none';
+            const status = document.getElementById('rmReportLoadStatus');
+            if (status) {
+                status.textContent = 'Date changed. Click "Load Rail Madad Complaints" to fetch records.';
+                status.style.color = 'var(--text-muted)';
+            }
+        }
+    }
+});
+
 // ============================================================================
 // ANDROID HARDWARE BACK BUTTON & NAVIGATION HISTORY MANAGER
 // ============================================================================
@@ -308,6 +328,7 @@ function handleAppBack() {
     const dataEntryScreen = document.getElementById('dataEntryScreen');
     const arrivalReportScreen = document.getElementById('arrivalReportScreen');
     const maintScreen = document.getElementById('maintenanceRemarksScreen');
+    const rmReportScreen = document.getElementById('railMadadReportScreen');
     const dashboardScreen = document.getElementById('dashboardScreen');
     const settingsScreen = document.getElementById('settingsScreen');
 
@@ -315,6 +336,7 @@ function handleAppBack() {
         (dataEntryScreen && dataEntryScreen.style.display !== 'none') ||
         (arrivalReportScreen && arrivalReportScreen.style.display !== 'none') ||
         (maintScreen && maintScreen.style.display !== 'none') ||
+        (rmReportScreen && rmReportScreen.style.display !== 'none') ||
         (dashboardScreen && dashboardScreen.style.display !== 'none') ||
         (settingsScreen && settingsScreen.style.display !== 'none')
     );
@@ -363,6 +385,8 @@ function hideAllScreens() {
     if (arrivalReportScreen) arrivalReportScreen.style.display = 'none';
     const maintScreen = document.getElementById('maintenanceRemarksScreen');
     if (maintScreen) maintScreen.style.display = 'none';
+    const rmReportScreen = document.getElementById('railMadadReportScreen');
+    if (rmReportScreen) rmReportScreen.style.display = 'none';
     const settingsScreen = document.getElementById('settingsScreen');
     if (settingsScreen) settingsScreen.style.display = 'none';
     const manualsScreen = document.getElementById('manualsScreen');
@@ -901,7 +925,11 @@ async function fetchDropdownData() {
 }
 
 function getCoachesList() {
-    const rake = arrivalRakeSelect ? arrivalRakeSelect.value : '';
+    let rake = arrivalRakeSelect ? arrivalRakeSelect.value : '';
+    if (!rake) {
+        const rmRake = document.getElementById('rmReportRakeSelect');
+        if (rmRake && rmRake.value) rake = rmRake.value;
+    }
     if (rake && TRAIN_COACHES[rake]) {
         return TRAIN_COACHES[rake];
     }
@@ -1215,6 +1243,7 @@ function addRailMadadCard(data = {}) {
     const isCustomSub = isCustomSubCategory(rawSubCat);
     const subCatDisplay = isCustomSub ? rawSubCat : (rawSubCat || '');
     const coach = data.CoachNo || '';
+    const seat = data.SeatNo || '';
     const refNo = data.RMReferenceNo || '';
     const mainCat = data.MainCategory || '';
     const desc = data.ComplaintDescription || '';
@@ -1222,6 +1251,7 @@ function addRailMadadCard(data = {}) {
 
     row.innerHTML = `
         <input type="hidden" class="rm-coach-select" value="${escapeHtml(coach)}">
+        <input type="hidden" class="rm-seat-input" value="${escapeHtml(seat)}">
         <input type="hidden" class="rm-ref-input" value="${escapeHtml(refNo)}">
         <input type="hidden" class="rm-main-category" value="${escapeHtml(mainCat)}">
         <input type="hidden" class="rm-sub-category" value="${escapeHtml(subCatDisplay)}">
@@ -1233,6 +1263,7 @@ function addRailMadadCard(data = {}) {
             <div class="defect-item-badges">
                 <span class="defect-badge-index rm-badge-index">#${index}</span>
                 <span class="defect-badge-coach">${escapeHtml(coach || 'Coach ?')}</span>
+                <span class="defect-badge-index rm-badge-seat" style="${seat ? 'background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);' : 'display: none;'}">${seat ? 'Seat: ' + escapeHtml(seat) : ''}</span>
                 <span class="rm-badge-ref">${escapeHtml(refNo || 'No Ref')}</span>
                 <span class="defect-badge-cat">${escapeHtml(mainCat || 'General')}${subCatDisplay ? ' > ' + escapeHtml(subCatDisplay) : ''}</span>
             </div>
@@ -1282,6 +1313,9 @@ function openAddRailMadadModal() {
     const coachSel = document.getElementById('rmModalCoachSelect');
     if (coachSel) coachSel.innerHTML = buildCoachOptions('');
 
+    const seatInput = document.getElementById('rmModalSeatInput');
+    if (seatInput) seatInput.value = '';
+
     const refInput = document.getElementById('rmModalRefInput');
     if (refInput) refInput.value = '';
 
@@ -1317,6 +1351,7 @@ function openEditRailMadadModal(row) {
     editingRailMadadRow = row;
 
     const coach = row.querySelector('.rm-coach-select') ? row.querySelector('.rm-coach-select').value : '';
+    const seat = row.querySelector('.rm-seat-input') ? row.querySelector('.rm-seat-input').value : '';
     const refNo = row.querySelector('.rm-ref-input') ? row.querySelector('.rm-ref-input').value : '';
     const mainCat = row.querySelector('.rm-main-category') ? row.querySelector('.rm-main-category').value : '';
     const subCat = row.querySelector('.rm-sub-category') ? row.querySelector('.rm-sub-category').value : '';
@@ -1336,6 +1371,9 @@ function openEditRailMadadModal(row) {
         coachSel.innerHTML = buildCoachOptions(coach);
         if (coach) coachSel.value = coach;
     }
+
+    const seatInput = document.getElementById('rmModalSeatInput');
+    if (seatInput) seatInput.value = seat;
 
     const refInput = document.getElementById('rmModalRefInput');
     if (refInput) refInput.value = refNo;
@@ -1392,6 +1430,7 @@ window.closeRailMadadModal = closeRailMadadModal;
 
 function saveRailMadadModal() {
     const coachSel = document.getElementById('rmModalCoachSelect');
+    const seatInput = document.getElementById('rmModalSeatInput');
     const refInput = document.getElementById('rmModalRefInput');
     const mainSel = document.getElementById('rmModalMainCatSelect');
     const subSel = document.getElementById('rmModalSubCatSelect');
@@ -1400,6 +1439,7 @@ function saveRailMadadModal() {
     const actionInput = document.getElementById('rmModalActionInput');
 
     const coach = coachSel ? coachSel.value : '';
+    const seat = seatInput ? seatInput.value.trim() : '';
     const refNo = refInput ? refInput.value.trim() : '';
     const mainCat = mainSel ? mainSel.value : '';
     let subCat = subSel ? subSel.value : '';
@@ -1446,6 +1486,7 @@ function saveRailMadadModal() {
     if (editingRailMadadRow) {
         // Update existing row
         const coachInput = editingRailMadadRow.querySelector('.rm-coach-select');
+        let seatHidden = editingRailMadadRow.querySelector('.rm-seat-input');
         const refHidden = editingRailMadadRow.querySelector('.rm-ref-input');
         const mainHidden = editingRailMadadRow.querySelector('.rm-main-category');
         const subHidden = editingRailMadadRow.querySelector('.rm-sub-category');
@@ -1453,6 +1494,13 @@ function saveRailMadadModal() {
         const actionArea = editingRailMadadRow.querySelector('.rm-action-input');
 
         if (coachInput) coachInput.value = coach;
+        if (!seatHidden) {
+            seatHidden = document.createElement('input');
+            seatHidden.type = 'hidden';
+            seatHidden.className = 'rm-seat-input';
+            editingRailMadadRow.prepend(seatHidden);
+        }
+        seatHidden.value = seat;
         if (refHidden) refHidden.value = refNo;
         if (mainHidden) mainHidden.value = mainCat;
         if (subHidden) subHidden.value = subCat;
@@ -1461,6 +1509,29 @@ function saveRailMadadModal() {
 
         const coachBadge = editingRailMadadRow.querySelector('.defect-badge-coach');
         if (coachBadge) coachBadge.textContent = coach;
+
+        let seatBadge = editingRailMadadRow.querySelector('.rm-badge-seat');
+        if (!seatBadge) {
+            const badgesDiv = editingRailMadadRow.querySelector('.defect-item-badges');
+            if (badgesDiv) {
+                seatBadge = document.createElement('span');
+                seatBadge.className = 'defect-badge-index rm-badge-seat';
+                if (coachBadge && coachBadge.nextSibling) {
+                    badgesDiv.insertBefore(seatBadge, coachBadge.nextSibling);
+                } else {
+                    badgesDiv.appendChild(seatBadge);
+                }
+            }
+        }
+        if (seatBadge) {
+            if (seat) {
+                seatBadge.textContent = `Seat: ${seat}`;
+                seatBadge.style.cssText = 'background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); display: inline-block;';
+            } else {
+                seatBadge.textContent = '';
+                seatBadge.style.display = 'none';
+            }
+        }
 
         const refBadge = editingRailMadadRow.querySelector('.rm-badge-ref');
         if (refBadge) refBadge.textContent = refNo;
@@ -1485,6 +1556,7 @@ function saveRailMadadModal() {
     } else {
         addRailMadadCard({
             CoachNo: coach,
+            SeatNo: seat,
             RMReferenceNo: refNo,
             MainCategory: mainCat,
             SubCategory: subCat,
@@ -2995,6 +3067,7 @@ function collectArrivalReportData() {
 
         railMadad.push({
             CoachNo: card.querySelector('.rm-coach-select').value,
+            SeatNo: card.querySelector('.rm-seat-input') ? card.querySelector('.rm-seat-input').value.trim() : '',
             RMReferenceNo: card.querySelector('.rm-ref-input').value.trim(),
             MainCategory: card.querySelector('.rm-main-category').value,
             SubCategory: subCategoryValue,
@@ -4736,6 +4809,1232 @@ window.saveMaintenanceRemarks = saveMaintenanceRemarks;
 
 // Initialize Maintenance Categories
 fetchMaintenanceCategories();
+
+// ============================================================================
+// RAIL MADAD FEEDBACK REPORT
+// ============================================================================
+
+let loadedRmReportComplaints = [];
+let rmReportEditorCards = [];
+
+function openRailMadadReport() {
+    pushNavState({ screen: 'railMadadReport' });
+    hideAllScreens();
+    document.body.classList.add('arrival-report-active');
+
+    populateRmReportDropdowns();
+
+    const screen = document.getElementById('railMadadReportScreen');
+    if (screen) screen.style.display = 'flex';
+
+    const wrapper = document.getElementById('rmReportContentWrapper');
+    if (wrapper) wrapper.style.display = 'none';
+
+    const editorSec = document.getElementById('rmReportEditorSection');
+    if (editorSec) editorSec.style.display = 'none';
+
+    const status = document.getElementById('rmReportLoadStatus');
+    if (status) {
+        status.textContent = '';
+        status.className = 'load-status';
+    }
+
+    loadedRmReportComplaints = [];
+    rmReportEditorCards = [];
+
+    // Reset date to today
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const todayStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+    const dateInput = document.getElementById('rmReportDateInput');
+    if (dateInput) dateInput.value = todayStr;
+
+    const staffInput = document.getElementById('rmReportStaffInput');
+    if (staffInput) staffInput.value = '';
+    const editorSup = document.getElementById('rmEditorSupervisorInput');
+    if (editorSup) editorSup.value = '';
+
+    savedRmEditorStateHash = '';
+
+    window.scrollTo(0, 0);
+}
+window.openRailMadadReport = openRailMadadReport;
+
+function populateRmReportDropdowns() {
+    const rakeSelect = document.getElementById('rmReportRakeSelect');
+    const trainSelect = document.getElementById('rmReportTrainSelect');
+
+    const rakes = (cachedDropdownData.rakeNos && cachedDropdownData.rakeNos.length > 0)
+        ? cachedDropdownData.rakeNos
+        : DEFAULT_DROPDOWN_DATA.rakeNos;
+
+    if (rakeSelect) {
+        const currentRake = rakeSelect.value;
+        let html = '<option value="">-- Select Rake --</option>';
+        rakes.forEach(r => {
+            const sel = (r === currentRake) ? 'selected' : '';
+            html += `<option value="${r}" ${sel}>${r}</option>`;
+        });
+        rakeSelect.innerHTML = html;
+        if (currentRake && rakes.includes(currentRake)) {
+            rakeSelect.value = currentRake;
+        } else if (rakes.length > 0) {
+            rakeSelect.value = rakes[0];
+        }
+    }
+
+    if (trainSelect) {
+        const currentTrain = trainSelect.value;
+        const trains = (cachedDropdownData.trainNos && cachedDropdownData.trainNos.length > 0)
+            ? cachedDropdownData.trainNos
+            : DEFAULT_DROPDOWN_DATA.trainNos;
+
+        let html = '<option value="">-- Select Train --</option>';
+        trains.forEach(t => {
+            const sel = (t === currentTrain) ? 'selected' : '';
+            html += `<option value="${t}" ${sel}>${t}</option>`;
+        });
+        const otherSel = (currentTrain === 'Other') ? 'selected' : '';
+        html += `<option value="Other" ${otherSel}>Other (Enter Train No)</option>`;
+        trainSelect.innerHTML = html;
+    }
+
+    handleRmReportRakeChange();
+}
+
+function handleRmReportRakeChange() {
+    const rakeSelect = document.getElementById('rmReportRakeSelect');
+    const trainSelect = document.getElementById('rmReportTrainSelect');
+    const selectedRake = rakeSelect ? rakeSelect.value : '';
+
+    const defaultTrains = {
+        "IC2021": "20661/2",
+        "IC2008": "26651/2",
+        "IC2015": "26651/2"
+    };
+
+    if (trainSelect && defaultTrains[selectedRake]) {
+        trainSelect.value = defaultTrains[selectedRake];
+        const otherGroup = document.getElementById('rmReportOtherTrainGroup');
+        if (otherGroup) otherGroup.style.display = 'none';
+    }
+
+    const wrapper = document.getElementById('rmReportContentWrapper');
+    if (wrapper) wrapper.style.display = 'none';
+    const status = document.getElementById('rmReportLoadStatus');
+    if (status) status.textContent = '';
+}
+window.handleRmReportRakeChange = handleRmReportRakeChange;
+
+function handleRmReportTrainChange() {
+    const trainSelect = document.getElementById('rmReportTrainSelect');
+    const otherGroup = document.getElementById('rmReportOtherTrainGroup');
+    const otherInput = document.getElementById('rmReportOtherTrainInput');
+    if (!trainSelect || !otherGroup) return;
+
+    if (trainSelect.value === 'Other') {
+        otherGroup.style.display = 'block';
+        if (otherInput) otherInput.focus();
+    } else {
+        otherGroup.style.display = 'none';
+    }
+
+    const wrapper = document.getElementById('rmReportContentWrapper');
+    if (wrapper) wrapper.style.display = 'none';
+}
+window.handleRmReportTrainChange = handleRmReportTrainChange;
+
+function getRmReportTrainValue() {
+    const trainSelect = document.getElementById('rmReportTrainSelect');
+    if (trainSelect && trainSelect.value === 'Other') {
+        const otherInput = document.getElementById('rmReportOtherTrainInput');
+        return otherInput ? otherInput.value.trim() : '';
+    }
+    return trainSelect ? trainSelect.value.trim() : '';
+}
+
+async function loadRailMadadReportComplaints() {
+    if (!currentPassword) {
+        handleSessionExpired();
+        return;
+    }
+
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    const train = getRmReportTrainValue();
+    const statusEl = document.getElementById('rmReportLoadStatus');
+    const btn = document.getElementById('rmReportLoadBtn');
+    const btnText = btn.querySelector('span');
+    const spinner = btn.querySelector('.spinner');
+
+    if (!date || !rake) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Incomplete Details',
+            text: 'Please select Date and Rake Number before loading complaints.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    btn.disabled = true;
+    btnText.textContent = 'Loading...';
+    spinner.classList.remove('hidden');
+    statusEl.textContent = 'Searching Rail Madad complaints in Google Sheets...';
+    statusEl.style.color = '#38bdf8';
+
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || getWebAppUrl(rake);
+        const url = `${targetUrl}?action=get_arrival_report&password=${encodeURIComponent(currentPassword)}&date=${encodeURIComponent(date)}&rake=${encodeURIComponent(rake)}&train=${encodeURIComponent(train)}`;
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (result.status === 'unauthorized') {
+            handleSessionExpired();
+            return;
+        }
+
+        if (result.basic && result.basic.DataEnteredBy) {
+            const staffInput = document.getElementById('rmReportStaffInput');
+            if (staffInput) {
+                staffInput.value = result.basic.DataEnteredBy;
+            }
+        }
+        if (result.basic && result.basic.SSEName) {
+            const sseInput = document.getElementById('rmEditorSupervisorInput');
+            if (sseInput && !sseInput.value.trim()) {
+                sseInput.value = result.basic.SSEName;
+            }
+        }
+
+        const rawComplaints = (result.status === 'success' && result.railMadad) ? result.railMadad : [];
+        loadedRmReportComplaints = rawComplaints.filter(c => c && (c.RMReferenceNo || c.ComplaintDescription || c.CoachNo));
+
+        renderRmReportSummaryList();
+
+        const countBadge = document.getElementById('rmReportCountBadge');
+        if (countBadge) {
+            countBadge.textContent = `${loadedRmReportComplaints.length} complaint${loadedRmReportComplaints.length === 1 ? '' : 's'}`;
+        }
+
+        const wrapper = document.getElementById('rmReportContentWrapper');
+        if (wrapper) wrapper.style.display = 'block';
+
+        const editorSec = document.getElementById('rmReportEditorSection');
+        if (editorSec) editorSec.style.display = 'none';
+
+        if (loadedRmReportComplaints.length > 0) {
+            statusEl.textContent = `Found ${loadedRmReportComplaints.length} Rail Madad complaint(s) for ${rake} on ${date}. Click "Generate Feedback Report" to proceed.`;
+            statusEl.style.color = '#10b981';
+        } else {
+            statusEl.textContent = `No Rail Madad complaints found for ${rake} on ${date}. Click "Generate Feedback Report" to create a manual report.`;
+            statusEl.style.color = 'var(--text-muted)';
+        }
+
+        setTimeout(() => {
+            if (wrapper) wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+
+    } catch (err) {
+        statusEl.textContent = 'Error loading from Google Sheets: ' + (err.message || 'Network error');
+        statusEl.style.color = '#f87171';
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = '🔍 Load Rail Madad Complaints';
+        spinner.classList.add('hidden');
+    }
+}
+window.loadRailMadadReportComplaints = loadRailMadadReportComplaints;
+
+function renderRmReportSummaryList() {
+    const container = document.getElementById('rmReportComplaintsList');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (loadedRmReportComplaints.length === 0) {
+        container.innerHTML = `
+            <div class="defects-empty-placeholder" style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                No Rail Madad complaints recorded for this Date and Rake in Google Sheets.<br>
+                You can still click <strong>"Generate Feedback Report"</strong> below to enter complaints manually.
+            </div>
+        `;
+        return;
+    }
+
+    loadedRmReportComplaints.forEach((c, idx) => {
+        const card = document.createElement('div');
+        card.className = 'defect-list-item rm-list-item';
+        card.innerHTML = `
+            <div class="defect-item-main" style="cursor: default;">
+                <div class="defect-item-badges">
+                    <span class="defect-badge-index">#${idx + 1}</span>
+                    <span class="defect-badge-coach">${escapeHtml(c.CoachNo || 'Coach ?')}</span>
+                    ${c.SeatNo ? `<span class="defect-badge-index" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">Seat: ${escapeHtml(c.SeatNo)}</span>` : ''}
+                    ${c.RMReferenceNo ? `<span class="rm-badge-ref">RM: ${escapeHtml(c.RMReferenceNo)}</span>` : ''}
+                    <span class="defect-badge-cat">${escapeHtml(c.MainCategory || 'Complaint')}${c.SubCategory ? ' > ' + escapeHtml(c.SubCategory) : ''}</span>
+                </div>
+                <div class="item-mini-header">Complaint Description:</div>
+                <div class="defect-item-desc">${escapeHtml(c.ComplaintDescription || '(No description)')}</div>
+                ${c.ActionTaken ? `<div class="item-action-taken-box"><strong>✓ Action Taken Enroute:</strong> <span>${escapeHtml(c.ActionTaken)}</span></div>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function openRmReportEditor() {
+    if (loadedRmReportComplaints.length > 0) {
+        rmReportEditorCards = loadedRmReportComplaints.map(c => ({
+            CoachNo: c.CoachNo || '',
+            SeatNo: c.SeatNo || '',
+            RMReferenceNo: c.RMReferenceNo || '',
+            MainCategory: c.MainCategory || '',
+            SubCategory: c.SubCategory || '',
+            ComplaintDescription: c.ComplaintDescription || '',
+            ActionTaken: c.ActionTaken || '',
+            DepotAttention: c.PitlineAttention || '',
+            PitlineAttention: c.PitlineAttention || '',
+            passengerFeedbackPhotos: [],
+            attentionPhotos: [],
+            supportingPhotos: [],
+            photos: []
+        }));
+    } else {
+        rmReportEditorCards = [{
+            CoachNo: '',
+            SeatNo: '',
+            RMReferenceNo: '',
+            MainCategory: 'Coach Maintenance',
+            SubCategory: '',
+            ComplaintDescription: '',
+            ActionTaken: '',
+            DepotAttention: '',
+            PitlineAttention: '',
+            passengerFeedbackPhotos: [],
+            attentionPhotos: [],
+            supportingPhotos: [],
+            photos: []
+        }];
+    }
+
+    renderRmReportEditorCards();
+    savedRmEditorStateHash = getRmEditorStateHash();
+
+    const editorSec = document.getElementById('rmReportEditorSection');
+    if (editorSec) {
+        editorSec.style.display = 'block';
+        setTimeout(() => {
+            editorSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+    }
+}
+window.openRmReportEditor = openRmReportEditor;
+
+function updateRmCardCategory(idx, val) {
+    if (!rmReportEditorCards[idx]) return;
+    const parts = String(val || '').split('>').map(p => p.trim());
+    rmReportEditorCards[idx].MainCategory = parts[0] || '';
+    rmReportEditorCards[idx].SubCategory = parts.slice(1).join(' > ') || '';
+}
+window.updateRmCardCategory = updateRmCardCategory;
+
+function updateRmDepotAttention(idx, text) {
+    if (rmReportEditorCards[idx]) {
+        rmReportEditorCards[idx].DepotAttention = text;
+        rmReportEditorCards[idx].PitlineAttention = text;
+    }
+}
+window.updateRmDepotAttention = updateRmDepotAttention;
+
+function updateRmPitlineAttention(idx, text) {
+    updateRmDepotAttention(idx, text);
+}
+window.updateRmPitlineAttention = updateRmPitlineAttention;
+
+function isCustomSubCat(val) {
+    if (!val) return false;
+    const list = (cachedDropdownData.subCategories && cachedDropdownData.subCategories.length > 0)
+        ? cachedDropdownData.subCategories
+        : DEFAULT_DROPDOWN_DATA.subCategories;
+    const cleanList = list.map(s => s.replace(/:$/, '').trim().toLowerCase());
+    return !cleanList.includes(val.trim().toLowerCase()) && val !== 'Other' && val !== 'Others:';
+}
+
+function handleRmEditorSubCatChange(idx, val) {
+    if (!rmReportEditorCards[idx]) return;
+    const customInp = document.getElementById(`rmSubCatCustom_${idx}`);
+    if (val === 'Other' || val === 'Others:') {
+        if (customInp) {
+            customInp.style.display = 'block';
+            customInp.focus();
+            rmReportEditorCards[idx].SubCategory = customInp.value.trim() || 'Other';
+        } else {
+            rmReportEditorCards[idx].SubCategory = val;
+        }
+    } else {
+        if (customInp) {
+            customInp.style.display = 'none';
+        }
+        rmReportEditorCards[idx].SubCategory = val;
+    }
+}
+window.handleRmEditorSubCatChange = handleRmEditorSubCatChange;
+
+function renderRmReportEditorCards() {
+    const container = document.getElementById('rmReportCardsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    rmReportEditorCards.forEach((item, idx) => {
+        const card = document.createElement('div');
+        card.className = 'rm-feedback-card';
+        card.id = `rmFeedbackCard_${idx}`;
+
+        const isCustomSub = isCustomSubCat(item.SubCategory);
+
+        card.innerHTML = `
+            <div class="rm-feedback-header">
+                <div class="defect-item-badges" style="margin-bottom: 0;">
+                    <span class="defect-badge-index">#${idx + 1}</span>
+                    <span class="defect-badge-coach" id="rmBadgeCoach_${idx}">${escapeHtml(item.CoachNo || 'Coach ?')}</span>
+                    <span class="defect-badge-index" id="rmBadgeSeat_${idx}" style="${item.SeatNo ? 'background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);' : 'display: none;'}">${item.SeatNo ? 'Seat: ' + escapeHtml(item.SeatNo) : ''}</span>
+                    ${item.RMReferenceNo ? `<span class="rm-badge-ref" id="rmBadgeRef_${idx}">RM: ${escapeHtml(item.RMReferenceNo)}</span>` : `<span class="rm-badge-ref" id="rmBadgeRef_${idx}" style="background: rgba(148, 163, 184, 0.15); color: #cbd5e1;">Manual Entry</span>`}
+                </div>
+                ${rmReportEditorCards.length > 1 ? `
+                    <button type="button" class="defect-action-btn remove remove-btn" onclick="removeRmFeedbackCard(${idx})" title="Remove Complaint">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                ` : ''}
+            </div>
+
+            <!-- 1. RM Reference Number (with Coach No & Seat No) -->
+            <div class="form-row-2" style="margin-top: 0.35rem;">
+                <div class="form-group">
+                    <label style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1;">1. RM Reference Number</label>
+                    <input type="text" class="rm-edit-input" value="${escapeHtml(item.RMReferenceNo)}" oninput="rmReportEditorCards[${idx}].RMReferenceNo = this.value; const b = document.getElementById('rmBadgeRef_${idx}'); if(b) b.textContent = this.value ? 'RM: ' + this.value : 'Manual Entry';" placeholder="e.g. 2026111707683">
+                </div>
+                <div class="form-group">
+                    <div style="display: flex; gap: 0.5rem;">
+                        <div style="flex: 1.5;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1;">Coach No</label>
+                            <select class="rm-edit-input" onchange="rmReportEditorCards[${idx}].CoachNo = this.value; const b = document.getElementById('rmBadgeCoach_${idx}'); if(b) b.textContent = this.value || 'Coach ?';">
+                                ${buildCoachOptions(item.CoachNo)}
+                            </select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1;">Seat No</label>
+                            <input type="text" class="rm-edit-input" value="${escapeHtml(item.SeatNo || '')}" oninput="rmReportEditorCards[${idx}].SeatNo = this.value; const sb = document.getElementById('rmBadgeSeat_${idx}'); if(sb) { if(this.value.trim()){ sb.textContent = 'Seat: ' + this.value.trim(); sb.style.display = 'inline-block'; } else { sb.style.display = 'none'; } }" placeholder="e.g. 45">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Main Category & 3. Sub Category -->
+            <div class="form-row-2" style="margin-top: 0.2rem;">
+                <div class="form-group">
+                    <label style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1;">2. Main Category</label>
+                    <select class="rm-edit-input" onchange="rmReportEditorCards[${idx}].MainCategory = this.value">
+                        ${buildMainCategoryOptions(item.MainCategory)}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1;">3. Sub Category</label>
+                    <select class="rm-edit-input" id="rmSubCatSel_${idx}" onchange="handleRmEditorSubCatChange(${idx}, this.value)">
+                        ${buildSubCategoryOptions(isCustomSub ? 'Other' : item.SubCategory)}
+                    </select>
+                    <input type="text" id="rmSubCatCustom_${idx}" class="rm-edit-input" placeholder="Type custom sub category" style="display: ${isCustomSub ? 'block' : 'none'}; margin-top: 0.35rem;" value="${isCustomSub ? escapeHtml(item.SubCategory) : ''}" oninput="rmReportEditorCards[${idx}].SubCategory = this.value">
+                </div>
+            </div>
+
+            <!-- 4. Complaint Description -->
+            <div style="margin-top: 0.35rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">
+                    4. Complaint Description:
+                </label>
+                <textarea class="rm-edit-textarea" rows="2" placeholder="Enter complaint details..." oninput="rmReportEditorCards[${idx}].ComplaintDescription = this.value">${escapeHtml(item.ComplaintDescription || '')}</textarea>
+            </div>
+
+            <!-- 5. Enroute Attention Remarks -->
+            <div style="margin-top: 0.35rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #34d399; margin-bottom: 0.25rem;">
+                    ✓ 5. Enroute Attention Remarks:
+                </label>
+                <textarea class="rm-edit-textarea" rows="2" placeholder="Enroute attention remarks (if any)..." style="border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.05);" oninput="rmReportEditorCards[${idx}].ActionTaken = this.value">${escapeHtml(item.ActionTaken || '')}</textarea>
+            </div>
+
+            <!-- 6. Depot Attention Remarks -->
+            <div style="margin-top: 0.35rem;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #38bdf8; margin-bottom: 0.25rem;">
+                    🔧 6. Depot Attention Remarks:
+                </label>
+                <textarea class="rm-pitline-input" rows="3" placeholder="Enter depot rectification and attention remarks..." oninput="updateRmDepotAttention(${idx}, this.value)">${escapeHtml(item.DepotAttention || item.PitlineAttention || '')}</textarea>
+            </div>
+
+            <!-- 7. Passenger Feedback Photo -->
+            <div class="rm-photos-wrapper" style="border-top: 1px dashed rgba(255, 255, 255, 0.12); padding-top: 0.6rem; margin-top: 0.6rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
+                    <label style="font-size: 0.82rem; font-weight: 600; color: #fbbf24; margin: 0;">
+                        📷 7. Passenger Feedback Photo
+                        <span class="rm-photo-count-badge" id="rmCount_passengerFeedbackPhotos_${idx}" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-color: rgba(251, 191, 36, 0.35);">0 photo(s)</span>
+                    </label>
+                    <button type="button" class="rm-photo-add-btn" style="border-color: rgba(251, 191, 36, 0.5); color: #fbbf24;" onclick="document.getElementById('rmFileInput_pf_${idx}').click()">
+                        <span>+ Add Feedback Photo</span>
+                    </button>
+                    <input type="file" id="rmFileInput_pf_${idx}" accept="image/*" multiple style="display: none;" onchange="handleRmTypedPhotoFiles(event, ${idx}, 'passengerFeedbackPhotos')">
+                </div>
+                <div class="rm-photos-gallery" id="rmGallery_passengerFeedbackPhotos_${idx}"></div>
+            </div>
+
+            <!-- 8. Attention Photo -->
+            <div class="rm-photos-wrapper" style="border-top: 1px dashed rgba(255, 255, 255, 0.12); padding-top: 0.6rem; margin-top: 0.5rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
+                    <label style="font-size: 0.82rem; font-weight: 600; color: #34d399; margin: 0;">
+                        🔧 8. Attention Photo
+                        <span class="rm-photo-count-badge" id="rmCount_attentionPhotos_${idx}" style="background: rgba(52, 211, 153, 0.15); color: #34d399; border-color: rgba(52, 211, 153, 0.35);">0 photo(s)</span>
+                    </label>
+                    <button type="button" class="rm-photo-add-btn" style="border-color: rgba(52, 211, 153, 0.5); color: #34d399;" onclick="document.getElementById('rmFileInput_at_${idx}').click()">
+                        <span>+ Add Attention Photo</span>
+                    </button>
+                    <input type="file" id="rmFileInput_at_${idx}" accept="image/*" multiple style="display: none;" onchange="handleRmTypedPhotoFiles(event, ${idx}, 'attentionPhotos')">
+                </div>
+                <div class="rm-photos-gallery" id="rmGallery_attentionPhotos_${idx}"></div>
+            </div>
+
+            <!-- 9. Any Other Supporting Photos -->
+            <div class="rm-photos-wrapper" style="border-top: 1px dashed rgba(255, 255, 255, 0.12); padding-top: 0.6rem; margin-top: 0.5rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
+                    <label style="font-size: 0.82rem; font-weight: 600; color: #a78bfa; margin: 0;">
+                        📁 9. Any Other Supporting Photos
+                        <span class="rm-photo-count-badge" id="rmCount_supportingPhotos_${idx}">0 photo(s)</span>
+                    </label>
+                    <button type="button" class="rm-photo-add-btn" onclick="document.getElementById('rmFileInput_sp_${idx}').click()">
+                        <span>+ Add Supporting Photo</span>
+                    </button>
+                    <input type="file" id="rmFileInput_sp_${idx}" accept="image/*" multiple style="display: none;" onchange="handleRmTypedPhotoFiles(event, ${idx}, 'supportingPhotos')">
+                </div>
+                <div class="rm-photos-gallery" id="rmGallery_supportingPhotos_${idx}"></div>
+            </div>
+        `;
+
+        container.appendChild(card);
+        renderRmTypedGallery(idx, 'passengerFeedbackPhotos');
+        renderRmTypedGallery(idx, 'attentionPhotos');
+        renderRmTypedGallery(idx, 'supportingPhotos');
+    });
+}
+
+function addManualRmFeedbackCard() {
+    rmReportEditorCards.push({
+        CoachNo: '',
+        SeatNo: '',
+        RMReferenceNo: '',
+        MainCategory: 'Coach Maintenance',
+        SubCategory: '',
+        ComplaintDescription: '',
+        ActionTaken: '',
+        DepotAttention: '',
+        PitlineAttention: '',
+        passengerFeedbackPhotos: [],
+        attentionPhotos: [],
+        supportingPhotos: [],
+        photos: []
+    });
+    renderRmReportEditorCards();
+}
+window.addManualRmFeedbackCard = addManualRmFeedbackCard;
+
+function removeRmFeedbackCard(idx) {
+    if (rmReportEditorCards.length <= 1) return;
+    rmReportEditorCards.splice(idx, 1);
+    renderRmReportEditorCards();
+}
+window.removeRmFeedbackCard = removeRmFeedbackCard;
+
+function resizeImageToDataUrl(file, maxDimension = 1200, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve({ dataUrl, width, height });
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function handleRmTypedPhotoFiles(event, cardIndex, photoType) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    if (!rmReportEditorCards[cardIndex]) return;
+    if (!rmReportEditorCards[cardIndex][photoType]) {
+        rmReportEditorCards[cardIndex][photoType] = [];
+    }
+
+    Swal.fire({
+        title: 'Processing Photos...',
+        text: 'Optimizing image quality...',
+        background: 'var(--surface)',
+        color: 'var(--text-main)',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    try {
+        for (const file of files) {
+            const { dataUrl, width, height } = await resizeImageToDataUrl(file, 1200, 0.8);
+            rmReportEditorCards[cardIndex][photoType].push({
+                id: 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                dataUrl,
+                width,
+                height,
+                name: file.name
+            });
+        }
+        Swal.close();
+        renderRmTypedGallery(cardIndex, photoType);
+    } catch (err) {
+        console.error('Error processing photos:', err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Image Error',
+            text: 'Could not load image: ' + err.message,
+            background: 'var(--surface)',
+            color: 'var(--text-main)'
+        });
+    } finally {
+        event.target.value = '';
+    }
+}
+window.handleRmTypedPhotoFiles = handleRmTypedPhotoFiles;
+
+function renderRmTypedGallery(cardIndex, photoType) {
+    const gallery = document.getElementById(`rmGallery_${photoType}_${cardIndex}`);
+    const badge = document.getElementById(`rmCount_${photoType}_${cardIndex}`);
+    const card = rmReportEditorCards[cardIndex];
+    if (!card) return;
+
+    const photos = card[photoType] || [];
+    if (badge) {
+        badge.textContent = `${photos.length} photo(s)`;
+    }
+
+    if (!gallery) return;
+    gallery.innerHTML = '';
+    if (photos.length === 0) return;
+
+    photos.forEach(photo => {
+        const thumb = document.createElement('div');
+        thumb.className = 'rm-photo-thumb-box';
+        thumb.title = 'Click to preview / Remove';
+        thumb.innerHTML = `
+            <img src="${photo.dataUrl}" class="rm-photo-thumb-img" alt="Photo">
+            <button type="button" class="rm-photo-remove-btn" onclick="event.stopPropagation(); removeRmTypedPhoto(${cardIndex}, '${photoType}', '${photo.id}')" title="Delete Photo">×</button>
+        `;
+        thumb.addEventListener('click', () => {
+            Swal.fire({
+                title: photo.name || 'Photo Preview',
+                imageUrl: photo.dataUrl,
+                imageAlt: 'Attached Photo',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: 'var(--surface)',
+                color: 'var(--text-main)'
+            });
+        });
+        gallery.appendChild(thumb);
+    });
+}
+window.renderRmTypedGallery = renderRmTypedGallery;
+
+function removeRmTypedPhoto(cardIndex, photoType, photoId) {
+    if (!rmReportEditorCards[cardIndex] || !rmReportEditorCards[cardIndex][photoType]) return;
+    rmReportEditorCards[cardIndex][photoType] = rmReportEditorCards[cardIndex][photoType].filter(p => p.id !== photoId);
+    renderRmTypedGallery(cardIndex, photoType);
+}
+window.removeRmTypedPhoto = removeRmTypedPhoto;
+
+// Legacy photo handler compatibility
+async function handleRmPhotoFiles(event, cardIndex) {
+    await handleRmTypedPhotoFiles(event, cardIndex, 'supportingPhotos');
+}
+window.handleRmPhotoFiles = handleRmPhotoFiles;
+
+function renderRmCardGallery(cardIndex) {
+    renderRmTypedGallery(cardIndex, 'supportingPhotos');
+}
+
+function removeRmPhoto(cardIndex, photoId) {
+    removeRmTypedPhoto(cardIndex, 'supportingPhotos', photoId);
+}
+window.removeRmPhoto = removeRmPhoto;
+
+let savedRmEditorStateHash = '';
+
+function getRmEditorStateHash() {
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    const train = typeof getRmReportTrainValue === 'function' ? getRmReportTrainValue() : '';
+    const staff = document.getElementById('rmReportStaffInput') ? document.getElementById('rmReportStaffInput').value.trim() : '';
+    const sse = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
+
+    const cards = (rmReportEditorCards || []).map(c => ({
+        CoachNo: c.CoachNo || '',
+        SeatNo: c.SeatNo || '',
+        RMReferenceNo: c.RMReferenceNo || '',
+        MainCategory: c.MainCategory || '',
+        SubCategory: c.SubCategory || '',
+        ComplaintDescription: c.ComplaintDescription || '',
+        ActionTaken: c.ActionTaken || '',
+        DepotAttention: c.DepotAttention || c.PitlineAttention || ''
+    }));
+
+    return JSON.stringify({ date, rake, train, staff, sse, cards });
+}
+
+function hasRmEditorChanges() {
+    if (!savedRmEditorStateHash) return false;
+    return getRmEditorStateHash() !== savedRmEditorStateHash;
+}
+window.hasRmEditorChanges = hasRmEditorChanges;
+
+async function saveRailMadadFeedbackDetails(fromPdf = false) {
+    if (!currentPassword) {
+        handleSessionExpired();
+        return false;
+    }
+
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    const train = getRmReportTrainValue();
+    const staffName = document.getElementById('rmReportStaffInput') ? document.getElementById('rmReportStaffInput').value.trim() : '';
+    const sseName = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
+
+    if (!date || !rake || !train) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Incomplete Details',
+            text: 'Please ensure Date, Rake No, and Train No are selected before saving.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return false;
+    }
+
+    if (!rmReportEditorCards || rmReportEditorCards.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Complaints to Save',
+            text: 'There are no Rail Madad complaints to save.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return false;
+    }
+
+    // Prepare payload without any photos (strictly text only)
+    const payload = {
+        action: 'save_rail_madad_feedback',
+        password: currentPassword,
+        train: rake,
+        basic: {
+            Date: date,
+            RakeNo: rake,
+            TrainNo: train,
+            StaffName: staffName,
+            SseName: sseName,
+            Timestamp: new Date().toISOString()
+        },
+        railMadad: rmReportEditorCards.map(c => ({
+            CoachNo: c.CoachNo || '',
+            SeatNo: c.SeatNo || '',
+            RMReferenceNo: c.RMReferenceNo || '',
+            MainCategory: c.MainCategory || '',
+            SubCategory: c.SubCategory || '',
+            ComplaintDescription: c.ComplaintDescription || '',
+            ActionTaken: c.ActionTaken || '',
+            DepotAttention: c.DepotAttention || c.PitlineAttention || ''
+        }))
+    };
+
+    const btn = document.getElementById('rmSaveDetailsBtn');
+    let btnText, spinner;
+    if (btn) {
+        btnText = btn.querySelector('span');
+        spinner = btn.querySelector('.spinner');
+        btn.disabled = true;
+        if (btnText) btnText.textContent = 'Saving to Sheet...';
+        if (spinner) spinner.classList.remove('hidden');
+    }
+
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || getWebAppUrl(rake);
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'unauthorized') {
+            handleSessionExpired();
+            return false;
+        }
+
+        if (result.status === 'success') {
+            savedRmEditorStateHash = getRmEditorStateHash();
+            if (!fromPdf) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Saved Successfully!',
+                    text: result.message || 'Rail Madad details synced to sheet successfully.',
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)',
+                    confirmButtonColor: '#10b981'
+                });
+            }
+            return true;
+        } else {
+            throw new Error(result.message || 'Failed to save to sheet');
+        }
+    } catch (err) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Save Failed',
+            text: err.message || 'Error syncing Rail Madad details to sheet.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return false;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            if (btnText) btnText.textContent = '💾 Save Details to Sheet';
+            if (spinner) spinner.classList.add('hidden');
+        }
+    }
+}
+window.saveRailMadadFeedbackDetails = saveRailMadadFeedbackDetails;
+
+async function generateRailMadadFeedbackPdf() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire({
+            icon: 'error',
+            title: 'PDF Library Not Loaded',
+            text: 'Please check your internet connection and refresh the app.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    // If user has made changes, prompt them to save first
+    if (hasRmEditorChanges()) {
+        const confirmSave = await Swal.fire({
+            icon: 'question',
+            title: 'Unsaved Changes',
+            text: 'You have unsaved changes in the feedback report. Would you like to save them to the Rail Madad sheet before generating the PDF?',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: '💾 Save & Generate PDF',
+            denyButtonText: 'Generate Without Saving',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#10b981',
+            denyButtonColor: '#64748b',
+            background: 'var(--surface)',
+            color: 'var(--text-main)'
+        });
+
+        if (confirmSave.isDismissed) {
+            return;
+        }
+
+        if (confirmSave.isConfirmed) {
+            const saved = await saveRailMadadFeedbackDetails(true);
+            if (!saved) {
+                return; // Stop if saving failed
+            }
+        }
+    }
+
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    const train = getRmReportTrainValue();
+    const editorSup = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
+    const supervisor = editorSup || '';
+
+    if (!date || !rake || !train) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Basic Details',
+            text: 'Please ensure Date, Rake No, and Train No are selected.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    if (!rmReportEditorCards || rmReportEditorCards.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Complaints to Export',
+            text: 'Please add or load at least one Rail Madad complaint to generate the report.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginX = 12;
+    const contentWidth = pageWidth - (marginX * 2);
+
+    const cleanStr = (s) => String(s || '').replace(/[\u00A0\u202F\u200B]/g, ' ');
+
+    const hasVfsRoboto = Boolean(window.pdfMake && window.pdfMake.vfs && window.pdfMake.vfs['Roboto-Regular.ttf']);
+    let fontName = 'helvetica';
+    if (hasVfsRoboto) {
+        try {
+            doc.addFileToVFS('Roboto-Regular.ttf', window.pdfMake.vfs['Roboto-Regular.ttf']);
+            doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+            if (window.pdfMake.vfs['Roboto-Medium.ttf']) {
+                doc.addFileToVFS('Roboto-Medium.ttf', window.pdfMake.vfs['Roboto-Medium.ttf']);
+                doc.addFont('Roboto-Medium.ttf', 'Roboto', 'bold');
+            }
+            fontName = 'Roboto';
+        } catch (e) {
+            fontName = 'helvetica';
+        }
+    }
+
+    const now = new Date();
+    const timestampStr = formatToDDMMYYYY(now) + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+    function drawPageHeader() {
+        doc.setFillColor(15, 23, 42); // Navy
+        doc.rect(0, 0, pageWidth, 24, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(fontName, 'bold');
+        doc.setFontSize(13);
+        doc.text('VANDE BHARAT - RAIL MADAD COMPLAINT FEEDBACK REPORT', marginX, 11);
+        doc.setFont(fontName, 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`South Western Railway  |  SBC Coaching Depot  |  Generated: ${timestampStr}`, marginX, 18);
+    }
+
+    function drawPageFooter(pageNum, totalPages) {
+        doc.setFont(fontName, 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - marginX - 18, pageHeight - 8);
+        doc.text('Vande Bharat Escorting & Depot Maintenance Management System', marginX, pageHeight - 8);
+    }
+
+    const totalComplaints = rmReportEditorCards.length;
+
+    // Put ONE COMPLAINT PER PAGE
+    rmReportEditorCards.forEach((c, i) => {
+        if (i > 0) {
+            doc.addPage();
+        }
+
+        drawPageHeader();
+
+        // 1. Header Table in exact requested order:
+        // Date of Journey, Train No, Rake No, Number of Complaints, Name of the SSE
+        doc.autoTable({
+            startY: 28,
+            margin: { left: marginX, right: marginX },
+            theme: 'grid',
+            styles: { font: fontName },
+            head: [['Date of Journey', 'Train No', 'Rake No', 'Number of Complaints', 'Name of the SSE']],
+            body: [[
+                cleanStr(date),
+                cleanStr(train),
+                cleanStr(rake),
+                String(totalComplaints),
+                cleanStr(supervisor) || '-'
+            ]],
+            headStyles: {
+                font: fontName,
+                fillColor: [180, 83, 9], // Amber/Dark Orange for Rail Madad
+                textColor: 255,
+                fontStyle: 'bold',
+                fontSize: 9,
+                cellPadding: 3
+            },
+            bodyStyles: {
+                font: fontName,
+                fontSize: 9.5,
+                fontStyle: 'bold',
+                textColor: [15, 23, 42],
+                cellPadding: 3.5
+            }
+        });
+
+        let currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 48) + 6;
+
+        // Complaint Item Banner
+        doc.setFillColor(30, 41, 59);
+        doc.roundedRect(marginX, currentY, contentWidth, 7.5, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(fontName, 'bold');
+        doc.setFontSize(9.5);
+        const coachPart = c.CoachNo ? `  |  Coach: ${cleanStr(c.CoachNo)}${c.SeatNo ? ` (Seat: ${cleanStr(c.SeatNo)})` : ''}` : '';
+        doc.text(`Complaint Item #${i + 1} of ${totalComplaints}${coachPart}`, marginX + 3.5, currentY + 5.2);
+        if (c.RMReferenceNo) {
+            doc.setFont(fontName, 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(251, 191, 36);
+            doc.text(`RM Ref: ${cleanStr(c.RMReferenceNo)}`, pageWidth - marginX - 4, currentY + 5.2, { align: 'right' });
+        }
+
+        currentY += 10;
+
+        // 2. Complaint details in exact requested order:
+        // RM reference number, Coach Number, main category, sub category, complaint description, enroute attention remarks, depot attention remarks
+        const rows = [
+            ['RM Reference Number:', cleanStr(c.RMReferenceNo || '-')],
+            ['Coach Number:', cleanStr(c.CoachNo || '-') + (c.SeatNo ? ` (Seat: ${cleanStr(c.SeatNo)})` : '')],
+            ['Main Category:', cleanStr(c.MainCategory || '-')],
+            ['Sub Category:', cleanStr(c.SubCategory || '-')],
+            ['Complaint Description:', cleanStr(c.ComplaintDescription || 'No description provided')],
+            ['Enroute Attention Remarks:', cleanStr(c.ActionTaken || 'Not recorded enroute')],
+            ['Depot Attention Remarks:', cleanStr(c.DepotAttention || c.PitlineAttention || 'Inspected, attended, and verified at SBC Depot.')]
+        ];
+
+        doc.autoTable({
+            startY: currentY,
+            margin: { left: marginX, right: marginX },
+            theme: 'grid',
+            styles: { font: fontName, fontSize: 8.8, cellPadding: 2.8 },
+            columnStyles: {
+                0: { cellWidth: 52, fontStyle: 'bold', textColor: [30, 41, 59], fillColor: [241, 245, 249] },
+                1: { textColor: [15, 23, 42] }
+            },
+            body: rows,
+            didParseCell: function(data) {
+                // Highlight Depot Attention Remarks (index 6)
+                if (data.row.index === 6) {
+                    if (data.column.index === 0) {
+                        data.cell.styles.textColor = [3, 105, 161];
+                        data.cell.styles.fillColor = [224, 242, 254];
+                    } else {
+                        data.cell.styles.fillColor = [240, 249, 255];
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.textColor = [12, 74, 110];
+                    }
+                } else if (data.row.index === 5) { // Enroute Attention Remarks (index 5)
+                    if (data.column.index === 0) {
+                        data.cell.styles.textColor = [4, 120, 87];
+                        data.cell.styles.fillColor = [236, 253, 245];
+                    } else {
+                        data.cell.styles.fillColor = [240, 253, 244];
+                    }
+                }
+            }
+        });
+
+        currentY = doc.lastAutoTable.finalY + 5;
+
+        // Calculate dimensions preserving original image aspect ratio
+        function getImageAspectDims(p, maxW, maxH) {
+            let w = p.width;
+            let h = p.height;
+            if (!w || !h) {
+                try {
+                    const props = doc.getImageProperties(p.dataUrl);
+                    if (props && props.width && props.height) {
+                        w = props.width;
+                        h = props.height;
+                    }
+                } catch (e) {
+                    w = 4;
+                    h = 3;
+                }
+            }
+            if (!w || !h || w <= 0 || h <= 0) {
+                w = 4;
+                h = 3;
+            }
+            const ratio = w / h;
+            let fitW = maxW;
+            let fitH = fitW / ratio;
+            if (fitH > maxH) {
+                fitH = maxH;
+                fitW = fitH * ratio;
+            }
+            return { w: fitW, h: fitH };
+        }
+
+        // Photo drawing helper preserving natural aspect ratio and keeping heading with photos
+        function drawPhotoGroup(groupTitle, photos, titleColorRgb) {
+            if (!photos || photos.length === 0) return;
+
+            // Calculate height of the first photo / photo row before drawing heading
+            let firstRowH = 0;
+            if (photos.length === 1) {
+                const dims = getImageAspectDims(photos[0], 110, 75);
+                firstRowH = dims.h;
+            } else {
+                const dims1 = getImageAspectDims(photos[0], 88, 65);
+                const dims2 = photos[1] ? getImageAspectDims(photos[1], 88, 65) : null;
+                firstRowH = Math.max(dims1.h, dims2 ? dims2.h : 0);
+            }
+
+            // If heading (6mm) + first photo (firstRowH) won't fit on this page, start fresh on next page
+            if (currentY + 6 + firstRowH > pageHeight - 15) {
+                doc.addPage();
+                drawPageHeader();
+                currentY = 30;
+            }
+
+            // Draw group heading
+            doc.setFont(fontName, 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(titleColorRgb[0], titleColorRgb[1], titleColorRgb[2]);
+            doc.text(`${groupTitle} (${photos.length} photo${photos.length === 1 ? '' : 's'}):`, marginX, currentY);
+            currentY += 4.5;
+
+            // Single photo: display with generous dimensions
+            if (photos.length === 1) {
+                const p = photos[0];
+                const dims = getImageAspectDims(p, 110, 75);
+                try {
+                    doc.addImage(p.dataUrl, 'JPEG', marginX, currentY, dims.w, dims.h);
+                    doc.setDrawColor(203, 213, 225);
+                    doc.rect(marginX, currentY, dims.w, dims.h);
+                } catch (e) {
+                    console.warn('Failed to add image to PDF:', e);
+                }
+                currentY += dims.h + 6;
+                return;
+            }
+
+            // 2 or more photos: arrange in pairs keeping exact aspect ratio
+            const slotW = 88;
+            const maxSlotH = 65;
+            const gap = 8;
+
+            for (let pIdx = 0; pIdx < photos.length; pIdx += 2) {
+                const p1 = photos[pIdx];
+                const p2 = photos[pIdx + 1];
+
+                const dims1 = getImageAspectDims(p1, slotW, maxSlotH);
+                const dims2 = p2 ? getImageAspectDims(p2, slotW, maxSlotH) : null;
+                const rowH = Math.max(dims1.h, dims2 ? dims2.h : 0);
+
+                // Check page fit for subsequent rows (pIdx > 0)
+                if (pIdx > 0 && currentY + rowH + 6 > pageHeight - 15) {
+                    doc.addPage();
+                    drawPageHeader();
+                    currentY = 30;
+                }
+
+                try {
+                    doc.addImage(p1.dataUrl, 'JPEG', marginX, currentY, dims1.w, dims1.h);
+                    doc.setDrawColor(203, 213, 225);
+                    doc.rect(marginX, currentY, dims1.w, dims1.h);
+                } catch (e) {
+                    console.warn('Failed to add image 1 to PDF:', e);
+                }
+
+                if (p2 && dims2) {
+                    try {
+                        const x2 = marginX + slotW + gap;
+                        doc.addImage(p2.dataUrl, 'JPEG', x2, currentY, dims2.w, dims2.h);
+                        doc.setDrawColor(203, 213, 225);
+                        doc.rect(x2, currentY, dims2.w, dims2.h);
+                    } catch (e) {
+                        console.warn('Failed to add image 2 to PDF:', e);
+                    }
+                }
+
+                currentY += rowH + 6;
+            }
+        }
+
+        // 7. Passenger Feedback Photo
+        drawPhotoGroup('Passenger Feedback Photo', c.passengerFeedbackPhotos || [], [180, 83, 9]);
+
+        // 8. Attention Photo
+        drawPhotoGroup('Attention Photo', c.attentionPhotos || [], [5, 150, 105]);
+
+        // 9. Any Other Supporting Photos (also fallback to c.photos if any exists)
+        const allSupporting = (c.supportingPhotos || []).concat((!c.passengerFeedbackPhotos?.length && !c.attentionPhotos?.length && !c.supportingPhotos?.length && c.photos?.length) ? c.photos : []);
+        drawPhotoGroup('Any Other Supporting Photos', allSupporting, [109, 40, 217]);
+    });
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        drawPageFooter(p, totalPages);
+    }
+
+    const safeTrain = String(train || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+    const safeRake = String(rake || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+    const fileName = `Rail_Madad_Feedback_${safeRake}_${safeTrain}_${date}.pdf`;
+
+    let pdfBlob;
+    if (hasVfsRoboto) {
+        pdfBlob = doc.output('blob');
+    } else {
+        const rawString = doc.output();
+        const patchedString = rawString.replace(/\/FirstChar 32\r?\n\/LastChar 255\r?\n/g, '');
+        const bytes = new Uint8Array(patchedString.length);
+        for (let i = 0; i < patchedString.length; i++) {
+            bytes[i] = patchedString.charCodeAt(i) & 0xff;
+        }
+        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+    }
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    generatedPdfState.blob = pdfBlob;
+    generatedPdfState.file = pdfFile;
+    generatedPdfState.fileName = fileName;
+    generatedPdfState.summaryText =
+        `VB Rail Madad Feedback Report\nDate: ${date}\nRake: ${rake} | Train: ${train}\n` +
+        `Supervisor: ${supervisor || '-'}\nTotal Complaints Addressed: ${rmReportEditorCards.length}`;
+
+    openGeneratedPdfPreview(fileName, pdfBlob);
+}
+window.generateRailMadadFeedbackPdf = generateRailMadadFeedbackPdf;
 
 // ============================================================================
 // SETTINGS SCREEN & DROPDOWN CATEGORIES MANAGEMENT
@@ -6796,7 +8095,7 @@ function generateArrivalReportPdf() {
     const rmBody = railMadad.length > 0
         ? railMadad.map((rm, i) => [
             String(i + 1),
-            cleanStr(rm.CoachNo) || '-',
+            cleanStr(rm.CoachNo) + (rm.SeatNo ? '\nSeat: ' + cleanStr(rm.SeatNo) : '') || '-',
             cleanStr(rm.RMReferenceNo) || '-',
             [cleanStr(rm.MainCategory), cleanStr(rm.SubCategory)].filter(Boolean).join('\n') || '-',
             cleanStr(rm.ComplaintDescription) || '-',
