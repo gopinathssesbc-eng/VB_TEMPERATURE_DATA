@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=5.2">
+    <link rel="stylesheet" href="style.css?v=5.3">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -69,7 +69,7 @@
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div
                 style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v 5.2
+                v 5.3
             </div>
         </div>
     </div>
@@ -341,7 +341,7 @@
         </main>
         <div
             style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 5.2
+            v 5.3
         </div>
     </div>
 
@@ -754,6 +754,8 @@
                             <!-- Injected dynamically -->
                         </div>
 
+                        <div id="rmSummaryCacheNotice" style="display: none; margin-top: 0.75rem; padding: 0.6rem 0.85rem; border-radius: 0.5rem; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.82rem; color: #38bdf8;"></div>
+
                         <div style="margin-top: 1rem;">
                             <button type="button" class="btn btn-success" id="btnPrepareRmReport" onclick="openRmReportEditor()" style="width: 100%; padding: 0.85rem; font-size: 0.98rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
                                 <span>📝 Generate Feedback Report</span>
@@ -776,7 +778,7 @@
                                 <label for="rmEditorSupervisorInput" style="display: block; font-size: 0.84rem; font-weight: 600; color: #fbbf24; margin-bottom: 0.35rem;">
                                     👤 Name of the SSE <span style="color: #ef4444;">*</span>
                                 </label>
-                                <input type="text" id="rmEditorSupervisorInput" class="rm-edit-input" placeholder="Enter Name of the SSE">
+                                <input type="text" id="rmEditorSupervisorInput" class="rm-edit-input" placeholder="Enter Name of the SSE" oninput="if(typeof saveRmPhotosToLocalCache === 'function') saveRmPhotosToLocalCache();">
                                 <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; display: block;">Enter the Name of the SSE here to appear in the PDF report header.</span>
                             </div>
 
@@ -787,6 +789,29 @@
                             <button type="button" class="btn btn-secondary add-entry-btn" onclick="addManualRmFeedbackCard()" style="margin-top: 0.75rem;">
                                 + Add Another Complaint
                             </button>
+
+                            <!-- Local Device Photo Cache Management Bar -->
+                            <div id="rmPhotoCacheBar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 0.6rem; padding: 0.75rem 1rem; margin-top: 1.25rem;">
+                                <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: #cbd5e1;">
+                                    <span style="font-size: 1.2rem;">💾</span>
+                                    <div>
+                                        <div style="font-weight: 600; color: #38bdf8; display: flex; align-items: center; gap: 0.4rem;">
+                                            <span>Device Image Cache</span>
+                                            <span style="font-size: 0.7rem; padding: 0.12rem 0.45rem; border-radius: 10px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">Auto-Saved</span>
+                                        </div>
+                                        <div id="rmCacheStatusText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">0 cached photo(s) on this device</div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-secondary" onclick="promptClearRmPhotoCache()" style="padding: 0.45rem 0.85rem; font-size: 0.78rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem; color: #f87171; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.12); cursor: pointer; border-radius: 0.4rem;" title="Clear local image cache to free memory">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                    <span>Clear Image Cache</span>
+                                </button>
+                            </div>
                         </section>
 
                         <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
@@ -935,7 +960,7 @@
             </section>
         </main>
         <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 5.2
+            v 5.3
         </div>
     </div>
 
@@ -1363,7 +1388,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=5.2"></script>
+    <script src="app.js?v=5.3"></script>
 </body>
 
 </html>

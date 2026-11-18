@@ -172,6 +172,9 @@ const rmReportDatePicker = flatpickr("#rmReportDateInput", {
                 status.style.color = 'var(--text-muted)';
             }
         }
+        if (typeof updateRmCacheStatusUI === 'function') {
+            updateRmCacheStatusUI();
+        }
     }
 });
 
@@ -4857,6 +4860,10 @@ function openRailMadadReport() {
     savedRmEditorStateHash = '';
 
     window.scrollTo(0, 0);
+
+    if (typeof updateRmCacheStatusUI === 'function') {
+        updateRmCacheStatusUI();
+    }
 }
 window.openRailMadadReport = openRailMadadReport;
 
@@ -4923,6 +4930,10 @@ function handleRmReportRakeChange() {
     if (wrapper) wrapper.style.display = 'none';
     const status = document.getElementById('rmReportLoadStatus');
     if (status) status.textContent = '';
+
+    if (typeof updateRmCacheStatusUI === 'function') {
+        updateRmCacheStatusUI();
+    }
 }
 window.handleRmReportRakeChange = handleRmReportRakeChange;
 
@@ -5027,6 +5038,10 @@ async function loadRailMadadReportComplaints() {
             statusEl.style.color = 'var(--text-muted)';
         }
 
+        if (typeof updateRmCacheStatusUI === 'function') {
+            updateRmCacheStatusUI();
+        }
+
         setTimeout(() => {
             if (wrapper) wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 150);
@@ -5078,7 +5093,7 @@ function renderRmReportSummaryList() {
     });
 }
 
-function openRmReportEditor() {
+async function openRmReportEditor() {
     if (loadedRmReportComplaints.length > 0) {
         rmReportEditorCards = loadedRmReportComplaints.map(c => ({
             CoachNo: c.CoachNo || '',
@@ -5113,7 +5128,19 @@ function openRmReportEditor() {
         }];
     }
 
+    // Restore cached photos and data from local device storage
+    if (typeof restoreRmPhotosFromLocalCache === 'function') {
+        try {
+            await restoreRmPhotosFromLocalCache();
+        } catch (e) {
+            console.warn('Could not restore RM photo cache:', e);
+        }
+    }
+
     renderRmReportEditorCards();
+    if (typeof updateRmCacheStatusUI === 'function') {
+        updateRmCacheStatusUI();
+    }
     savedRmEditorStateHash = getRmEditorStateHash();
 
     const editorSec = document.getElementById('rmReportEditorSection');
@@ -5138,6 +5165,9 @@ function updateRmDepotAttention(idx, text) {
     if (rmReportEditorCards[idx]) {
         rmReportEditorCards[idx].DepotAttention = text;
         rmReportEditorCards[idx].PitlineAttention = text;
+        if (typeof saveRmPhotosToLocalCache === 'function') {
+            saveRmPhotosToLocalCache();
+        }
     }
 }
 window.updateRmDepotAttention = updateRmDepotAttention;
@@ -5346,6 +5376,9 @@ function removeRmFeedbackCard(idx) {
     if (rmReportEditorCards.length <= 1) return;
     rmReportEditorCards.splice(idx, 1);
     renderRmReportEditorCards();
+    if (typeof saveRmPhotosToLocalCache === 'function') {
+        saveRmPhotosToLocalCache();
+    }
 }
 window.removeRmFeedbackCard = removeRmFeedbackCard;
 
@@ -5412,6 +5445,9 @@ async function handleRmTypedPhotoFiles(event, cardIndex, photoType) {
         }
         Swal.close();
         renderRmTypedGallery(cardIndex, photoType);
+        if (typeof saveRmPhotosToLocalCache === 'function') {
+            await saveRmPhotosToLocalCache();
+        }
     } catch (err) {
         console.error('Error processing photos:', err);
         Swal.fire({
@@ -5524,6 +5560,9 @@ async function rotateCurrentRmPhoto(cardIndex, photoType, photoId, degrees) {
         }
 
         renderRmTypedGallery(cardIndex, photoType);
+        if (typeof saveRmPhotosToLocalCache === 'function') {
+            await saveRmPhotosToLocalCache();
+        }
     } catch (err) {
         console.error('Failed to rotate photo:', err);
         if (imgEl) imgEl.style.opacity = '1';
@@ -5568,6 +5607,9 @@ function removeRmTypedPhoto(cardIndex, photoType, photoId) {
     if (!rmReportEditorCards[cardIndex] || !rmReportEditorCards[cardIndex][photoType]) return;
     rmReportEditorCards[cardIndex][photoType] = rmReportEditorCards[cardIndex][photoType].filter(p => p.id !== photoId);
     renderRmTypedGallery(cardIndex, photoType);
+    if (typeof saveRmPhotosToLocalCache === 'function') {
+        saveRmPhotosToLocalCache();
+    }
 }
 window.removeRmTypedPhoto = removeRmTypedPhoto;
 
@@ -5585,6 +5627,498 @@ function removeRmPhoto(cardIndex, photoId) {
     removeRmTypedPhoto(cardIndex, 'supportingPhotos', photoId);
 }
 window.removeRmPhoto = removeRmPhoto;
+
+// ============================================================================
+// LOCAL DEVICE PHOTO CACHE FOR RAIL MADAD FEEDBACK REPORT
+// ============================================================================
+
+const RM_PHOTO_DB_NAME = 'VBEscortingDB';
+const RM_PHOTO_STORE_NAME = 'rm_photos_cache';
+
+function openRmPhotoDb() {
+    return new Promise((resolve) => {
+        if (!window.indexedDB) {
+            resolve(null);
+            return;
+        }
+        try {
+            const request = window.indexedDB.open(RM_PHOTO_DB_NAME, 1);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(RM_PHOTO_STORE_NAME)) {
+                    db.createObjectStore(RM_PHOTO_STORE_NAME, { keyPath: 'key' });
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = (e) => {
+                console.warn('IndexedDB open error:', e);
+                resolve(null);
+            };
+        } catch (err) {
+            console.warn('IndexedDB not accessible:', err);
+            resolve(null);
+        }
+    });
+}
+
+async function saveRmPhotosToLocalCache() {
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    const sseName = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
+    if (!date || !rake || !rmReportEditorCards) return;
+
+    const cacheKey = `${date}_${rake}`;
+    let totalPhotos = 0;
+
+    const cardsData = rmReportEditorCards.map((c, idx) => {
+        const pf = c.passengerFeedbackPhotos || [];
+        const at = c.attentionPhotos || [];
+        const sp = c.supportingPhotos || [];
+        totalPhotos += (pf.length + at.length + sp.length);
+        return {
+            index: idx,
+            rmRef: c.RMReferenceNo || '',
+            coachNo: c.CoachNo || '',
+            seatNo: c.SeatNo || '',
+            mainCategory: c.MainCategory || '',
+            subCategory: c.SubCategory || '',
+            complaintDescription: c.ComplaintDescription || '',
+            actionTaken: c.ActionTaken || '',
+            depotAttention: c.DepotAttention || c.PitlineAttention || '',
+            passengerFeedbackPhotos: pf,
+            attentionPhotos: at,
+            supportingPhotos: sp
+        };
+    });
+
+    const record = {
+        key: cacheKey,
+        date,
+        rake,
+        sseName,
+        totalPhotos,
+        updatedAt: Date.now(),
+        cards: cardsData
+    };
+
+    try {
+        const db = await openRmPhotoDb();
+        if (db) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(RM_PHOTO_STORE_NAME, 'readwrite');
+                const store = tx.objectStore(RM_PHOTO_STORE_NAME);
+                if (totalPhotos > 0) {
+                    store.put(record);
+                } else {
+                    store.delete(cacheKey);
+                }
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        } else {
+            if (totalPhotos > 0) {
+                localStorage.setItem('rm_cache_' + cacheKey, JSON.stringify(record));
+            } else {
+                localStorage.removeItem('rm_cache_' + cacheKey);
+            }
+        }
+    } catch (err) {
+        console.warn('Failed saving RM photos to local cache:', err);
+    }
+
+    await updateRmCacheStatusUI();
+}
+window.saveRmPhotosToLocalCache = saveRmPhotosToLocalCache;
+
+async function restoreRmPhotosFromLocalCache() {
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    if (!date || !rake || !rmReportEditorCards) return 0;
+
+    const cacheKey = `${date}_${rake}`;
+    let record = null;
+
+    try {
+        const db = await openRmPhotoDb();
+        if (db) {
+            record = await new Promise((resolve) => {
+                const tx = db.transaction(RM_PHOTO_STORE_NAME, 'readonly');
+                const store = tx.objectStore(RM_PHOTO_STORE_NAME);
+                const req = store.get(cacheKey);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+        }
+        if (!record) {
+            const raw = localStorage.getItem('rm_cache_' + cacheKey);
+            if (raw) record = JSON.parse(raw);
+        }
+    } catch (err) {
+        console.warn('Error reading RM photo cache:', err);
+    }
+
+    if (!record || !record.cards || record.cards.length === 0) {
+        return 0;
+    }
+
+    // Restore SSE Name if present and input is currently empty
+    if (record.sseName) {
+        const sseInput = document.getElementById('rmEditorSupervisorInput');
+        if (sseInput && !sseInput.value.trim()) {
+            sseInput.value = record.sseName;
+        }
+    }
+
+    let restoredPhotosCount = 0;
+    const usedCachedCardIndices = new Set();
+
+    // Pass 1: Match by RMReferenceNo
+    rmReportEditorCards.forEach((card) => {
+        if (card.RMReferenceNo) {
+            const matchIdx = record.cards.findIndex((c, i) => !usedCachedCardIndices.has(i) && c.rmRef && c.rmRef === card.RMReferenceNo);
+            if (matchIdx !== -1) {
+                usedCachedCardIndices.add(matchIdx);
+                const cachedCard = record.cards[matchIdx];
+                card.passengerFeedbackPhotos = cachedCard.passengerFeedbackPhotos || [];
+                card.attentionPhotos = cachedCard.attentionPhotos || [];
+                card.supportingPhotos = cachedCard.supportingPhotos || [];
+                if (!card.DepotAttention && cachedCard.depotAttention) {
+                    card.DepotAttention = cachedCard.depotAttention;
+                    card.PitlineAttention = cachedCard.depotAttention;
+                }
+                restoredPhotosCount += (card.passengerFeedbackPhotos.length + card.attentionPhotos.length + card.supportingPhotos.length);
+            }
+        }
+    });
+
+    // Pass 2: Match remaining by CoachNo + SeatNo
+    rmReportEditorCards.forEach((card) => {
+        const hasPhotos = (card.passengerFeedbackPhotos && card.passengerFeedbackPhotos.length) ||
+                          (card.attentionPhotos && card.attentionPhotos.length) ||
+                          (card.supportingPhotos && card.supportingPhotos.length);
+        if (!hasPhotos && card.CoachNo) {
+            const matchIdx = record.cards.findIndex((c, i) => !usedCachedCardIndices.has(i) && c.coachNo && c.coachNo === card.CoachNo && (!c.seatNo || c.seatNo === card.SeatNo));
+            if (matchIdx !== -1) {
+                usedCachedCardIndices.add(matchIdx);
+                const cachedCard = record.cards[matchIdx];
+                card.passengerFeedbackPhotos = cachedCard.passengerFeedbackPhotos || [];
+                card.attentionPhotos = cachedCard.attentionPhotos || [];
+                card.supportingPhotos = cachedCard.supportingPhotos || [];
+                if (!card.DepotAttention && cachedCard.depotAttention) {
+                    card.DepotAttention = cachedCard.depotAttention;
+                    card.PitlineAttention = cachedCard.depotAttention;
+                }
+                restoredPhotosCount += (card.passengerFeedbackPhotos.length + card.attentionPhotos.length + card.supportingPhotos.length);
+            }
+        }
+    });
+
+    // Pass 3: Match remaining cards by index
+    rmReportEditorCards.forEach((card, cardIdx) => {
+        const hasPhotos = (card.passengerFeedbackPhotos && card.passengerFeedbackPhotos.length) ||
+                          (card.attentionPhotos && card.attentionPhotos.length) ||
+                          (card.supportingPhotos && card.supportingPhotos.length);
+        if (!hasPhotos) {
+            const matchIdx = record.cards.findIndex((c, i) => !usedCachedCardIndices.has(i) && (c.index === cardIdx || i === cardIdx));
+            if (matchIdx !== -1) {
+                usedCachedCardIndices.add(matchIdx);
+                const cachedCard = record.cards[matchIdx];
+                card.passengerFeedbackPhotos = cachedCard.passengerFeedbackPhotos || [];
+                card.attentionPhotos = cachedCard.attentionPhotos || [];
+                card.supportingPhotos = cachedCard.supportingPhotos || [];
+                if (!card.DepotAttention && cachedCard.depotAttention) {
+                    card.DepotAttention = cachedCard.depotAttention;
+                    card.PitlineAttention = cachedCard.depotAttention;
+                }
+                restoredPhotosCount += (card.passengerFeedbackPhotos.length + card.attentionPhotos.length + card.supportingPhotos.length);
+            }
+        }
+    });
+
+    // Pass 4: If cache had extra manual cards that are not in loaded complaints, restore them
+    record.cards.forEach((cachedCard, i) => {
+        if (!usedCachedCardIndices.has(i)) {
+            const cardTotalPhotos = (cachedCard.passengerFeedbackPhotos || []).length +
+                                    (cachedCard.attentionPhotos || []).length +
+                                    (cachedCard.supportingPhotos || []).length;
+            if (cardTotalPhotos > 0 || cachedCard.complaintDescription || cachedCard.depotAttention) {
+                rmReportEditorCards.push({
+                    CoachNo: cachedCard.coachNo || '',
+                    SeatNo: cachedCard.seatNo || '',
+                    RMReferenceNo: cachedCard.rmRef || '',
+                    MainCategory: cachedCard.mainCategory || 'Coach Maintenance',
+                    SubCategory: cachedCard.subCategory || '',
+                    ComplaintDescription: cachedCard.complaintDescription || '',
+                    ActionTaken: cachedCard.actionTaken || '',
+                    DepotAttention: cachedCard.depotAttention || '',
+                    PitlineAttention: cachedCard.depotAttention || '',
+                    passengerFeedbackPhotos: cachedCard.passengerFeedbackPhotos || [],
+                    attentionPhotos: cachedCard.attentionPhotos || [],
+                    supportingPhotos: cachedCard.supportingPhotos || [],
+                    photos: []
+                });
+                restoredPhotosCount += cardTotalPhotos;
+            }
+        }
+    });
+
+    if (restoredPhotosCount > 0) {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: `Restored ${restoredPhotosCount} photo(s) from local cache`,
+            showConfirmButton: false,
+            timer: 3000,
+            background: 'var(--surface)',
+            color: 'var(--text-main)'
+        });
+    }
+
+    return restoredPhotosCount;
+}
+window.restoreRmPhotosFromLocalCache = restoreRmPhotosFromLocalCache;
+
+async function getRmPhotoCacheStats() {
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    const currentKey = (date && rake) ? `${date}_${rake}` : '';
+
+    let totalPhotos = 0;
+    let currentRakePhotos = 0;
+    let totalBytes = 0;
+    let recordsCount = 0;
+
+    try {
+        const db = await openRmPhotoDb();
+        if (db) {
+            const records = await new Promise((resolve) => {
+                const tx = db.transaction(RM_PHOTO_STORE_NAME, 'readonly');
+                const store = tx.objectStore(RM_PHOTO_STORE_NAME);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => resolve([]);
+            });
+
+            recordsCount = records.length;
+            records.forEach(r => {
+                const pCount = r.totalPhotos || 0;
+                totalPhotos += pCount;
+                if (r.key === currentKey) {
+                    currentRakePhotos = pCount;
+                }
+                totalBytes += JSON.stringify(r).length;
+            });
+        } else {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('rm_cache_')) {
+                    try {
+                        const r = JSON.parse(localStorage.getItem(k));
+                        if (r) {
+                            recordsCount++;
+                            const pCount = r.totalPhotos || 0;
+                            totalPhotos += pCount;
+                            if (r.key === currentKey || k === 'rm_cache_' + currentKey) {
+                                currentRakePhotos = pCount;
+                            }
+                            totalBytes += localStorage.getItem(k).length;
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('Error reading RM photo stats:', err);
+    }
+
+    let formattedSize = '0 KB';
+    if (totalBytes > 1024 * 1024) {
+        formattedSize = (totalBytes / (1024 * 1024)).toFixed(1) + ' MB';
+    } else if (totalBytes > 0) {
+        formattedSize = Math.round(totalBytes / 1024) + ' KB';
+    }
+
+    return {
+        totalPhotos,
+        currentRakePhotos,
+        recordsCount,
+        totalBytes,
+        formattedSize
+    };
+}
+window.getRmPhotoCacheStats = getRmPhotoCacheStats;
+
+async function updateRmCacheStatusUI() {
+    const statusEl = document.getElementById('rmCacheStatusText');
+    const summaryNotice = document.getElementById('rmSummaryCacheNotice');
+    if (!statusEl && !summaryNotice) return;
+
+    const stats = await getRmPhotoCacheStats();
+
+    if (statusEl) {
+        if (stats.currentRakePhotos > 0) {
+            statusEl.innerHTML = `<strong style="color: #38bdf8;">${stats.currentRakePhotos} photo(s) cached</strong> for this report (${stats.formattedSize} used on device)`;
+        } else if (stats.totalPhotos > 0) {
+            statusEl.innerHTML = `0 photos for this report (<span style="color: var(--text-muted);">${stats.totalPhotos} cached in other reports, ~${stats.formattedSize}</span>)`;
+        } else {
+            statusEl.textContent = '0 cached photos on this device';
+        }
+    }
+
+    if (summaryNotice) {
+        if (stats.currentRakePhotos > 0) {
+            summaryNotice.style.display = 'block';
+            summaryNotice.innerHTML = `💾 <strong>${stats.currentRakePhotos} photo(s)</strong> locally cached on this device for this report`;
+        } else {
+            summaryNotice.style.display = 'none';
+        }
+    }
+}
+window.updateRmCacheStatusUI = updateRmCacheStatusUI;
+
+async function clearAllRmPhotoCache() {
+    try {
+        const db = await openRmPhotoDb();
+        if (db) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(RM_PHOTO_STORE_NAME, 'readwrite');
+                const store = tx.objectStore(RM_PHOTO_STORE_NAME);
+                store.clear();
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('rm_cache_')) toRemove.push(k);
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
+    } catch (err) {
+        console.warn('Error clearing all RM photo cache:', err);
+    }
+}
+window.clearAllRmPhotoCache = clearAllRmPhotoCache;
+
+async function clearCurrentRmPhotoCache() {
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    if (!date || !rake) return;
+    const cacheKey = `${date}_${rake}`;
+
+    try {
+        const db = await openRmPhotoDb();
+        if (db) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(RM_PHOTO_STORE_NAME, 'readwrite');
+                const store = tx.objectStore(RM_PHOTO_STORE_NAME);
+                store.delete(cacheKey);
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+        localStorage.removeItem('rm_cache_' + cacheKey);
+    } catch (err) {
+        console.warn('Error clearing current RM photo cache:', err);
+    }
+}
+window.clearCurrentRmPhotoCache = clearCurrentRmPhotoCache;
+
+async function promptClearRmPhotoCache() {
+    const stats = await getRmPhotoCacheStats();
+    const hasLivePhotos = (rmReportEditorCards || []).some(c => 
+        (c.passengerFeedbackPhotos && c.passengerFeedbackPhotos.length) || 
+        (c.attentionPhotos && c.attentionPhotos.length) || 
+        (c.supportingPhotos && c.supportingPhotos.length)
+    );
+
+    if (stats.totalPhotos === 0 && !hasLivePhotos) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Cache is Empty',
+            text: 'There are currently no photos cached on this device.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const hasOtherReports = stats.totalPhotos > stats.currentRakePhotos && stats.currentRakePhotos > 0;
+
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Clear Local Image Cache?',
+        html: `
+            <div style="font-size: 0.88rem; color: var(--text-muted); text-align: left; padding: 0 0.5rem;">
+                <p style="margin-bottom: 0.6rem;">
+                    Local device memory: <strong style="color: #38bdf8;">${stats.totalPhotos} photo(s)</strong> (~${stats.formattedSize})
+                </p>
+                <p style="margin-bottom: 0.6rem;">
+                    Current report photos: <strong style="color: #34d399;">${stats.currentRakePhotos} photo(s)</strong>
+                </p>
+                <p style="color: #cbd5e1; margin-top: 0.5rem;">
+                    Do you want to clear these cached photos from this device to free up memory?
+                </p>
+            </div>
+        `,
+        showDenyButton: hasOtherReports,
+        showCancelButton: true,
+        confirmButtonText: hasOtherReports ? '🗑️ Clear All Photo Cache' : '🗑️ Clear Image Cache',
+        denyButtonText: 'Clear Current Report Only',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#ef4444',
+        denyButtonColor: '#f59e0b',
+        background: 'var(--surface)',
+        color: 'var(--text-main)'
+    });
+
+    if (result.isConfirmed) {
+        await clearAllRmPhotoCache();
+        if (rmReportEditorCards && rmReportEditorCards.length > 0) {
+            rmReportEditorCards.forEach((c, idx) => {
+                c.passengerFeedbackPhotos = [];
+                c.attentionPhotos = [];
+                c.supportingPhotos = [];
+                renderRmTypedGallery(idx, 'passengerFeedbackPhotos');
+                renderRmTypedGallery(idx, 'attentionPhotos');
+                renderRmTypedGallery(idx, 'supportingPhotos');
+            });
+        }
+        await updateRmCacheStatusUI();
+        Swal.fire({
+            icon: 'success',
+            title: 'Cache Cleared',
+            text: 'All locally cached photos have been removed from this device.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: '#10b981'
+        });
+    } else if (result.isDenied) {
+        await clearCurrentRmPhotoCache();
+        if (rmReportEditorCards && rmReportEditorCards.length > 0) {
+            rmReportEditorCards.forEach((c, idx) => {
+                c.passengerFeedbackPhotos = [];
+                c.attentionPhotos = [];
+                c.supportingPhotos = [];
+                renderRmTypedGallery(idx, 'passengerFeedbackPhotos');
+                renderRmTypedGallery(idx, 'attentionPhotos');
+                renderRmTypedGallery(idx, 'supportingPhotos');
+            });
+        }
+        await updateRmCacheStatusUI();
+        Swal.fire({
+            icon: 'success',
+            title: 'Current Cache Cleared',
+            text: 'Photos for this report have been removed from local device cache.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: '#10b981'
+        });
+    }
+}
+window.promptClearRmPhotoCache = promptClearRmPhotoCache;
 
 let savedRmEditorStateHash = '';
 
