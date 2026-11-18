@@ -5002,12 +5002,6 @@ async function loadRailMadadReportComplaints() {
                 staffInput.value = result.basic.DataEnteredBy;
             }
         }
-        if (result.basic && result.basic.SSEName) {
-            const sseInput = document.getElementById('rmEditorSupervisorInput');
-            if (sseInput && !sseInput.value.trim()) {
-                sseInput.value = result.basic.SSEName;
-            }
-        }
 
         const rawComplaints = (result.status === 'success' && result.railMadad) ? result.railMadad : [];
         loadedRmReportComplaints = rawComplaints.filter(c => c && (c.RMReferenceNo || c.ComplaintDescription || c.CoachNo));
@@ -5117,13 +5111,6 @@ function openRmReportEditor() {
             supportingPhotos: [],
             photos: []
         }];
-    }
-
-    // Pre-fill SSE Name in editor if already set in Basic Details and editor is empty
-    const mainSseInput = document.getElementById('rmReportStaffInput');
-    const editorSupInput = document.getElementById('rmEditorSupervisorInput');
-    if (editorSupInput && !editorSupInput.value.trim() && mainSseInput && mainSseInput.value.trim()) {
-        editorSupInput.value = mainSseInput.value.trim();
     }
 
     renderRmReportEditorCards();
@@ -5638,8 +5625,7 @@ async function saveRailMadadFeedbackDetails(fromPdf = false) {
     const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
     const train = getRmReportTrainValue();
     const staffName = document.getElementById('rmReportStaffInput') ? document.getElementById('rmReportStaffInput').value.trim() : '';
-    const editorSse = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
-    const sseName = editorSse || staffName;
+    const sseName = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
 
     if (!date || !rake || !train) {
         Swal.fire({
@@ -5650,6 +5636,23 @@ async function saveRailMadadFeedbackDetails(fromPdf = false) {
             color: 'var(--text-main)',
             confirmButtonColor: 'var(--primary)'
         });
+        return false;
+    }
+
+    if (!sseName) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'SSE Name Required',
+            text: 'Please enter the Name of the SSE before saving.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        const sseInput = document.getElementById('rmEditorSupervisorInput');
+        if (sseInput) {
+            sseInput.focus();
+            sseInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         return false;
     }
 
@@ -5764,6 +5767,52 @@ async function generateRailMadadFeedbackPdf() {
         return;
     }
 
+    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
+    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
+    const train = getRmReportTrainValue();
+    const supervisor = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
+
+    if (!date || !rake || !train) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Basic Details',
+            text: 'Please ensure Date, Rake No, and Train No are selected.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    if (!supervisor) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'SSE Name Required',
+            text: 'Please enter the Name of the SSE before generating the PDF report.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        const sseInput = document.getElementById('rmEditorSupervisorInput');
+        if (sseInput) {
+            sseInput.focus();
+            sseInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return;
+    }
+
+    if (!rmReportEditorCards || rmReportEditorCards.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Complaints to Export',
+            text: 'Please add or load at least one Rail Madad complaint to generate the report.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
     // If user has made changes, prompt them to save first
     if (hasRmEditorChanges()) {
         const confirmSave = await Swal.fire({
@@ -5791,37 +5840,6 @@ async function generateRailMadadFeedbackPdf() {
                 return; // Stop if saving failed
             }
         }
-    }
-
-    const date = document.getElementById('rmReportDateInput') ? document.getElementById('rmReportDateInput').value.trim() : '';
-    const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
-    const train = getRmReportTrainValue();
-    const editorSup = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
-    const mainSup = document.getElementById('rmReportStaffInput') ? document.getElementById('rmReportStaffInput').value.trim() : '';
-    const supervisor = editorSup || mainSup || '';
-
-    if (!date || !rake || !train) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Missing Basic Details',
-            text: 'Please ensure Date, Rake No, and Train No are selected.',
-            background: 'var(--surface)',
-            color: 'var(--text-main)',
-            confirmButtonColor: 'var(--primary)'
-        });
-        return;
-    }
-
-    if (!rmReportEditorCards || rmReportEditorCards.length === 0) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'No Complaints to Export',
-            text: 'Please add or load at least one Rail Madad complaint to generate the report.',
-            background: 'var(--surface)',
-            color: 'var(--text-main)',
-            confirmButtonColor: 'var(--primary)'
-        });
-        return;
     }
 
     const { jsPDF } = window.jspdf;
