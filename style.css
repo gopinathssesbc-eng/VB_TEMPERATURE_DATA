@@ -2946,6 +2946,40 @@ select.rm-edit-input option {
     background: #dc2626;
 }
 
+.rm-photo-rotate-btn {
+    position: absolute;
+    bottom: 3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(56, 189, 248, 0.65);
+    color: #38bdf8;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
+    z-index: 2;
+}
+
+.rm-photo-rotate-btn:hover {
+    background: rgba(56, 189, 248, 0.35);
+    color: #ffffff;
+    transform: scale(1.1);
+}
+
+.rm-photo-rotate-btn.left {
+    left: 3px;
+}
+
+.rm-photo-rotate-btn.right {
+    right: 3px;
+}
+
 .rm-photo-count-badge {
     display: inline-block;
     font-size: 0.72rem;

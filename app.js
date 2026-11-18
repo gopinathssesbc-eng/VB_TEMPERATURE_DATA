@@ -5119,6 +5119,13 @@ function openRmReportEditor() {
         }];
     }
 
+    // Pre-fill SSE Name in editor if already set in Basic Details and editor is empty
+    const mainSseInput = document.getElementById('rmReportStaffInput');
+    const editorSupInput = document.getElementById('rmEditorSupervisorInput');
+    if (editorSupInput && !editorSupInput.value.trim() && mainSseInput && mainSseInput.value.trim()) {
+        editorSupInput.value = mainSseInput.value.trim();
+    }
+
     renderRmReportEditorCards();
     savedRmEditorStateHash = getRmEditorStateHash();
 
@@ -5433,6 +5440,110 @@ async function handleRmTypedPhotoFiles(event, cardIndex, photoType) {
 }
 window.handleRmTypedPhotoFiles = handleRmTypedPhotoFiles;
 
+function rotateImageDataUrl(dataUrl, degrees) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const rad = (degrees * Math.PI) / 180;
+            const sin = Math.abs(Math.sin(rad));
+            const cos = Math.abs(Math.cos(rad));
+
+            canvas.width = Math.round(img.width * cos + img.height * sin);
+            canvas.height = Math.round(img.height * cos + img.width * sin);
+
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(rad);
+            ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+            resolve({
+                dataUrl: canvas.toDataURL('image/jpeg', 0.85),
+                width: canvas.width,
+                height: canvas.height
+            });
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+    });
+}
+window.rotateImageDataUrl = rotateImageDataUrl;
+
+function previewRmPhoto(cardIndex, photoType, photoId) {
+    const card = rmReportEditorCards[cardIndex];
+    if (!card || !card[photoType]) return;
+    const photo = card[photoType].find(p => p.id === photoId);
+    if (!photo) return;
+
+    Swal.fire({
+        title: photo.name || 'Photo Preview',
+        html: `
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding-top: 0.25rem;">
+                <!-- Top Toolbar with Prominent Rotate Controls -->
+                <div style="display: flex; gap: 0.65rem; justify-content: center; flex-wrap: wrap; width: 100%; margin-bottom: 0.25rem;">
+                    <button type="button" id="rmBtnRotLeft" class="btn btn-secondary" onclick="rotateCurrentRmPhoto(${cardIndex}, '${photoType}', '${photoId}', -90)" style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.6rem 1.15rem; font-size: 0.92rem; font-weight: 600; border-color: rgba(56, 189, 248, 0.7); color: #38bdf8; background: rgba(56, 189, 248, 0.18); border-radius: 0.5rem; cursor: pointer;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                        <span>↶ Rotate Left (-90°)</span>
+                    </button>
+                    <button type="button" id="rmBtnRotRight" class="btn btn-secondary" onclick="rotateCurrentRmPhoto(${cardIndex}, '${photoType}', '${photoId}', 90)" style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.6rem 1.15rem; font-size: 0.92rem; font-weight: 600; border-color: rgba(56, 189, 248, 0.7); color: #38bdf8; background: rgba(56, 189, 248, 0.18); border-radius: 0.5rem; cursor: pointer;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                        </svg>
+                        <span>↷ Rotate Right (+90°)</span>
+                    </button>
+                </div>
+                <!-- Image Container -->
+                <div style="width: 100%; max-height: 52vh; overflow: hidden; display: flex; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.45); border-radius: 8px; padding: 0.4rem; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <img id="rmPreviewModalImg" src="${photo.dataUrl}" style="max-width: 100%; max-height: 48vh; object-fit: contain; border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5); transition: opacity 0.15s ease;" alt="Preview">
+                </div>
+            </div>
+        `,
+        showCloseButton: true,
+        showConfirmButton: true,
+        confirmButtonText: 'Done',
+        confirmButtonColor: 'var(--primary)',
+        width: '92%',
+        background: 'var(--surface)',
+        color: 'var(--text-main)'
+    });
+}
+window.previewRmPhoto = previewRmPhoto;
+
+async function rotateCurrentRmPhoto(cardIndex, photoType, photoId, degrees) {
+    const card = rmReportEditorCards[cardIndex];
+    if (!card || !card[photoType]) return;
+    const photo = card[photoType].find(p => p.id === photoId);
+    if (!photo) return;
+
+    const imgEl = document.getElementById('rmPreviewModalImg');
+    if (imgEl) {
+        imgEl.style.opacity = '0.35';
+    }
+
+    try {
+        const rotated = await rotateImageDataUrl(photo.dataUrl, degrees);
+        photo.dataUrl = rotated.dataUrl;
+        photo.width = rotated.width;
+        photo.height = rotated.height;
+
+        if (imgEl) {
+            imgEl.src = rotated.dataUrl;
+            imgEl.style.opacity = '1';
+        }
+
+        renderRmTypedGallery(cardIndex, photoType);
+    } catch (err) {
+        console.error('Failed to rotate photo:', err);
+        if (imgEl) imgEl.style.opacity = '1';
+    }
+}
+window.rotateCurrentRmPhoto = rotateCurrentRmPhoto;
+
 function renderRmTypedGallery(cardIndex, photoType) {
     const gallery = document.getElementById(`rmGallery_${photoType}_${cardIndex}`);
     const badge = document.getElementById(`rmCount_${photoType}_${cardIndex}`);
@@ -5451,21 +5562,15 @@ function renderRmTypedGallery(cardIndex, photoType) {
     photos.forEach(photo => {
         const thumb = document.createElement('div');
         thumb.className = 'rm-photo-thumb-box';
-        thumb.title = 'Click to preview / Remove';
+        thumb.title = 'Click to preview / rotate photo';
         thumb.innerHTML = `
             <img src="${photo.dataUrl}" class="rm-photo-thumb-img" alt="Photo">
             <button type="button" class="rm-photo-remove-btn" onclick="event.stopPropagation(); removeRmTypedPhoto(${cardIndex}, '${photoType}', '${photo.id}')" title="Delete Photo">×</button>
+            <button type="button" class="rm-photo-rotate-btn left" onclick="event.stopPropagation(); rotateCurrentRmPhoto(${cardIndex}, '${photoType}', '${photo.id}', -90)" title="Rotate Left (↶)">↶</button>
+            <button type="button" class="rm-photo-rotate-btn right" onclick="event.stopPropagation(); rotateCurrentRmPhoto(${cardIndex}, '${photoType}', '${photo.id}', 90)" title="Rotate Right (↷)">↷</button>
         `;
         thumb.addEventListener('click', () => {
-            Swal.fire({
-                title: photo.name || 'Photo Preview',
-                imageUrl: photo.dataUrl,
-                imageAlt: 'Attached Photo',
-                showCloseButton: true,
-                showConfirmButton: false,
-                background: 'var(--surface)',
-                color: 'var(--text-main)'
-            });
+            previewRmPhoto(cardIndex, photoType, photo.id);
         });
         gallery.appendChild(thumb);
     });
@@ -5533,7 +5638,8 @@ async function saveRailMadadFeedbackDetails(fromPdf = false) {
     const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
     const train = getRmReportTrainValue();
     const staffName = document.getElementById('rmReportStaffInput') ? document.getElementById('rmReportStaffInput').value.trim() : '';
-    const sseName = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
+    const editorSse = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
+    const sseName = editorSse || staffName;
 
     if (!date || !rake || !train) {
         Swal.fire({
@@ -5691,7 +5797,8 @@ async function generateRailMadadFeedbackPdf() {
     const rake = document.getElementById('rmReportRakeSelect') ? document.getElementById('rmReportRakeSelect').value.trim() : '';
     const train = getRmReportTrainValue();
     const editorSup = document.getElementById('rmEditorSupervisorInput') ? document.getElementById('rmEditorSupervisorInput').value.trim() : '';
-    const supervisor = editorSup || '';
+    const mainSup = document.getElementById('rmReportStaffInput') ? document.getElementById('rmReportStaffInput').value.trim() : '';
+    const supervisor = editorSup || mainSup || '';
 
     if (!date || !rake || !train) {
         Swal.fire({
