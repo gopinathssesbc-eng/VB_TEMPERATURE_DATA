@@ -2245,6 +2245,12 @@ input.alert-orange {
     color: #fdba74 !important;
 }
 
+input.alert-yellow {
+    background-color: rgba(234, 179, 8, 0.25) !important;
+    border-color: #eab308 !important;
+    color: #fef08a !important;
+}
+
 /* ==========================================================================
    SETTINGS SCREEN STYLES
    ========================================================================== */

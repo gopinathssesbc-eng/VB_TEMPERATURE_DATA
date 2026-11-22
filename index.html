@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=5.3">
+    <link rel="stylesheet" href="style.css?v=5.4">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -69,7 +69,7 @@
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div
                 style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v 5.3
+                v 5.4
             </div>
         </div>
     </div>
@@ -341,7 +341,7 @@
         </main>
         <div
             style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 5.3
+            v 5.4
         </div>
     </div>
 
@@ -394,8 +394,22 @@
 
                 <section class="coaches-section">
                     <h2>Coach Temperatures</h2>
-                    <p class="placeholder-text" style="margin-bottom: 1.5rem;">Expand each coach to enter the 8 bearing
+                    <p class="placeholder-text" style="margin-bottom: 1rem;">Expand each coach to enter the 8 bearing
                         temperatures.</p>
+
+                    <!-- Temperature Thresholds Legend -->
+                    <div class="temp-legend-bar" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center; margin-bottom: 1.25rem; padding: 0.65rem 0.85rem; border-radius: 0.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.78rem;">
+                        <span style="font-weight: 600; color: var(--text-muted); margin-right: 0.25rem;">Thresholds:</span>
+                        <span style="padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; font-weight: 500;">
+                            🔴 Red: &gt; 80°C | &gt; 50°C with Diff &gt; 20°C (Coach should be withdrawn from service)
+                        </span>
+                        <span style="padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(249, 115, 22, 0.2); color: #fdba74; border: 1px solid #f97316; font-weight: 500;">
+                            🟠 Orange: &gt; 65°C with Diff ≤ 20°C | &lt; 50°C with Diff &gt; 20°C (Check temperature at next halting station)
+                        </span>
+                        <span style="padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid #10b981; font-weight: 500;">
+                            🟢 Normal: ≤ 65°C with Diff ≤ 20°C
+                        </span>
+                    </div>
 
                     <div id="coachesContainer" class="accordion-container">
                         <!-- JS will inject the 8 coaches here -->
@@ -960,7 +974,7 @@
             </section>
         </main>
         <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 5.3
+            v 5.4
         </div>
     </div>
 
@@ -1388,7 +1402,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=5.3"></script>
+    <script src="app.js?v=5.4"></script>
 </body>
 
 </html>

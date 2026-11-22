@@ -2368,15 +2368,49 @@ if (togglePasswordBtn) {
     });
 }
 
-// Validation Colors
-function updateInputAlert(input, val, diffExceeded) {
-    input.classList.remove('alert-red', 'alert-orange');
-    if (!isNaN(val)) {
-        if (val > 60 || diffExceeded) {
-            input.classList.add('alert-red');
-        } else if (val > 50) {
-            input.classList.add('alert-orange');
-        }
+// Validation Colors & Alert Thresholds
+// 1) if any temperature is above 80 it should be red.
+// 2) if any temperature is above 65 and temperatature differenec in same axle i.e. L1 R1 is less than 20 then orange.
+// 3) if any temperature is below 50 and temperatature differenec in same axle i.e. L1 R1 is more than 20 then orange.
+// 4) if any temperature is above 50 and temperatature differenec in same axle i.e. L1 R1 is more than 20 then red.
+function getTemperatureAlertLevel(val, diff) {
+    if (val === null || val === undefined || isNaN(val)) return null;
+
+    const hasDiff = (diff !== null && diff !== undefined && !isNaN(diff));
+    const isDiffExceeded = hasDiff && diff > 20;
+
+    // 1) if any temperature is above 80 it should be red.
+    if (val > 80) {
+        return 'red';
+    }
+
+    // 4) if any temperature is above 50 and temperatature differenec in same axle i.e. L1 R1 is more than 20 then red.
+    if (val >= 50 && isDiffExceeded) {
+        return 'red';
+    }
+
+    // 2) if any temperature is above 65 and temperatature differenec in same axle i.e. L1 R1 is less than 20 then orange.
+    if (val > 65 && !isDiffExceeded) {
+        return 'orange';
+    }
+
+    // 3) if any temperature is below 50 and temperatature differenec in same axle i.e. L1 R1 is more than 20 then orange.
+    if (val < 50 && isDiffExceeded) {
+        return 'orange';
+    }
+
+    return null;
+}
+window.getTemperatureAlertLevel = getTemperatureAlertLevel;
+
+function updateInputAlert(input, val, diff) {
+    if (!input) return;
+    input.classList.remove('alert-red', 'alert-orange', 'alert-yellow');
+    const level = getTemperatureAlertLevel(val, diff);
+    if (level === 'red') {
+        input.classList.add('alert-red');
+    } else if (level === 'orange') {
+        input.classList.add('alert-orange');
     }
 }
 
@@ -2384,18 +2418,18 @@ function evaluateAxlePair(coach, axleNum) {
     const leftInput = document.querySelector(`input[name="${coach}_L${axleNum}"]`);
     const rightInput = document.querySelector(`input[name="${coach}_R${axleNum}"]`);
 
-    if (!leftInput || !rightInput) return;
+    if (!leftInput && !rightInput) return;
 
-    const lVal = parseFloat(leftInput.value);
-    const rVal = parseFloat(rightInput.value);
+    const lVal = leftInput && leftInput.value.trim() !== '' ? parseFloat(leftInput.value) : NaN;
+    const rVal = rightInput && rightInput.value.trim() !== '' ? parseFloat(rightInput.value) : NaN;
 
-    let diffExceeded = false;
+    let diff = null;
     if (!isNaN(lVal) && !isNaN(rVal)) {
-        diffExceeded = Math.abs(lVal - rVal) > 10;
+        diff = Math.abs(lVal - rVal);
     }
 
-    updateInputAlert(leftInput, lVal, diffExceeded);
-    updateInputAlert(rightInput, rVal, diffExceeded);
+    if (leftInput) updateInputAlert(leftInput, lVal, diff);
+    if (rightInput) updateInputAlert(rightInput, rVal, diff);
 }
 
 // Generate Coach Accordions
@@ -2587,7 +2621,10 @@ function populateFormIfExists(dateStr, stationStr, train) {
             AXLES.forEach(axle => {
                 const key = `${coach}_${axle}`;
                 const input = document.querySelector(`input[name="${key}"]`);
-                if (input) input.value = "";
+                if (input) {
+                    input.value = "";
+                    input.classList.remove('alert-red', 'alert-orange', 'alert-yellow');
+                }
             });
         });
         Swal.fire({
@@ -9228,27 +9265,30 @@ function collectTemperatureReportData() {
         [1, 2, 3, 4].forEach(axleNum => {
             const lInput = document.querySelector(`input[name="${coach}_L${axleNum}"]`);
             const rInput = document.querySelector(`input[name="${coach}_R${axleNum}"]`);
-            const lVal = lInput && lInput.value !== '' ? parseFloat(lInput.value) : null;
-            const rVal = rInput && rInput.value !== '' ? parseFloat(rInput.value) : null;
+            const lVal = lInput && lInput.value.trim() !== '' ? parseFloat(lInput.value) : null;
+            const rVal = rInput && rInput.value.trim() !== '' ? parseFloat(rInput.value) : null;
+
+            let diff = null;
+            if (lVal !== null && rVal !== null && !isNaN(lVal) && !isNaN(rVal)) {
+                diff = Math.abs(lVal - rVal);
+                row[`Diff${axleNum}`] = diff.toFixed(1);
+            }
 
             if (lVal !== null && !isNaN(lVal)) {
                 row[`L${axleNum}`] = lVal.toFixed(1);
                 row.filledCount++;
                 if (lVal > maxT) maxT = lVal;
-                if (lVal > 60) row.hasRedAlert = true;
-                else if (lVal > 50) row.hasOrangeAlert = true;
+                const alertL = getTemperatureAlertLevel(lVal, diff);
+                if (alertL === 'red') row.hasRedAlert = true;
+                else if (alertL === 'orange') row.hasOrangeAlert = true;
             }
             if (rVal !== null && !isNaN(rVal)) {
                 row[`R${axleNum}`] = rVal.toFixed(1);
                 row.filledCount++;
                 if (rVal > maxT) maxT = rVal;
-                if (rVal > 60) row.hasRedAlert = true;
-                else if (rVal > 50) row.hasOrangeAlert = true;
-            }
-            if (lVal !== null && rVal !== null && !isNaN(lVal) && !isNaN(rVal)) {
-                const diff = Math.abs(lVal - rVal);
-                row[`Diff${axleNum}`] = diff.toFixed(1);
-                if (diff > 10) row.hasRedAlert = true;
+                const alertR = getTemperatureAlertLevel(rVal, diff);
+                if (alertR === 'red') row.hasRedAlert = true;
+                else if (alertR === 'orange') row.hasOrangeAlert = true;
             }
         });
 
@@ -9460,34 +9500,47 @@ function generateTemperaturePdf() {
                 const colIdx = data.column.index;
                 const cellVal = parseFloat(data.cell.text[0]);
 
-                // Temperature values (L and R columns: 1, 2, 4, 5, 7, 8, 10, 11)
-                if ([1, 2, 4, 5, 7, 8, 10, 11].includes(colIdx) && !isNaN(cellVal)) {
-                    if (cellVal > 60) {
+                // Map L & R columns to their respective Diff column:
+                // Axle 1: L1(1), R1(2) -> Diff1(3)
+                // Axle 2: L2(4), R2(5) -> Diff2(6)
+                // Axle 3: L3(7), R3(8) -> Diff3(9)
+                // Axle 4: L4(10), R4(11) -> Diff4(12)
+                const axleMapping = { 1: 3, 2: 3, 4: 6, 5: 6, 7: 9, 8: 9, 10: 12, 11: 12 };
+
+                if (axleMapping[colIdx] !== undefined && !isNaN(cellVal)) {
+                    const diffCol = axleMapping[colIdx];
+                    const rawDiff = data.row.raw[diffCol];
+                    const diffVal = (rawDiff !== '-' && rawDiff !== undefined) ? parseFloat(rawDiff) : null;
+                    const alertLevel = getTemperatureAlertLevel(cellVal, !isNaN(diffVal) ? diffVal : null);
+
+                    if (alertLevel === 'red') {
                         data.cell.styles.fillColor = [254, 226, 226];
                         data.cell.styles.textColor = [185, 28, 28];
                         data.cell.styles.fontStyle = 'bold';
-                    } else if (cellVal > 50) {
-                        data.cell.styles.fillColor = [254, 243, 199];
-                        data.cell.styles.textColor = [180, 83, 9];
+                    } else if (alertLevel === 'orange') {
+                        data.cell.styles.fillColor = [255, 237, 213];
+                        data.cell.styles.textColor = [194, 65, 12];
                         data.cell.styles.fontStyle = 'bold';
                     }
                 }
 
                 // Diff values (3, 6, 9, 12)
                 if ([3, 6, 9, 12].includes(colIdx) && !isNaN(cellVal)) {
-                    if (cellVal > 10) {
-                        data.cell.styles.fillColor = [254, 226, 226];
-                        data.cell.styles.textColor = [185, 28, 28];
+                    if (cellVal > 20) {
+                        data.cell.styles.fillColor = [255, 237, 213];
+                        data.cell.styles.textColor = [194, 65, 12];
                         data.cell.styles.fontStyle = 'bold';
                     }
                 }
 
                 // Max Temp column (13)
                 if (colIdx === 13 && !isNaN(cellVal)) {
-                    if (cellVal > 60) {
+                    if (cellVal > 80) {
                         data.cell.styles.textColor = [185, 28, 28];
-                    } else if (cellVal > 50) {
-                        data.cell.styles.textColor = [180, 83, 9];
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (cellVal > 65) {
+                        data.cell.styles.textColor = [194, 65, 12];
+                        data.cell.styles.fontStyle = 'bold';
                     }
                 }
 
@@ -9497,11 +9550,14 @@ function generateTemperaturePdf() {
                     if (statusText === 'ALERT') {
                         data.cell.styles.fillColor = [254, 226, 226];
                         data.cell.styles.textColor = [185, 28, 28];
+                        data.cell.styles.fontStyle = 'bold';
                     } else if (statusText === 'WARN') {
-                        data.cell.styles.fillColor = [254, 243, 199];
-                        data.cell.styles.textColor = [180, 83, 9];
+                        data.cell.styles.fillColor = [255, 237, 213];
+                        data.cell.styles.textColor = [194, 65, 12];
+                        data.cell.styles.fontStyle = 'bold';
                     } else if (statusText === 'OK') {
                         data.cell.styles.textColor = [16, 185, 129];
+                        data.cell.styles.fontStyle = 'bold';
                     }
                 }
             }
@@ -9509,26 +9565,30 @@ function generateTemperaturePdf() {
     });
 
     // 4. Legend & Summary
-    let legendY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 170) + 6;
-    if (legendY > 195) {
+    let legendY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 170) + 5;
+    if (legendY > 188) {
         doc.addPage();
         legendY = 15;
     }
     doc.setFont(fontName, 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
-    doc.text('Alert Thresholds:', marginX, legendY);
+    doc.text('Temperature Color Coding & Alert Thresholds:', marginX, legendY);
 
     doc.setFont(fontName, 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
+
+    // Red Alert Line
     doc.setTextColor(185, 28, 28);
-    doc.text('● RED ALERT: Temp > 60°C or |L - R| > 10°C', marginX + 30, legendY);
+    doc.text('● RED ALERT: Temperature > 80°C  |  OR  Temperature ≥ 50°C with Axle Difference |L - R| > 20°C  (Coach should be withdrawn from service)', marginX + 2, legendY + 4.5);
 
-    doc.setTextColor(180, 83, 9);
-    doc.text('● ORANGE WARNING: Temp > 50°C', marginX + 105, legendY);
+    // Orange Warning Line
+    doc.setTextColor(194, 65, 12);
+    doc.text('● ORANGE WARNING: Temperature > 65°C with Axle Diff |L - R| ≤ 20°C  |  OR  Temperature < 50°C with Axle Diff |L - R| > 20°C  (check temperature at next halting station)', marginX + 2, legendY + 8.5);
 
+    // Normal Line
     doc.setTextColor(16, 185, 129);
-    doc.text('● NORMAL: Temp ≤ 50°C and |L - R| ≤ 10°C', marginX + 170, legendY);
+    doc.text('● NORMAL: Temperature ≤ 65°C and Axle Difference |L - R| ≤ 20°C', marginX + 2, legendY + 12.5);
 
     // Save and preview
     const safeTrain = String(basic.TrainNo || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
