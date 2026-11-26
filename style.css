@@ -1574,6 +1574,19 @@ input:disabled, select:disabled, textarea:disabled {
     border-radius: 0.35rem;
 }
 
+.defect-badge-make {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 .defect-item-desc {
     font-size: 0.88rem;
     color: #f1f5f9;
@@ -2540,6 +2553,110 @@ input.alert-yellow {
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
+}
+
+/* Make List Settings Styles */
+.make-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    margin-top: 0.75rem;
+}
+
+.make-assembly-card {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 0.9rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.make-assembly-card:hover {
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+.make-assembly-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.make-assembly-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+}
+
+.make-assembly-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.15rem 0.5rem;
+    border-radius: 1rem;
+}
+
+.make-sub-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+}
+
+@media (min-width: 640px) {
+    .make-sub-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.make-item-row {
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: all 0.2s ease;
+}
+
+.make-item-row:focus-within {
+    border-color: rgba(56, 189, 248, 0.45);
+    background: rgba(30, 41, 59, 0.9);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.15);
+}
+
+.make-item-subname {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.make-item-input {
+    width: 100%;
+    padding: 0.42rem 0.65rem;
+    font-size: 0.84rem;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+
+.make-item-input:focus {
+    border-color: #38bdf8;
+    background: rgba(15, 23, 42, 0.9);
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+    outline: none;
 }
 
 .settings-add-box {

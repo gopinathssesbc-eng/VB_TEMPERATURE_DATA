@@ -8,7 +8,7 @@ function checkPassword(providedPassword) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const passSheet = getSheetCaseInsensitive(ss, "pass");
   if (!passSheet) return false;
-  
+
   const actualPassword = passSheet.getRange("A2").getValue();
   return String(providedPassword).trim() === String(actualPassword).trim();
 }
@@ -17,7 +17,7 @@ function checkSettingsPassword(providedPassword) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const passSheet = getSheetCaseInsensitive(ss, "pass");
   if (!passSheet) return false;
-  
+
   const actualPassword = passSheet.getRange("A3").getValue();
   return String(providedPassword).trim() === String(actualPassword).trim();
 }
@@ -118,8 +118,8 @@ function doGet(e) {
           mimeType: mime
         });
       }
-      result.folders.sort(function(a, b) { return a.name.localeCompare(b.name); });
-      result.files.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      result.folders.sort(function (a, b) { return a.name.localeCompare(b.name); });
+      result.files.sort(function (a, b) { return a.name.localeCompare(b.name); });
       return ContentService.createTextOutput(JSON.stringify(result))
         .setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
@@ -166,7 +166,7 @@ function doGet(e) {
       }
       var root = DriveApp.getFolderById(rootId);
       searchFolder(rootId, root.getName());
-      results.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      results.sort(function (a, b) { return a.name.localeCompare(b.name); });
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         query: query,
@@ -242,7 +242,7 @@ function doGet(e) {
     }
 
     const headers = data[0].map(h => String(h || "").trim().toLowerCase());
-    
+
     // Find column indexes
     let trainCol = headers.findIndex(h => h.includes("train"));
     let rakeCol = headers.findIndex(h => h.includes("rake"));
@@ -416,8 +416,47 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
+  // =========================================================================
+  // RAKE MAKE LIST GET: Load component makes for rakes
+  // =========================================================================
+  if (e && e.parameter && e.parameter.action === "get_rake_makes") {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = getSheetCaseInsensitive(ss, "Rake Make List");
+    let makes = {};
+
+    if (sheet) {
+      const data = sheet.getDataRange().getValues();
+      if (data.length > 1) {
+        const headRow = data[0].map(h => String(h || "").trim().toLowerCase());
+        const rakeColIdx = headRow.findIndex(h => h.includes("rake"));
+        const mainColIdx = headRow.findIndex(h => h.includes("main") || h.includes("assembly"));
+        const subColIdx = headRow.findIndex(h => h.includes("sub"));
+        const makeColIdx = headRow.findIndex(h => h.includes("make"));
+
+        for (let r = 1; r < data.length; r++) {
+          const row = data[r];
+          const rRake = rakeColIdx !== -1 ? String(row[rakeColIdx] || "").trim() : "";
+          const rMain = mainColIdx !== -1 ? String(row[mainColIdx] || "").trim() : "";
+          const rSub = subColIdx !== -1 ? String(row[subColIdx] || "").trim() : "";
+          const rMake = makeColIdx !== -1 ? String(row[makeColIdx] || "").trim() : "";
+
+          if (rRake && rSub && rMake) {
+            if (!makes[rRake]) makes[rRake] = {};
+            if (!makes[rRake][rMain]) makes[rRake][rMain] = {};
+            makes[rRake][rMain][rSub] = rMake;
+          }
+        }
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      makes: makes
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   const providedPassword = (e && e.parameter) ? e.parameter.password : "";
-  
+
   if (!checkPassword(providedPassword)) {
     return ContentService.createTextOutput(JSON.stringify({ status: "unauthorized", message: "Incorrect password" }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -613,6 +652,7 @@ function doGet(e) {
         const coachIdx = headers.findIndex(h => h.includes("coach"));
         const mainCatIdx = headers.findIndex(h => h.includes("main"));
         const subCatIdx = headers.findIndex(h => h.includes("sub"));
+        const makeIdx = headers.findIndex(h => h.includes("make"));
         const descIdx = headers.findIndex(h => h.includes("desc"));
         const actionIdx = headers.findIndex(h => h.includes("attention given") || (h.includes("attention") && !h.includes("status")) || h.includes("action"));
         const statusIdx = headers.findIndex(h => h.includes("status"));
@@ -626,6 +666,7 @@ function doGet(e) {
           const coachVal = coachIdx !== -1 ? String(row[coachIdx] || "").trim() : "";
           const mainVal = mainCatIdx !== -1 ? String(row[mainCatIdx] || "").trim() : "";
           const subVal = subCatIdx !== -1 ? String(row[subCatIdx] || "").trim() : "";
+          const makeVal = makeIdx !== -1 ? String(row[makeIdx] || "").trim() : "";
           const descVal = descIdx !== -1 ? String(row[descIdx] || "").trim() : "";
           const actVal = actionIdx !== -1 ? String(row[actionIdx] || "").trim() : "";
           const statusVal = statusIdx !== -1 ? String(row[statusIdx] || "").trim() : "Attended";
@@ -651,6 +692,7 @@ function doGet(e) {
                   CoachNo: coachVal,
                   MainCategory: mainVal,
                   SubCategory: subVal,
+                  Make: makeVal,
                   DefectDescription: descVal,
                   AttentionGiven: actVal,
                   AttentionStatus: isPending ? "Pending" : "Attended",
@@ -669,6 +711,7 @@ function doGet(e) {
                   CoachNo: coachVal,
                   MainCategory: mainVal,
                   SubCategory: subVal,
+                  Make: makeVal,
                   DefectDescription: descVal,
                   AttentionGiven: actVal,
                   AttentionStatus: "Pending",
@@ -695,16 +738,16 @@ function doGet(e) {
   // =========================================================================
   const trainName = e.parameter.train;
   if (!trainName) {
-     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Train not specified" }))
-       .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Train not specified" }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(trainName);
-  
+
   if (!sheet) {
-     return ContentService.createTextOutput(JSON.stringify({ status: "success", data: [] }))
-       .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", data: [] }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   const data = sheet.getDataRange().getValues();
@@ -715,13 +758,13 @@ function doGet(e) {
 
   const headers = data[0];
   const rows = data.slice(1);
-  
+
   const result = rows.map(row => {
     let obj = {};
     headers.forEach((header, index) => {
       let value = row[index];
       if (value instanceof Date) {
-          value = Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        value = Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
       }
       obj[header] = value !== undefined ? value : "";
     });
@@ -736,12 +779,12 @@ function doPost(e) {
   try {
     let request;
     try {
-        request = JSON.parse(e.postData.contents);
+      request = JSON.parse(e.postData.contents);
     } catch (parseError) {
-        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid JSON format" }))
-          .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid JSON format" }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
-    
+
     // =========================================================================
     // 0. SETTINGS ACTIONS (Password stored in A3 cell in "pass" sheet)
     // =========================================================================
@@ -839,6 +882,70 @@ function doPost(e) {
         status: "success",
         message: "Maintenance categories updated successfully in 'drop down data' sheet",
         categories: categories
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =========================================================================
+    // SAVE RAKE MAKES: Save component makes for a Rake No
+    // =========================================================================
+    if (request.action === "save_rake_makes") {
+      const settingsPass = request.settingsPassword || request.password || "";
+      if (!checkSettingsPassword(settingsPass)) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "unauthorized",
+          message: "Incorrect Settings password (from cell A3 in 'pass' sheet)"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      let sheet = getSheetCaseInsensitive(ss, "Rake Make List");
+      const headers = ["Rake No", "Main Category", "Sub Category", "Make", "Last Updated"];
+
+      if (!sheet) {
+        sheet = ss.insertSheet("Rake Make List");
+        sheet.appendRow(headers);
+        SpreadsheetApp.flush();
+      } else if (sheet.getDataRange().getValues().length === 0) {
+        sheet.appendRow(headers);
+        SpreadsheetApp.flush();
+      }
+
+      const rakeNo = String(request.rakeNo || "").trim();
+      const makes = request.makes || {};
+      const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
+
+      if (rakeNo) {
+        const fullData = sheet.getDataRange().getValues();
+        if (fullData.length > 1) {
+          const headRow = fullData[0].map(h => String(h || "").trim().toLowerCase());
+          const rakeColIdx = headRow.findIndex(h => h.includes("rake"));
+          if (rakeColIdx !== -1) {
+            for (let r = fullData.length - 1; r >= 1; r--) {
+              if (String(fullData[r][rakeColIdx] || "").trim().toLowerCase() === rakeNo.toLowerCase()) {
+                sheet.deleteRow(r + 1);
+              }
+            }
+          }
+        }
+
+        // Append all makes for this rake
+        Object.keys(makes).forEach(mainCat => {
+          const subObj = makes[mainCat] || {};
+          Object.keys(subObj).forEach(subCat => {
+            const makeVal = String(subObj[subCat] || "").trim();
+            if (makeVal) {
+              sheet.appendRow([rakeNo, mainCat, subCat, makeVal, timestamp]);
+            }
+          });
+        });
+        SpreadsheetApp.flush();
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Make list for " + rakeNo + " saved successfully to 'Rake Make List' sheet",
+        rakeNo: rakeNo,
+        makes: makes
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -1181,7 +1288,7 @@ function doPost(e) {
       let sheet = getSheetCaseInsensitive(ss, "Maintenance Remarks");
       const requiredHeaders = [
         "Timestamp", "Date", "Rake No", "Train No", "SSE Name",
-        "Coach No", "Defect Main Category", "Defect Sub Category",
+        "Coach No", "Defect Main Category", "Defect Sub Category", "Make",
         "Defect Description", "Attention Given", "Attention Status", "Attended Date", "Defect Id"
       ];
 
@@ -1193,9 +1300,14 @@ function doPost(e) {
         sheet.appendRow(requiredHeaders);
         SpreadsheetApp.flush();
       } else {
-        // Ensure "Attention Status", "Attended Date" and "Defect Id" exist in headers
+        // Ensure "Make", "Attention Status", "Attended Date" and "Defect Id" exist in headers
         let currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(h => String(h || "").trim());
         let currentHeadersLower = currentHeaders.map(h => h.toLowerCase());
+        if (currentHeadersLower.findIndex(h => h.includes("make")) === -1) {
+          sheet.getRange(1, currentHeaders.length + 1).setValue("Make");
+          currentHeaders.push("Make");
+          currentHeadersLower.push("make");
+        }
         if (currentHeadersLower.findIndex(h => h.includes("status")) === -1) {
           sheet.getRange(1, currentHeaders.length + 1).setValue("Attention Status");
           currentHeaders.push("Attention Status");
@@ -1221,6 +1333,7 @@ function doPost(e) {
         const coachColIdx = headerRow.findIndex(h => h.includes("coach"));
         const mainCatColIdx = headerRow.findIndex(h => h.includes("main"));
         const subCatColIdx = headerRow.findIndex(h => h.includes("sub"));
+        const makeColIdx = headerRow.findIndex(h => h.includes("make"));
         const descColIdx = headerRow.findIndex(h => h.includes("desc"));
         const actionColIdx = headerRow.findIndex(h => h.includes("attention given") || (h.includes("attention") && !h.includes("status")) || h.includes("action"));
         const statusColIdx = headerRow.findIndex(h => h.includes("status"));
@@ -1255,6 +1368,9 @@ function doPost(e) {
             }
             if (subCatColIdx !== -1 && upd.SubCategory !== undefined) {
               sheet.getRange(targetRowIndex, subCatColIdx + 1).setValue(upd.SubCategory);
+            }
+            if (makeColIdx !== -1 && upd.Make !== undefined) {
+              sheet.getRange(targetRowIndex, makeColIdx + 1).setValue(upd.Make);
             }
             if (descColIdx !== -1 && upd.DefectDescription !== undefined) {
               sheet.getRange(targetRowIndex, descColIdx + 1).setValue(upd.DefectDescription);
@@ -1303,7 +1419,7 @@ function doPost(e) {
           const attDate = isPend ? "" : dateStr;
           return [
             timestamp, dateStr, rakeStr, trainStr, sseStr,
-            item.CoachNo || "", item.MainCategory || "", item.SubCategory || "",
+            item.CoachNo || "", item.MainCategory || "", item.SubCategory || "", item.Make || "",
             item.DefectDescription || "", item.AttentionGiven || "", item.AttentionStatus || "Attended",
             attDate, genId
           ];
@@ -1318,6 +1434,7 @@ function doPost(e) {
           else if (h.includes("coach")) row[col] = item.CoachNo || "";
           else if (h.includes("main")) row[col] = item.MainCategory || "";
           else if (h.includes("sub")) row[col] = item.SubCategory || "";
+          else if (h.includes("make")) row[col] = item.Make || "";
           else if (h.includes("desc")) row[col] = item.DefectDescription || "";
           else if (h.includes("attention given") || (h.includes("attention") && !h.includes("status")) || h.includes("action")) row[col] = item.AttentionGiven || "";
           else if (h.includes("status")) row[col] = item.AttentionStatus || "Attended";
@@ -1533,69 +1650,69 @@ function doPost(e) {
     // =========================================================================
     const trainName = request.train;
     const rowData = request.rowData;
-    
+
     if (!trainName) {
-       return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Train not specified" }))
-         .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Train not specified" }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     let sheet = getSheetCaseInsensitive(ss, trainName);
     if (!sheet) {
-        sheet = ss.insertSheet(trainName);
+      sheet = ss.insertSheet(trainName);
     }
 
     const allData = sheet.getDataRange().getValues();
     const headers = allData.length > 0 ? allData[0] : [];
-    
+
     let dateIndex = headers.indexOf("Date");
     let stationIndex = headers.indexOf("Station");
     let rowIndexToUpdate = -1;
 
     // Check if a record already exists for this Date and Station
     if (dateIndex !== -1 && stationIndex !== -1 && allData.length > 1) {
-        for (let i = 1; i < allData.length; i++) {
-            let sheetDateStr = formatDateCell(allData[i][dateIndex]);
-            if (sheetDateStr === String(rowData["Date"]).trim() && 
-                String(allData[i][stationIndex]).trim() === String(rowData["Station"]).trim()) {
-                rowIndexToUpdate = i + 1;
-                break;
-            }
+      for (let i = 1; i < allData.length; i++) {
+        let sheetDateStr = formatDateCell(allData[i][dateIndex]);
+        if (sheetDateStr === String(rowData["Date"]).trim() &&
+          String(allData[i][stationIndex]).trim() === String(rowData["Station"]).trim()) {
+          rowIndexToUpdate = i + 1;
+          break;
         }
+      }
     }
-    
+
     let newRow = [];
     if (headers.length > 0) {
-        let updatedHeaders = [...headers];
-        let headersChanged = false;
-        
-        Object.keys(rowData).forEach(key => {
-            if (!updatedHeaders.includes(key)) {
-                updatedHeaders.push(key);
-                headersChanged = true;
-            }
-        });
-        
-        if (headersChanged) {
-             sheet.getRange(1, 1, 1, updatedHeaders.length).setValues([updatedHeaders]);
+      let updatedHeaders = [...headers];
+      let headersChanged = false;
+
+      Object.keys(rowData).forEach(key => {
+        if (!updatedHeaders.includes(key)) {
+          updatedHeaders.push(key);
+          headersChanged = true;
         }
-        
-        newRow = updatedHeaders.map(header => rowData[header] !== undefined ? rowData[header] : "");
+      });
+
+      if (headersChanged) {
+        sheet.getRange(1, 1, 1, updatedHeaders.length).setValues([updatedHeaders]);
+      }
+
+      newRow = updatedHeaders.map(header => rowData[header] !== undefined ? rowData[header] : "");
     } else {
-        const newHeaders = Object.keys(rowData);
-        sheet.appendRow(newHeaders);
-        newRow = Object.values(rowData);
+      const newHeaders = Object.keys(rowData);
+      sheet.appendRow(newHeaders);
+      newRow = Object.values(rowData);
     }
-    
+
     if (rowIndexToUpdate !== -1) {
-        sheet.getRange(rowIndexToUpdate, 1, 1, newRow.length).setValues([newRow]);
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Record updated successfully" }))
-          .setMimeType(ContentService.MimeType.JSON);
+      sheet.getRange(rowIndexToUpdate, 1, 1, newRow.length).setValues([newRow]);
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Record updated successfully" }))
+        .setMimeType(ContentService.MimeType.JSON);
     } else {
-        sheet.appendRow(newRow);
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "New record added successfully" }))
-          .setMimeType(ContentService.MimeType.JSON);
+      sheet.appendRow(newRow);
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "New record added successfully" }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
-      
+
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);

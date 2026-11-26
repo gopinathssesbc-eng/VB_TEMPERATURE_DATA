@@ -36,7 +36,7 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="icons/favicon.png">
 
-    <link rel="stylesheet" href="style.css?v=5.4">
+    <link rel="stylesheet" href="style.css?v=6.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- PDF.js Text Layer CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
@@ -69,7 +69,7 @@
             <p id="passwordError" class="error-message hidden">Incorrect password. Try again.</p>
             <div
                 style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                v 5.4
+                v 6.0
             </div>
         </div>
     </div>
@@ -341,7 +341,7 @@
         </main>
         <div
             style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 5.4
+            v 6.0
         </div>
     </div>
 
@@ -899,46 +899,79 @@
                 <button type="button" class="settings-tab-btn" id="tab-staffTokens" onclick="switchSettingsTab('staffTokens')">
                     Staff Tokens
                 </button>
+                <button type="button" class="settings-tab-btn" id="tab-makeList" onclick="switchSettingsTab('makeList')">
+                    Make List
+                </button>
             </div>
 
             <!-- Category Section Card -->
             <section class="settings-card">
-                <div class="settings-card-header">
-                    <div>
-                        <h2 id="currentCategoryTitle" class="settings-category-title">RM complaint main category</h2>
-                        <span id="currentCategorySubtitle" class="settings-category-subtitle">Values stored in "drop down data" sheet (Column C)</span>
+                <!-- Standard Categories View -->
+                <div id="standardCategoriesView">
+                    <div class="settings-card-header">
+                        <div>
+                            <h2 id="currentCategoryTitle" class="settings-category-title">RM complaint main category</h2>
+                            <span id="currentCategorySubtitle" class="settings-category-subtitle">Values stored in "drop down data" sheet (Column C)</span>
+                        </div>
+                        <span id="categoryItemCount" class="category-count-badge">0 items</span>
                     </div>
-                    <span id="categoryItemCount" class="category-count-badge">0 items</span>
-                </div>
 
-                <!-- Subcategory Parent Selector (only visible when Maintenance Categories tab is active) -->
-                <div id="maintCategoryParentBox" style="display: none; margin-bottom: 1rem; padding: 0.85rem; background: rgba(30, 41, 59, 0.6); border-radius: 0.5rem; border: 1px solid var(--border);">
-                    <label for="maintSettingsMainSelect" style="display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">Defect Main Category</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                        <select id="maintSettingsMainSelect" class="settings-input" style="flex: 1; min-width: 160px;" onchange="handleMaintSettingsMainCatChange()">
-                            <option value="Interior">Interior</option>
-                            <option value="UG - Air">UG - Air</option>
-                            <option value="Propulsion">Propulsion</option>
-                        </select>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="addNewMainCategoryPrompt()" style="white-space: nowrap; padding: 0.45rem 0.75rem; font-size: 0.82rem;">+ Add Main Category</button>
+                    <!-- Subcategory Parent Selector (only visible when Maintenance Categories tab is active) -->
+                    <div id="maintCategoryParentBox" style="display: none; margin-bottom: 1rem; padding: 0.85rem; background: rgba(30, 41, 59, 0.6); border-radius: 0.5rem; border: 1px solid var(--border);">
+                        <label for="maintSettingsMainSelect" style="display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">Defect Main Category</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <select id="maintSettingsMainSelect" class="settings-input" style="flex: 1; min-width: 160px;" onchange="handleMaintSettingsMainCatChange()">
+                                <option value="Interior">Interior</option>
+                                <option value="UG - Air">UG - Air</option>
+                                <option value="Propulsion">Propulsion</option>
+                            </select>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addNewMainCategoryPrompt()" style="white-space: nowrap; padding: 0.45rem 0.75rem; font-size: 0.82rem;">+ Add Main Category</button>
+                        </div>
+                    </div>
+
+                    <!-- Add Item Form -->
+                    <div class="settings-add-box">
+                        <input type="text" id="newCategoryInput" class="settings-input" placeholder="Type new item name..." maxlength="90">
+                        <button type="button" id="addCategoryBtn" class="settings-add-btn" onclick="addCurrentCategoryItem()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>Add</span>
+                        </button>
+                    </div>
+
+                    <!-- Items List -->
+                    <div id="categoryItemsList" class="settings-items-list">
+                        <!-- Populated dynamically -->
                     </div>
                 </div>
 
-                <!-- Add Item Form -->
-                <div class="settings-add-box">
-                    <input type="text" id="newCategoryInput" class="settings-input" placeholder="Type new item name..." maxlength="90">
-                    <button type="button" id="addCategoryBtn" class="settings-add-btn" onclick="addCurrentCategoryItem()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        <span>Add</span>
-                    </button>
-                </div>
+                <!-- Make List View (Rake Assembly & Sub-Assembly Makes) -->
+                <div id="makeListView" style="display: none;">
+                    <div class="settings-card-header">
+                        <div>
+                            <h2 class="settings-category-title">Rake Assembly & Sub-Assembly Make List</h2>
+                            <span class="settings-category-subtitle">Define component makes for each Rake (stored in "Rake Make List" sheet)</span>
+                        </div>
+                        <span id="makeListItemCount" class="category-count-badge">0 makes</span>
+                    </div>
 
-                <!-- Items List -->
-                <div id="categoryItemsList" class="settings-items-list">
-                    <!-- Populated dynamically -->
+                    <!-- Rake Selector Box -->
+                    <div style="margin-top: 1rem; margin-bottom: 1rem; padding: 0.85rem; background: rgba(30, 41, 59, 0.6); border-radius: 0.5rem; border: 1px solid var(--border);">
+                        <label for="makeListRakeSelect" style="display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">Select Rake Number</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <select id="makeListRakeSelect" class="settings-input" style="flex: 1; min-width: 160px;" onchange="handleMakeListRakeChange()">
+                                <!-- Populated dynamically -->
+                            </select>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="fetchRakeMakes(true)" title="Refresh makes from Google Sheet" style="white-space: nowrap; padding: 0.45rem 0.75rem; font-size: 0.82rem;">🔄 Refresh from Sheet</button>
+                        </div>
+                    </div>
+
+                    <!-- Assemblies and Sub Assemblies Container -->
+                    <div id="makeListAssembliesContainer" class="make-list-container">
+                        <!-- Injected dynamically -->
+                    </div>
                 </div>
             </section>
 
@@ -950,7 +983,7 @@
                         <polyline points="17 21 17 13 7 13 7 21"></polyline>
                         <polyline points="7 3 7 8 15 8"></polyline>
                     </svg>
-                    <span>Save Categories to Google Sheet</span>
+                    <span id="saveCategoriesBtnText">Save Categories to Google Sheet</span>
                     <div class="spinner hidden"></div>
                 </button>
                 <div id="settingsSaveStatus" class="settings-save-status"></div>
@@ -974,7 +1007,7 @@
             </section>
         </main>
         <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-            v 5.4
+            v 6.0
         </div>
     </div>
 
@@ -1308,6 +1341,13 @@
                         <input type="text" id="maintModalSubCatCustom" class="form-control" placeholder="Specify other sub-category..." style="display: none; margin-top: 0.4rem; width: 100%;">
                     </div>
                     <div class="form-group">
+                        <label for="maintModalMakeInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Make</span>
+                            <span id="maintModalMakeBadge" style="font-size: 0.72rem; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); padding: 1px 6px; border-radius: 4px; display: none;">Predefined</span>
+                        </label>
+                        <input type="text" id="maintModalMakeInput" class="form-control" placeholder="Enter make (or auto-filled if defined in Settings)" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
                         <label for="maintModalDescInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">Defect Description <span style="color: #ef4444;">*</span></label>
                         <textarea id="maintModalDescInput" class="form-control defect-desc-input" rows="3" placeholder="Describe defect details..." required style="width: 100%;"></textarea>
                     </div>
@@ -1370,6 +1410,13 @@
                         <input type="text" id="maintPendingSubCatCustom" class="form-control" placeholder="Specify other sub-category..." style="display: none; margin-top: 0.4rem; width: 100%;">
                     </div>
                     <div class="form-group">
+                        <label for="maintPendingMakeInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Make</span>
+                            <span id="maintPendingMakeBadge" style="font-size: 0.72rem; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); padding: 1px 6px; border-radius: 4px; display: none;">Predefined</span>
+                        </label>
+                        <input type="text" id="maintPendingMakeInput" class="form-control" placeholder="Enter make (or auto-filled if defined in Settings)" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
                         <label for="maintPendingDescInput" style="font-weight: 500; font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.35rem; display: block;">Defect Description <span style="color: #ef4444;">*</span></label>
                         <textarea id="maintPendingDescInput" class="form-control defect-desc-input" rows="3" placeholder="Describe defect details..." required style="width: 100%;"></textarea>
                     </div>
@@ -1402,7 +1449,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Main Logic -->
-    <script src="app.js?v=5.4"></script>
+    <script src="app.js?v=6.0"></script>
 </body>
 
 </html>

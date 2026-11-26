@@ -579,7 +579,7 @@ function calculateDetentionDuration(fromStr, toStr) {
 // ============================================================================
 const DEFAULT_DROPDOWN_DATA = {
     trainNos: ["26651/2", "20661/2"],
-    rakeNos: ["IC2008", "IC2015", "IC2021"],
+    rakeNos: ["IC2008", "IC2015", "IC2021", "IC2006", "IC2029", "IC2058", "IC2059"],
     mainCategories: [
         "Coach Cleanliness",
         "Coach Maintenenace",
@@ -3434,6 +3434,204 @@ async function fetchMaintenanceCategories() {
     }
 }
 
+// ============================================================================
+// RAKE MAKES CACHE & LOOKUP HELPERS
+// ============================================================================
+let cachedRakeMakes = (() => {
+    try {
+        const stored = localStorage.getItem('vb_rake_makes');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed === 'object') return parsed;
+        }
+    } catch (e) {}
+    return {};
+})();
+
+async function fetchRakeMakes(showToast = false) {
+    try {
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const res = await fetch(`${targetUrl}?action=get_rake_makes`);
+        const result = await res.json();
+        if (result && result.status === 'success' && result.makes) {
+            cachedRakeMakes = result.makes;
+            try {
+                localStorage.setItem('vb_rake_makes', JSON.stringify(cachedRakeMakes));
+            } catch (e) {}
+            if (showToast && window.Swal) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Makes Refreshed',
+                    text: 'Latest make list loaded from Google Sheets.',
+                    timer: 1600,
+                    showConfirmButton: false,
+                    background: 'var(--surface)',
+                    color: 'var(--text-main)'
+                });
+            }
+            if (typeof settingsEditState !== 'undefined' && settingsEditState.activeCategory === 'makeList') {
+                renderMakeListView();
+            }
+        }
+    } catch (err) {
+        console.warn('Failed to fetch rake makes from sheet:', err);
+    }
+}
+window.fetchRakeMakes = fetchRakeMakes;
+
+function getRakeMake(rake, mainCat, subCat) {
+    if (!rake || !subCat) return '';
+    const cleanRake = String(rake).trim();
+    const cleanSub = String(subCat).trim();
+    const cleanMain = String(mainCat || '').trim();
+
+    const rakeData = cachedRakeMakes[cleanRake] || 
+                     cachedRakeMakes[cleanRake.toUpperCase()] || 
+                     (Object.keys(cachedRakeMakes).find(k => k.toLowerCase() === cleanRake.toLowerCase()) ? cachedRakeMakes[Object.keys(cachedRakeMakes).find(k => k.toLowerCase() === cleanRake.toLowerCase())] : null) || {};
+
+    // 1. Direct or case-insensitive match with mainCat
+    if (cleanMain) {
+        if (rakeData[cleanMain] && typeof rakeData[cleanMain] === 'object') {
+            if (rakeData[cleanMain][cleanSub]) return String(rakeData[cleanMain][cleanSub]).trim();
+            const sKey = Object.keys(rakeData[cleanMain]).find(k => k.toLowerCase() === cleanSub.toLowerCase());
+            if (sKey && rakeData[cleanMain][sKey]) return String(rakeData[cleanMain][sKey]).trim();
+        }
+        const mKey = Object.keys(rakeData).find(k => k.toLowerCase() === cleanMain.toLowerCase());
+        if (mKey && typeof rakeData[mKey] === 'object') {
+            if (rakeData[mKey][cleanSub]) return String(rakeData[mKey][cleanSub]).trim();
+            const sKey = Object.keys(rakeData[mKey]).find(k => k.toLowerCase() === cleanSub.toLowerCase());
+            if (sKey && rakeData[mKey][sKey]) return String(rakeData[mKey][sKey]).trim();
+        }
+    }
+
+    // 2. Search across all main categories in this rake for this subCat
+    for (const m of Object.keys(rakeData)) {
+        if (typeof rakeData[m] === 'object' && rakeData[m]) {
+            if (rakeData[m][cleanSub]) return String(rakeData[m][cleanSub]).trim();
+            const sKey = Object.keys(rakeData[m]).find(k => k.toLowerCase() === cleanSub.toLowerCase());
+            if (sKey && rakeData[m][sKey]) return String(rakeData[m][sKey]).trim();
+        } else if (typeof rakeData[m] === 'string' && m.toLowerCase() === cleanSub.toLowerCase()) {
+            return String(rakeData[m]).trim();
+        }
+    }
+
+    return '';
+}
+window.getRakeMake = getRakeMake;
+
+function autoPopulateMaintModalMake(force = false) {
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const rake = rakeSelect ? rakeSelect.value.trim() : '';
+    const mainSel = document.getElementById('maintModalMainCatSelect');
+    const mainCat = mainSel ? mainSel.value.trim() : '';
+    const subSel = document.getElementById('maintModalSubCatSelect');
+    let subCat = subSel ? subSel.value.trim() : '';
+    const makeInput = document.getElementById('maintModalMakeInput');
+    const makeBadge = document.getElementById('maintModalMakeBadge');
+    if (!makeInput) return;
+
+    if (makeInput.dataset.manual === 'true' && !force) {
+        return;
+    }
+
+    if (!rake || !subCat || subCat === 'Other') {
+        if (makeBadge) {
+            makeBadge.style.display = 'inline-block';
+            makeBadge.textContent = 'Manual Entry';
+            makeBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+            makeBadge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            makeBadge.style.color = '#fbbf24';
+        }
+        if (!makeInput.value) {
+            makeInput.placeholder = 'Enter make manually...';
+        }
+        return;
+    }
+
+    const matchedMake = getRakeMake(rake, mainCat, subCat);
+    if (matchedMake) {
+        makeInput.value = matchedMake;
+        makeInput.dataset.manual = 'false';
+        if (makeBadge) {
+            makeBadge.style.display = 'inline-block';
+            makeBadge.textContent = 'Predefined: ' + matchedMake;
+            makeBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+            makeBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+            makeBadge.style.color = '#38bdf8';
+        }
+        makeInput.placeholder = 'Predefined Make for this Rake';
+    } else {
+        // Not predefined in Settings - allow user to enter make freely!
+        makeInput.value = '';
+        makeInput.dataset.manual = 'false';
+        if (makeBadge) {
+            makeBadge.style.display = 'inline-block';
+            makeBadge.textContent = 'Not Predefined (Enter Make)';
+            makeBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+            makeBadge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            makeBadge.style.color = '#fbbf24';
+        }
+        makeInput.placeholder = 'Make not in Settings — enter make manually (e.g. Faiveley, Knorr...)';
+    }
+}
+window.autoPopulateMaintModalMake = autoPopulateMaintModalMake;
+
+function autoPopulatePendingModalMake(force = false) {
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const rake = rakeSelect ? rakeSelect.value.trim() : '';
+    const mainSel = document.getElementById('maintPendingMainCatSelect');
+    const mainCat = mainSel ? mainSel.value.trim() : '';
+    const subSel = document.getElementById('maintPendingSubCatSelect');
+    let subCat = subSel ? subSel.value.trim() : '';
+    const makeInput = document.getElementById('maintPendingMakeInput');
+    const makeBadge = document.getElementById('maintPendingMakeBadge');
+    if (!makeInput) return;
+
+    if (makeInput.dataset.manual === 'true' && !force) {
+        return;
+    }
+
+    if (!rake || !subCat || subCat === 'Other') {
+        if (makeBadge) {
+            makeBadge.style.display = 'inline-block';
+            makeBadge.textContent = 'Manual Entry';
+            makeBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+            makeBadge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            makeBadge.style.color = '#fbbf24';
+        }
+        if (!makeInput.value) {
+            makeInput.placeholder = 'Enter make manually...';
+        }
+        return;
+    }
+
+    const matchedMake = getRakeMake(rake, mainCat, subCat);
+    if (matchedMake) {
+        makeInput.value = matchedMake;
+        makeInput.dataset.manual = 'false';
+        if (makeBadge) {
+            makeBadge.style.display = 'inline-block';
+            makeBadge.textContent = 'Predefined: ' + matchedMake;
+            makeBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+            makeBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+            makeBadge.style.color = '#38bdf8';
+        }
+        makeInput.placeholder = 'Predefined Make for this Rake';
+    } else {
+        makeInput.value = '';
+        makeInput.dataset.manual = 'false';
+        if (makeBadge) {
+            makeBadge.style.display = 'inline-block';
+            makeBadge.textContent = 'Not Predefined (Enter Make)';
+            makeBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+            makeBadge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            makeBadge.style.color = '#fbbf24';
+        }
+        makeInput.placeholder = 'Make not in Settings — enter make manually (e.g. Faiveley, Knorr...)';
+    }
+}
+window.autoPopulatePendingModalMake = autoPopulatePendingModalMake;
+
 let isMaintenanceRemarksSaved = false;
 
 const maintScreenEl = document.getElementById('maintenanceRemarksScreen');
@@ -3455,6 +3653,7 @@ function openMaintenanceRemarks() {
     if (screen) screen.style.display = 'flex';
     window.scrollTo(0, 0);
     fetchMaintenanceCategories();
+    fetchRakeMakes();
 }
 window.openMaintenanceRemarks = openMaintenanceRemarks;
 
@@ -3783,6 +3982,16 @@ function openAddMaintRemarkModal() {
     const actionInput = document.getElementById('maintModalActionInput');
     if (actionInput) actionInput.value = '';
 
+    const makeInput = document.getElementById('maintModalMakeInput');
+    if (makeInput) {
+        makeInput.value = '';
+        makeInput.dataset.manual = 'false';
+    }
+    const makeBadge = document.getElementById('maintModalMakeBadge');
+    if (makeBadge) makeBadge.style.display = 'none';
+
+    autoPopulateMaintModalMake(true);
+
     const modal = document.getElementById('maintRemarkModal');
     if (modal) modal.style.display = 'flex';
 
@@ -3801,6 +4010,7 @@ function openEditMaintRemarkModal(row) {
     const mainCat = row.querySelector('.maint-main-cat') ? row.querySelector('.maint-main-cat').value : '';
     const subCat = row.querySelector('.maint-sub-cat') ? row.querySelector('.maint-sub-cat').value : '';
     const customSub = row.querySelector('.maint-sub-cat-custom') ? row.querySelector('.maint-sub-cat-custom').value : '';
+    const make = row.querySelector('.maint-make') ? row.querySelector('.maint-make').value : '';
     const desc = row.querySelector('.maint-desc') ? row.querySelector('.maint-desc').value : '';
     const action = row.querySelector('.maint-action') ? row.querySelector('.maint-action').value : '';
 
@@ -3819,6 +4029,8 @@ function openEditMaintRemarkModal(row) {
     const mainSel = document.getElementById('maintModalMainCatSelect');
     const subSel = document.getElementById('maintModalSubCatSelect');
     const customInput = document.getElementById('maintModalSubCatCustom');
+    const makeInput = document.getElementById('maintModalMakeInput');
+    const makeBadge = document.getElementById('maintModalMakeBadge');
 
     if (mainSel) {
         mainSel.innerHTML = buildMaintMainCatOptions(mainCat);
@@ -3842,6 +4054,34 @@ function openEditMaintRemarkModal(row) {
                 customInput.style.display = 'none';
                 customInput.value = '';
             }
+        }
+    }
+
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const currentRake = rakeSelect ? rakeSelect.value.trim() : '';
+
+    if (makeInput) {
+        if (make) {
+            makeInput.value = make;
+            makeInput.dataset.manual = 'true';
+            if (makeBadge) {
+                makeBadge.style.display = 'inline-block';
+                const matchedMake = getRakeMake(currentRake, mainCat, subCat);
+                if (matchedMake && matchedMake.toLowerCase() === make.toLowerCase()) {
+                    makeBadge.textContent = 'Predefined: ' + make;
+                    makeBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+                    makeBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                    makeBadge.style.color = '#38bdf8';
+                } else {
+                    makeBadge.textContent = 'Custom: ' + make;
+                    makeBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                    makeBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    makeBadge.style.color = '#34d399';
+                }
+            }
+        } else {
+            makeInput.dataset.manual = 'false';
+            autoPopulateMaintModalMake(true);
         }
     }
 
@@ -3876,6 +4116,7 @@ function saveMaintRemarkModal() {
     const mainSel = document.getElementById('maintModalMainCatSelect');
     const subSel = document.getElementById('maintModalSubCatSelect');
     const customInput = document.getElementById('maintModalSubCatCustom');
+    const makeInput = document.getElementById('maintModalMakeInput');
     const descInput = document.getElementById('maintModalDescInput');
     const actionInput = document.getElementById('maintModalActionInput');
 
@@ -3888,6 +4129,7 @@ function saveMaintRemarkModal() {
         customVal = customInput.value.trim();
         subCat = customVal;
     }
+    const make = makeInput ? makeInput.value.trim() : '';
     const desc = descInput ? descInput.value.trim() : '';
     const action = actionInput ? actionInput.value.trim() : '';
 
@@ -3947,6 +4189,7 @@ function saveMaintRemarkModal() {
         const mainHidden = editingMaintRemarkRow.querySelector('.maint-main-cat');
         const subHidden = editingMaintRemarkRow.querySelector('.maint-sub-cat');
         const customHidden = editingMaintRemarkRow.querySelector('.maint-sub-cat-custom');
+        const makeHidden = editingMaintRemarkRow.querySelector('.maint-make');
         const attendedHidden = editingMaintRemarkRow.querySelector('.maint-attended-date');
         const descArea = editingMaintRemarkRow.querySelector('.maint-desc');
         const actionArea = editingMaintRemarkRow.querySelector('.maint-action');
@@ -3956,6 +4199,7 @@ function saveMaintRemarkModal() {
         if (mainHidden) mainHidden.value = mainCat;
         if (subHidden) subHidden.value = subCat;
         if (customHidden) customHidden.value = customVal;
+        if (makeHidden) makeHidden.value = make;
         if (attendedHidden) attendedHidden.value = attendedDateVal;
         if (descArea) descArea.value = desc;
         if (actionArea) actionArea.value = action;
@@ -3971,6 +4215,21 @@ function saveMaintRemarkModal() {
 
         const catBadge = editingMaintRemarkRow.querySelector('.defect-badge-cat');
         if (catBadge) catBadge.textContent = `${mainCat || 'General'}${subCat ? ' > ' + subCat : ''}`;
+
+        let makeBadge = editingMaintRemarkRow.querySelector('.defect-badge-make');
+        if (make) {
+            if (!makeBadge) {
+                makeBadge = document.createElement('span');
+                makeBadge.className = 'defect-badge-make';
+                if (catBadge && catBadge.parentNode) {
+                    catBadge.parentNode.insertBefore(makeBadge, catBadge.nextSibling);
+                }
+            }
+            makeBadge.textContent = `Make: ${make}`;
+            makeBadge.style.display = 'inline-flex';
+        } else if (makeBadge) {
+            makeBadge.remove();
+        }
 
         const statusChip = editingMaintRemarkRow.querySelector('.maint-status-chip');
         if (statusChip) {
@@ -3998,10 +4257,22 @@ function saveMaintRemarkModal() {
             AttentionStatus: status,
             MainCategory: mainCat,
             SubCategory: subCat,
+            Make: make,
             DefectDescription: desc,
             AttentionGiven: action,
             AttendedDate: attendedDateVal
         });
+    }
+
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const currentRake = rakeSelect ? rakeSelect.value.trim() : '';
+    if (make && currentRake && mainCat && subCat && subCat !== 'Other') {
+        if (!cachedRakeMakes[currentRake]) cachedRakeMakes[currentRake] = {};
+        if (!cachedRakeMakes[currentRake][mainCat]) cachedRakeMakes[currentRake][mainCat] = {};
+        if (!cachedRakeMakes[currentRake][mainCat][subCat]) {
+            cachedRakeMakes[currentRake][mainCat][subCat] = make;
+            try { localStorage.setItem('vb_rake_makes', JSON.stringify(cachedRakeMakes)); } catch (e) {}
+        }
     }
 
     isMaintenanceRemarksSaved = false;
@@ -4057,6 +4328,8 @@ function addMaintRemarkCard(data = {}) {
     const selectedMainCat = data.MainCategory || '';
     const selectedSubCat = data.SubCategory || '';
     const selectedCoach = data.CoachNo || '';
+    const currentRake = document.getElementById('maintRakeSelect') ? document.getElementById('maintRakeSelect').value.trim() : '';
+    const selectedMake = data.Make || getRakeMake(currentRake, selectedMainCat, selectedSubCat);
     const desc = data.DefectDescription || '';
     const action = data.AttentionGiven || '';
     const attendedDateVal = isPending ? '' : (data.AttendedDate || basicDate);
@@ -4076,6 +4349,7 @@ function addMaintRemarkCard(data = {}) {
         <input type="hidden" class="maint-main-cat" value="${escapeHtml(selectedMainCat)}">
         <input type="hidden" class="maint-sub-cat" value="${escapeHtml(selectedSubCat)}">
         <input type="hidden" class="maint-sub-cat-custom" value="${escapeHtml(selectedSubCat)}">
+        <input type="hidden" class="maint-make" value="${escapeHtml(selectedMake)}">
         <input type="hidden" class="maint-attended-date" value="${escapeHtml(attendedDateVal)}">
         <textarea class="maint-desc" style="display: none;">${escapeHtml(desc)}</textarea>
         <textarea class="maint-action" style="display: none;">${escapeHtml(action)}</textarea>
@@ -4085,6 +4359,7 @@ function addMaintRemarkCard(data = {}) {
                 <span class="defect-badge-index">#${index}</span>
                 <span class="defect-badge-coach">${escapeHtml(selectedCoach || 'Coach ?')}</span>
                 <span class="defect-badge-cat">${escapeHtml(selectedMainCat || 'General')}${selectedSubCat ? ' > ' + escapeHtml(selectedSubCat) : ''}</span>
+                ${selectedMake ? `<span class="defect-badge-make">Make: ${escapeHtml(selectedMake)}</span>` : ''}
                 <span class="maint-status-chip ${isPending ? 'is-pending' : 'is-attended'}">${isPending ? '⚠️ PENDING' : '✓ ATTENDED'}</span>
                 ${origTag}
             </div>
@@ -4153,12 +4428,16 @@ function renderPendingRemarks(pendingList = []) {
         card.className = 'defect-list-item maint-pending-list-item maint-pending-card' + (isAttended ? ' status-attended' : '');
         card.id = `pendingCard_${idx}`;
 
+        const rakeVal = document.getElementById('maintRakeSelect') ? document.getElementById('maintRakeSelect').value.trim() : '';
+        const itemMake = item.Make || (rakeVal ? getRakeMake(rakeVal, item.MainCategory, item.SubCategory) : '') || '';
+
         card.innerHTML = `
             <input type="hidden" class="pending-coach-select maint-coach-select" value="${escapeHtml(item.CoachNo || '')}">
             <input type="hidden" class="pending-status-select maint-status-select" value="${isAttended ? 'Attended' : 'Pending'}">
             <input type="hidden" class="pending-main-cat maint-main-cat" value="${escapeHtml(item.MainCategory || '')}">
             <input type="hidden" class="pending-sub-cat maint-sub-cat" value="${escapeHtml(item.SubCategory || '')}">
             <input type="hidden" class="pending-sub-cat-custom maint-sub-cat-custom" value="${escapeHtml(item.SubCategory || '')}">
+            <input type="hidden" class="pending-make maint-make" value="${escapeHtml(itemMake)}">
             <input type="hidden" class="pending-attended-date" id="pendingAttendedDate_${idx}" value="${isAttended ? escapeHtml(basicDate) : ''}">
             <textarea class="pending-desc-text" style="display: none;">${escapeHtml(item.DefectDescription || '')}</textarea>
             <textarea class="pending-attention-text" style="display: none;">${escapeHtml(item.AttentionGiven || '')}</textarea>
@@ -4168,6 +4447,7 @@ function renderPendingRemarks(pendingList = []) {
                     <span class="defect-badge-index">#${idx + 1}</span>
                     <span class="defect-badge-coach">${escapeHtml(item.CoachNo || 'All Coach')}</span>
                     <span class="defect-badge-cat">${escapeHtml(item.MainCategory || 'General')}${item.SubCategory ? ' > ' + escapeHtml(item.SubCategory) : ''}</span>
+                    ${itemMake ? `<span class="defect-badge-make">Make: ${escapeHtml(itemMake)}</span>` : ''}
                     <span class="pending-meta-tag ${isAttended ? 'attended' : ''}" id="pendingBadge_${idx}">
                         ${isAttended ? '✓ ATTENDED (Resolved Today)' : '⚠️ PENDING DEFECT'}
                     </span>
@@ -4266,6 +4546,38 @@ function openEditPendingModal(idx) {
     const actionInput = document.getElementById('maintPendingActionInput');
     if (actionInput) actionInput.value = action;
 
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const rake = rakeSelect ? rakeSelect.value.trim() : '';
+    const pendingMakeInput = document.getElementById('maintPendingMakeInput');
+    const pendingMakeBadge = document.getElementById('maintPendingMakeBadge');
+    const cardMake = card.querySelector('.pending-make') ? card.querySelector('.pending-make').value : '';
+    const currentMake = cardMake || orig.Make || '';
+
+    if (pendingMakeInput) {
+        if (currentMake) {
+            pendingMakeInput.value = currentMake;
+            pendingMakeInput.dataset.manual = 'true';
+            if (pendingMakeBadge) {
+                pendingMakeBadge.style.display = 'inline-block';
+                const matchedMake = getRakeMake(rake, mainCat, subCat);
+                if (matchedMake && matchedMake.toLowerCase() === currentMake.toLowerCase()) {
+                    pendingMakeBadge.textContent = 'Predefined: ' + currentMake;
+                    pendingMakeBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+                    pendingMakeBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                    pendingMakeBadge.style.color = '#38bdf8';
+                } else {
+                    pendingMakeBadge.textContent = 'Custom: ' + currentMake;
+                    pendingMakeBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                    pendingMakeBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    pendingMakeBadge.style.color = '#34d399';
+                }
+            }
+        } else {
+            pendingMakeInput.dataset.manual = 'false';
+            autoPopulatePendingModalMake(true);
+        }
+    }
+
     const modal = document.getElementById('maintPendingModal');
     if (modal) modal.style.display = 'flex';
 
@@ -4309,6 +4621,8 @@ function saveMaintPendingModal() {
         customVal = customInput.value.trim();
         subCat = customVal;
     }
+    const pMakeInput = document.getElementById('maintPendingMakeInput');
+    const pMake = pMakeInput ? pMakeInput.value.trim() : '';
     const desc = descInput ? descInput.value.trim() : '';
     const action = actionInput ? actionInput.value.trim() : '';
 
@@ -4382,13 +4696,50 @@ function saveMaintPendingModal() {
         actionBox.remove();
     }
 
+    let makeHidden = card.querySelector('.pending-make');
+    if (!makeHidden) {
+        makeHidden = document.createElement('input');
+        makeHidden.type = 'hidden';
+        makeHidden.className = 'pending-make maint-make';
+        card.appendChild(makeHidden);
+    }
+    makeHidden.value = pMake;
+
+    let makeBadge = card.querySelector('.defect-badge-make');
+    if (pMake) {
+        if (!makeBadge) {
+            makeBadge = document.createElement('span');
+            makeBadge.className = 'defect-badge-make';
+            const catBadge = card.querySelector('.defect-badge-cat');
+            if (catBadge && catBadge.parentNode) {
+                catBadge.parentNode.insertBefore(makeBadge, catBadge.nextSibling);
+            }
+        }
+        makeBadge.textContent = `Make: ${pMake}`;
+        makeBadge.style.display = 'inline-flex';
+    } else if (makeBadge) {
+        makeBadge.remove();
+    }
+
     if (loadedPendingRemarks[idx]) {
         loadedPendingRemarks[idx].AttentionStatus = status;
         loadedPendingRemarks[idx].CoachNo = coach;
         loadedPendingRemarks[idx].MainCategory = mainCat;
         loadedPendingRemarks[idx].SubCategory = subCat;
+        loadedPendingRemarks[idx].Make = pMake;
         loadedPendingRemarks[idx].DefectDescription = desc;
         loadedPendingRemarks[idx].AttentionGiven = action;
+    }
+
+    const rakeSelect = document.getElementById('maintRakeSelect');
+    const currentRake = rakeSelect ? rakeSelect.value.trim() : '';
+    if (pMake && currentRake && mainCat && subCat && subCat !== 'Other') {
+        if (!cachedRakeMakes[currentRake]) cachedRakeMakes[currentRake] = {};
+        if (!cachedRakeMakes[currentRake][mainCat]) cachedRakeMakes[currentRake][mainCat] = {};
+        if (!cachedRakeMakes[currentRake][mainCat][subCat]) {
+            cachedRakeMakes[currentRake][mainCat][subCat] = pMake;
+            try { localStorage.setItem('vb_rake_makes', JSON.stringify(cachedRakeMakes)); } catch (e) {}
+        }
     }
 
     isMaintenanceRemarksSaved = false;
@@ -4405,6 +4756,7 @@ window.saveMaintPendingModal = saveMaintPendingModal;
         mainSel.addEventListener('change', () => {
             subSel.innerHTML = buildMaintSubCatOptions(mainSel.value, '');
             if (customInput) { customInput.style.display = 'none'; customInput.value = ''; }
+            autoPopulateMaintModalMake(true);
         });
         subSel.addEventListener('change', () => {
             if (subSel.value === 'Other' && customInput) {
@@ -4413,6 +4765,53 @@ window.saveMaintPendingModal = saveMaintPendingModal;
             } else if (customInput) {
                 customInput.style.display = 'none';
                 customInput.value = '';
+            }
+            autoPopulateMaintModalMake(true);
+        });
+    }
+
+    const modalMakeInput = document.getElementById('maintModalMakeInput');
+    const modalMakeBadge = document.getElementById('maintModalMakeBadge');
+    if (modalMakeInput) {
+        modalMakeInput.addEventListener('input', () => {
+            modalMakeInput.dataset.manual = 'true';
+            if (modalMakeBadge) {
+                if (modalMakeInput.value.trim()) {
+                    modalMakeBadge.style.display = 'inline-block';
+                    modalMakeBadge.textContent = 'Custom: ' + modalMakeInput.value.trim();
+                    modalMakeBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                    modalMakeBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    modalMakeBadge.style.color = '#34d399';
+                } else {
+                    modalMakeBadge.style.display = 'inline-block';
+                    modalMakeBadge.textContent = 'Enter Make';
+                    modalMakeBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+                    modalMakeBadge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                    modalMakeBadge.style.color = '#fbbf24';
+                }
+            }
+        });
+    }
+
+    const pMakeInput = document.getElementById('maintPendingMakeInput');
+    const pMakeBadge = document.getElementById('maintPendingMakeBadge');
+    if (pMakeInput) {
+        pMakeInput.addEventListener('input', () => {
+            pMakeInput.dataset.manual = 'true';
+            if (pMakeBadge) {
+                if (pMakeInput.value.trim()) {
+                    pMakeBadge.style.display = 'inline-block';
+                    pMakeBadge.textContent = 'Custom: ' + pMakeInput.value.trim();
+                    pMakeBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                    pMakeBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    pMakeBadge.style.color = '#34d399';
+                } else {
+                    pMakeBadge.style.display = 'inline-block';
+                    pMakeBadge.textContent = 'Enter Make';
+                    pMakeBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+                    pMakeBadge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                    pMakeBadge.style.color = '#fbbf24';
+                }
             }
         });
     }
@@ -4428,6 +4827,7 @@ window.saveMaintPendingModal = saveMaintPendingModal;
         pMainSel.addEventListener('change', () => {
             pSubSel.innerHTML = buildMaintSubCatOptions(pMainSel.value, '');
             if (pCustomInput) { pCustomInput.style.display = 'none'; pCustomInput.value = ''; }
+            autoPopulatePendingModalMake(true);
         });
         pSubSel.addEventListener('change', () => {
             if (pSubSel.value === 'Other' && pCustomInput) {
@@ -4437,6 +4837,7 @@ window.saveMaintPendingModal = saveMaintPendingModal;
                 pCustomInput.style.display = 'none';
                 pCustomInput.value = '';
             }
+            autoPopulatePendingModalMake(true);
         });
     }
 
@@ -4538,7 +4939,10 @@ async function loadMaintenanceRemarks() {
             }
 
             if (result.remarks && result.remarks.length > 0) {
-                result.remarks.forEach(r => addMaintRemarkCard(r));
+                result.remarks.forEach(r => {
+                    if (!r.Make) r.Make = getRakeMake(rake, r.MainCategory, r.SubCategory);
+                    addMaintRemarkCard(r);
+                });
                 statusEl.textContent = `Loaded ${result.remarks.length} remark(s) for ${rake} on ${date}. (${filteredPending.length} pending from earlier dates)`;
                 statusEl.style.color = '#10b981';
             } else {
@@ -4620,6 +5024,8 @@ async function saveMaintenanceRemarks() {
         }
         const desc = card.querySelector('.maint-desc').value.trim();
         const action = card.querySelector('.maint-action').value.trim();
+        const makeHidden = card.querySelector('.maint-make');
+        const make = makeHidden ? makeHidden.value.trim() : (getRakeMake(rake, mainCat, subCat) || '');
 
         if (coach || mainCat || desc || action) {
             if (!coach || !mainCat || !subCat || !desc) {
@@ -4629,6 +5035,7 @@ async function saveMaintenanceRemarks() {
                 CoachNo: coach,
                 MainCategory: mainCat,
                 SubCategory: subCat,
+                Make: make,
                 DefectDescription: desc,
                 AttentionGiven: action,
                 AttentionStatus: attentionStatus,
@@ -4646,6 +5053,7 @@ async function saveMaintenanceRemarks() {
                     CoachNo: coach,
                     MainCategory: mainCat,
                     SubCategory: subCat,
+                    Make: make,
                     DefectDescription: desc,
                     AttentionGiven: action + ' (Attended on ' + date + ' by ' + sse + ')',
                     AttentionStatus: 'Attended',
@@ -4682,6 +5090,7 @@ async function saveMaintenanceRemarks() {
         const descText = pCard.querySelector('.pending-desc-text');
         const pStatusSelect = pCard.querySelector('.pending-status-select');
         const pAttentionText = pCard.querySelector('.pending-attention-text');
+        const pMakeHidden = pCard.querySelector('.pending-make') || pCard.querySelector('.maint-make');
 
         let subVal = subSel ? subSel.value : orig.SubCategory;
         if (subVal === 'Other' && customSub && customSub.value.trim()) {
@@ -4693,6 +5102,7 @@ async function saveMaintenanceRemarks() {
         const mainVal = mainSel ? mainSel.value : orig.MainCategory;
         const descVal = descText ? descText.value.trim() : orig.DefectDescription;
         const attentionGivenVal = pAttentionText ? pAttentionText.value.trim() : (orig.AttentionGiven || '');
+        const pMake = (pMakeHidden ? pMakeHidden.value.trim() : '') || orig.Make || getRakeMake(rake, mainVal, subVal) || '';
 
         if (newStatus === 'Attended') {
             // Marked Attended! Will be recorded in Section 1 for today and updated in Google Sheets
@@ -4700,6 +5110,7 @@ async function saveMaintenanceRemarks() {
                 CoachNo: coachVal,
                 MainCategory: mainVal,
                 SubCategory: subVal,
+                Make: pMake,
                 DefectDescription: descVal,
                 AttentionGiven: attentionGivenVal,
                 AttentionStatus: 'Attended',
@@ -4717,6 +5128,7 @@ async function saveMaintenanceRemarks() {
                 CoachNo: coachVal,
                 MainCategory: mainVal,
                 SubCategory: subVal,
+                Make: pMake,
                 DefectDescription: descVal,
                 AttentionGiven: attentionGivenVal + ' (Attended on ' + date + ' by ' + sse + ')',
                 AttentionStatus: 'Attended',
@@ -4729,6 +5141,7 @@ async function saveMaintenanceRemarks() {
                 CoachNo: coachVal,
                 MainCategory: mainVal,
                 SubCategory: subVal,
+                Make: pMake,
                 DefectDescription: descVal,
                 AttentionGiven: attentionGivenVal,
                 AttentionStatus: 'Pending',
@@ -4741,6 +5154,7 @@ async function saveMaintenanceRemarks() {
                 CoachNo: coachVal,
                 MainCategory: mainVal,
                 SubCategory: subVal,
+                Make: pMake,
                 DefectDescription: descVal,
                 AttentionGiven: attentionGivenVal,
                 AttentionStatus: 'Pending',
@@ -6784,6 +7198,12 @@ const CATEGORY_CONFIG = {
         subtitle: 'Values stored in "drop down data" sheet (Staff Token No)',
         placeholder: 'e.g. 921, 305, 469...',
         cacheKey: 'staffTokens'
+    },
+    makeList: {
+        title: 'Rake Assembly & Sub-Assembly Make List',
+        subtitle: 'Define component makes for each Rake (stored in "Rake Make List" sheet)',
+        placeholder: '',
+        cacheKey: 'rakeMakes'
     }
 };
 
@@ -6842,6 +7262,7 @@ function openSettingsScreen() {
     if (settingsScreen) {
         settingsScreen.style.display = 'flex';
         initSettingsState();
+        fetchRakeMakes();
         renderSettingsView();
         refreshManualsCacheStats();
     }
@@ -6941,6 +7362,22 @@ function renderSettingsView() {
             btn.classList.remove('active');
         }
     });
+
+    const standardView = document.getElementById('standardCategoriesView');
+    const makeListView = document.getElementById('makeListView');
+    const saveBtnText = document.getElementById('saveCategoriesBtnText');
+
+    if (activeCat === 'makeList') {
+        if (standardView) standardView.style.display = 'none';
+        if (makeListView) makeListView.style.display = 'block';
+        if (saveBtnText) saveBtnText.textContent = 'Save Make List to Google Sheet';
+        renderMakeListView();
+        return;
+    } else {
+        if (standardView) standardView.style.display = 'block';
+        if (makeListView) makeListView.style.display = 'none';
+        if (saveBtnText) saveBtnText.textContent = 'Save Categories to Google Sheet';
+    }
 
     // Update header & count
     const parentBox = document.getElementById('maintCategoryParentBox');
@@ -7169,7 +7606,257 @@ async function deleteCategoryItem(index) {
 }
 window.deleteCategoryItem = deleteCategoryItem;
 
+// ============================================================================
+// MAKE LIST SETTINGS TAB LOGIC
+// ============================================================================
+function getMakeListRakes() {
+    const fromDropdown = (cachedDropdownData.rakeNos && cachedDropdownData.rakeNos.length > 0)
+        ? cachedDropdownData.rakeNos
+        : DEFAULT_DROPDOWN_DATA.rakeNos;
+    const defaults = ["IC2008", "IC2015", "IC2021", "IC2006", "IC2029", "IC2058", "IC2059"];
+    return Array.from(new Set([...fromDropdown, ...defaults]));
+}
+
+let selectedMakeListRake = '';
+
+function renderMakeListView() {
+    const rakeSelect = document.getElementById('makeListRakeSelect');
+    const container = document.getElementById('makeListAssembliesContainer');
+    const countBadge = document.getElementById('makeListItemCount');
+    if (!container) return;
+
+    const rakes = getMakeListRakes();
+    if (!selectedMakeListRake || !rakes.includes(selectedMakeListRake)) {
+        selectedMakeListRake = rakes[0] || 'IC2008';
+    }
+
+    if (rakeSelect) {
+        rakeSelect.innerHTML = rakes.map(r => `<option value="${escapeHtml(r)}" ${r === selectedMakeListRake ? 'selected' : ''}>${escapeHtml(r)}</option>`).join('');
+    }
+
+    const categories = cachedMaintenanceCategories || DEFAULT_MAINTENANCE_CATEGORIES;
+    const mainCats = Object.keys(categories);
+    // Sort with Interior, Propulsion, UG- Air first
+    const priorityOrder = ['Interior', 'Propulsion', 'UG- Air', 'UG - Air'];
+    mainCats.sort((a, b) => {
+        const idxA = priorityOrder.findIndex(p => p.toLowerCase() === a.toLowerCase());
+        const idxB = priorityOrder.findIndex(p => p.toLowerCase() === b.toLowerCase());
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
+    });
+
+    const getIcon = (cat) => {
+        const c = cat.toLowerCase();
+        if (c.includes('interior')) return '🚪';
+        if (c.includes('propulsion')) return '⚡';
+        if (c.includes('ug') || c.includes('air')) return '🛞';
+        return '🔧';
+    };
+
+    let totalMakesCount = 0;
+    let html = '';
+
+    mainCats.forEach(mainCat => {
+        const subs = categories[mainCat] || [];
+        const validSubs = subs.filter(s => s && s.toLowerCase() !== 'others' && s.toLowerCase() !== 'other');
+        if (validSubs.length === 0) return;
+
+        let subCardsHtml = '';
+        validSubs.forEach(sub => {
+            const currentMake = getRakeMake(selectedMakeListRake, mainCat, sub);
+            if (currentMake) totalMakesCount++;
+
+            subCardsHtml += `
+                <div class="make-item-row">
+                    <div class="make-item-subname">
+                        <span>${escapeHtml(sub)}</span>
+                    </div>
+                    <input type="text" 
+                           class="make-item-input" 
+                           data-main="${escapeHtml(mainCat)}" 
+                           data-sub="${escapeHtml(sub)}" 
+                           placeholder="Enter make (e.g. Faiveley, Knorr, Medha...)" 
+                           value="${escapeHtml(currentMake)}"
+                           oninput="handleMakeInputChange()">
+                </div>
+            `;
+        });
+
+        html += `
+            <div class="make-assembly-card">
+                <div class="make-assembly-header">
+                    <h3 class="make-assembly-title">
+                        <span>${getIcon(mainCat)}</span>
+                        <span>${escapeHtml(mainCat)}</span>
+                    </h3>
+                    <span class="make-assembly-badge">${validSubs.length} sub-assemblies</span>
+                </div>
+                <div class="make-sub-grid">
+                    ${subCardsHtml}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    if (countBadge) {
+        countBadge.textContent = `${totalMakesCount} make${totalMakesCount === 1 ? '' : 's'} defined`;
+    }
+}
+window.renderMakeListView = renderMakeListView;
+
+function handleMakeListRakeChange() {
+    const rakeSelect = document.getElementById('makeListRakeSelect');
+    if (!rakeSelect) return;
+    selectedMakeListRake = rakeSelect.value;
+    renderMakeListView();
+}
+window.handleMakeListRakeChange = handleMakeListRakeChange;
+
+function handleMakeInputChange() {
+    settingsEditState.hasUnsavedChanges = true;
+    updateMakeListCountBadge();
+}
+window.handleMakeInputChange = handleMakeInputChange;
+
+function updateMakeListCountBadge() {
+    const countBadge = document.getElementById('makeListItemCount');
+    if (!countBadge) return;
+    const inputs = document.querySelectorAll('#makeListAssembliesContainer .make-item-input');
+    let filled = 0;
+    inputs.forEach(inp => {
+        if (inp.value && inp.value.trim()) filled++;
+    });
+    countBadge.textContent = `${filled} make${filled === 1 ? '' : 's'} defined`;
+}
+
+async function saveMakeListToSheet() {
+    if (!currentSettingsPassword) {
+        await openSettingsPrompt();
+        if (!currentSettingsPassword) return;
+    }
+
+    const rakeSelect = document.getElementById('makeListRakeSelect');
+    const rake = rakeSelect ? rakeSelect.value.trim() : selectedMakeListRake;
+    if (!rake) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Rake Selected',
+            text: 'Please select a Rake Number before saving.',
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: 'var(--primary)'
+        });
+        return;
+    }
+
+    const saveBtn = document.getElementById('saveCategoriesBtn');
+    const btnText = document.getElementById('saveCategoriesBtnText');
+    const spinner = saveBtn ? saveBtn.querySelector('.spinner') : null;
+    const statusEl = document.getElementById('settingsSaveStatus');
+
+    if (saveBtn) saveBtn.disabled = true;
+    if (btnText) btnText.textContent = 'Saving Make List to Google Sheet...';
+    if (spinner) spinner.classList.remove('hidden');
+
+    try {
+        const inputs = document.querySelectorAll('#makeListAssembliesContainer .make-item-input');
+        const rakeMakesMap = {};
+
+        inputs.forEach(inp => {
+            const mainCat = inp.dataset.main;
+            const subCat = inp.dataset.sub;
+            const val = inp.value.trim();
+            if (mainCat && subCat) {
+                if (!rakeMakesMap[mainCat]) rakeMakesMap[mainCat] = {};
+                if (val) {
+                    rakeMakesMap[mainCat][subCat] = val;
+                }
+            }
+        });
+
+        // Update local cache
+        if (!cachedRakeMakes[rake]) cachedRakeMakes[rake] = {};
+        cachedRakeMakes[rake] = rakeMakesMap;
+        try {
+            localStorage.setItem('vb_rake_makes', JSON.stringify(cachedRakeMakes));
+        } catch (e) {}
+
+        const targetUrl = ARRIVAL_REPORT_WEB_APP_URL || OLD_WEB_APP_URL;
+        const payload = {
+            action: 'save_rake_makes',
+            password: currentPassword,
+            settingsPassword: currentSettingsPassword,
+            rakeNo: rake,
+            makes: rakeMakesMap
+        };
+
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result && result.status === 'success') {
+            settingsEditState.hasUnsavedChanges = false;
+            updateMakeListCountBadge();
+            if (statusEl) {
+                statusEl.textContent = `✓ Make list for ${rake} saved successfully!`;
+                statusEl.style.color = '#10b981';
+            }
+            Swal.fire({
+                icon: 'success',
+                title: 'Make List Saved!',
+                text: `Component makes for ${rake} saved to "Rake Make List" sheet and cached locally.`,
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: '#10b981'
+            });
+        } else if (result && result.status === 'unauthorized') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Unauthorized',
+                text: result.message || 'Incorrect Settings password.',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
+                confirmButtonColor: '#ef4444'
+            });
+            currentSettingsPassword = '';
+        } else {
+            throw new Error(result.message || 'Unknown save error');
+        }
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = 'Error saving make list: ' + err.message;
+            statusEl.style.color = '#ef4444';
+        }
+        Swal.fire({
+            icon: 'error',
+            title: 'Save Failed',
+            text: 'Could not save to Google Sheets: ' + (err.message || 'Network error'),
+            background: 'var(--surface)',
+            color: 'var(--text-main)',
+            confirmButtonColor: '#ef4444'
+        });
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+        if (btnText) btnText.textContent = 'Save Make List to Google Sheet';
+        if (spinner) spinner.classList.add('hidden');
+    }
+}
+window.saveMakeListToSheet = saveMakeListToSheet;
+
 async function saveCategoriesToSheet() {
+    if (settingsEditState.activeCategory === 'makeList') {
+        return await saveMakeListToSheet();
+    }
+
     if (!currentSettingsPassword) {
         await openSettingsPrompt();
         if (!currentSettingsPassword) return;
@@ -8915,6 +9602,8 @@ function collectMaintenanceReportData() {
             }
             const desc = card.querySelector('.maint-desc') ? card.querySelector('.maint-desc').value.trim() : '';
             const action = card.querySelector('.maint-action') ? card.querySelector('.maint-action').value.trim() : '';
+            const makeHidden = card.querySelector('.maint-make');
+            const make = makeHidden ? makeHidden.value.trim() : (getRakeMake(rake, mainCat, subCat) || '');
             const statusSelect = card.querySelector('.maint-status-select');
             const attentionStatus = statusSelect ? statusSelect.value : 'Attended';
             const attendedDateVal = (attentionStatus === 'Pending') ? '' : date;
@@ -8924,6 +9613,7 @@ function collectMaintenanceReportData() {
                     CoachNo: coach,
                     MainCategory: mainCat,
                     SubCategory: subCat,
+                    Make: make,
                     DefectDescription: desc,
                     AttentionGiven: action,
                     AttentionStatus: attentionStatus,
@@ -8956,12 +9646,15 @@ function collectMaintenanceReportData() {
         const descVal = descText ? descText.value.trim() : (orig.DefectDescription || '');
         const attentionGivenVal = pAttentionText ? pAttentionText.value.trim() : (orig.AttentionGiven || '');
         const origDate = orig.OriginalDate || '';
+        const pMakeHidden = pCard.querySelector('.pending-make') || pCard.querySelector('.maint-make');
+        const pMake = (pMakeHidden ? pMakeHidden.value.trim() : '') || orig.Make || getRakeMake(rake, mainVal, subVal) || '';
 
         previousPending.push({
             OriginalDate: origDate,
             CoachNo: coachVal,
             MainCategory: mainVal,
             SubCategory: subVal,
+            Make: pMake,
             DefectDescription: descVal,
             AttentionStatus: newStatus,
             AttentionGiven: attentionGivenVal,
@@ -9107,7 +9800,7 @@ function generateMaintenanceRemarksPdf() {
         ? todayRemarks.map((r, i) => [
             String(i + 1),
             cleanStr(r.CoachNo) || '-',
-            [cleanStr(r.MainCategory), cleanStr(r.SubCategory)].filter(Boolean).join(' - ') || '-',
+            ([cleanStr(r.MainCategory), cleanStr(r.SubCategory)].filter(Boolean).join(' - ') + (r.Make ? `\n(Make: ${cleanStr(r.Make)})` : '')) || '-',
             cleanStr(r.DefectDescription) || '-',
             cleanStr(r.AttentionStatus) || 'Attended',
             cleanStr(r.AttentionGiven) || '-',
@@ -9154,7 +9847,7 @@ function generateMaintenanceRemarksPdf() {
             String(i + 1),
             cleanStr(p.OriginalDate) || '-',
             cleanStr(p.CoachNo) || '-',
-            [cleanStr(p.MainCategory), cleanStr(p.SubCategory)].filter(Boolean).join(' - ') || '-',
+            ([cleanStr(p.MainCategory), cleanStr(p.SubCategory)].filter(Boolean).join(' - ') + (p.Make ? `\n(Make: ${cleanStr(p.Make)})` : '')) || '-',
             cleanStr(p.DefectDescription) || '-',
             cleanStr(p.AttentionStatus) || 'Pending',
             cleanStr(p.AttentionGiven) || (p.AttentionStatus === 'Attended' ? `Attended on ${basic.Date}` : '-')
