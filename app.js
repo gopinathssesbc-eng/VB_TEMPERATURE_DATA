@@ -10143,9 +10143,9 @@ function generateTemperaturePdf() {
     const tableBody = coachData.map(c => {
         let statusStr = '-';
         if (c.filledCount > 0) {
-            if (c.hasRedAlert) statusStr = 'ALERT';
-            else if (c.hasOrangeAlert) statusStr = 'WARN';
-            else statusStr = 'OK';
+            if (c.hasRedAlert) statusStr = 'RED';
+            else if (c.hasOrangeAlert) statusStr = 'ORANGE';
+            else statusStr = 'GREEN';
         }
         return [
             c.coach,
@@ -10239,17 +10239,18 @@ function generateTemperaturePdf() {
 
                 // Status column (14)
                 if (colIdx === 14) {
-                    const statusText = data.cell.text[0];
-                    if (statusText === 'ALERT') {
+                    const statusText = (data.cell.text[0] || '').trim().toUpperCase();
+                    if (statusText === 'RED' || statusText === 'ALERT') {
                         data.cell.styles.fillColor = [254, 226, 226];
                         data.cell.styles.textColor = [185, 28, 28];
                         data.cell.styles.fontStyle = 'bold';
-                    } else if (statusText === 'WARN') {
+                    } else if (statusText === 'ORANGE' || statusText === 'WARN') {
                         data.cell.styles.fillColor = [255, 237, 213];
                         data.cell.styles.textColor = [194, 65, 12];
                         data.cell.styles.fontStyle = 'bold';
-                    } else if (statusText === 'OK') {
-                        data.cell.styles.textColor = [16, 185, 129];
+                    } else if (statusText === 'GREEN' || statusText === 'OK') {
+                        data.cell.styles.fillColor = [236, 253, 245];
+                        data.cell.styles.textColor = [5, 150, 105];
                         data.cell.styles.fontStyle = 'bold';
                     }
                 }
@@ -10273,15 +10274,15 @@ function generateTemperaturePdf() {
 
     // Red Alert Line
     doc.setTextColor(185, 28, 28);
-    doc.text('● RED ALERT: Temperature > 80°C  |  OR  Temperature ≥ 50°C with Axle Difference |L - R| > 20°C  (Coach should be withdrawn from service)', marginX + 2, legendY + 4.5);
+    doc.text('● RED: Temperature > 80°C  |  OR  Temperature ≥ 50°C with Axle Difference |L - R| > 20°C  (Coach should be withdrawn from service)', marginX + 2, legendY + 4.5);
 
     // Orange Warning Line
     doc.setTextColor(194, 65, 12);
-    doc.text('● ORANGE WARNING: Temperature > 65°C with Axle Diff |L - R| ≤ 20°C  |  OR  Temperature < 50°C with Axle Diff |L - R| > 20°C  (check temperature at next halting station)', marginX + 2, legendY + 8.5);
+    doc.text('● ORANGE: Temperature > 65°C with Axle Diff |L - R| ≤ 20°C  |  OR  Temperature < 50°C with Axle Diff |L - R| > 20°C  (check temperature at next halting station)', marginX + 2, legendY + 8.5);
 
     // Normal Line
-    doc.setTextColor(16, 185, 129);
-    doc.text('● NORMAL: Temperature ≤ 65°C and Axle Difference |L - R| ≤ 20°C', marginX + 2, legendY + 12.5);
+    doc.setTextColor(5, 150, 105);
+    doc.text('● GREEN: Temperature ≤ 65°C and Axle Difference |L - R| ≤ 20°C', marginX + 2, legendY + 12.5);
 
     // Save and preview
     const safeTrain = String(basic.TrainNo || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
